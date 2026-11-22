@@ -7,7 +7,7 @@
 body{margin:0;background:#142034;color:#f4f7fd;font:16px system-ui}canvas{display:block}[hidden]{display:none!important}
 header{position:absolute;z-index:1;top:16px;left:16px;max-width:min(440px,calc(100vw - 72px));padding:14px 18px;background:#131e30ee;border:1px solid #42536f;border-radius:12px}
 h1{font-size:19px;margin:0 0 10px}label{display:block;margin-bottom:5px}select{font:inherit;color:inherit;background:#243652;border:1px solid #637a9d;border-radius:6px;padding:7px;max-width:100%}
-p{margin:9px 0}a{color:#90caff}details{margin-top:12px;border-top:1px solid #42536f;padding-top:9px}summary{cursor:pointer;font-weight:600;color:#b9d9f7}#detectedMaterials{max-height:160px;overflow:auto;font-size:12px;line-height:1.65;white-space:pre-wrap;color:#d5e0f0;margin-top:7px}
+p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-variant-numeric:tabular-nums;margin-top:8px}details{margin-top:12px;border-top:1px solid #42536f;padding-top:9px}summary{cursor:pointer;font-weight:600;color:#b9d9f7}#detectedMaterials{max-height:160px;overflow:auto;font-size:12px;line-height:1.65;white-space:pre-wrap;color:#d5e0f0;margin-top:7px}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
@@ -24,6 +24,13 @@ p{margin:9px 0}a{color:#90caff}details{margin-top:12px;border-top:1px solid #425
 <select id="appearance" disabled><option value="library">Biblioteca realista automática</option><option value="diagnostic">Diagnóstico: resaltar madera</option><option value="original">Originales del GLB</option><option value="clear">Realzar zonas oscuras (originales)</option></select>
 <p style="font-size:12px;color:#a6bbd2">Acabados propios por nombre del material en Fusion: hormigón, madera, inox, acero y pintura.</p>
 <p id="status" role="status">Cargando el visor…</p>
+<label for="quality">Calidad de visualización</label>
+<select id="quality" aria-label="Calidad gráfica">
+ <option value="optimized">Optimizada (más fluida)</option>
+ <option value="balanced">Equilibrada</option>
+ <option value="high">Alta resolución</option>
+</select>
+<p id="performance" role="status">Midiendo rendimiento…</p>
 <details><summary>Materiales y cuerpos detectados</summary><div id="detectedMaterials">Se mostrarán al abrir un diseño.</div></details>
 <p>En el ordenador, arrastra para girar y usa la rueda para acercarte.</p>
 <p>En VR, usa el mando izquierdo para caminar y el derecho para girar.</p>
@@ -39,6 +46,8 @@ import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 const status=document.querySelector('#status'), models=document.querySelector('#models');
 const orientation=document.querySelector('#orientation'), appearance=document.querySelector('#appearance');
 const detectedMaterials=document.querySelector('#detectedMaterials');
+const quality=document.querySelector('#quality');
+const performanceLabel=document.querySelector('#performance');
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x71839c);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.03,500);
@@ -56,7 +65,9 @@ renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.0;
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+// El zoom en pantallas HiDPI puede forzar muchos píxeles por fotograma.
+// Predeterminado a 1x, sin reducir calidad de los mapas de materiales.
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,1));
 renderer.xr.enabled=true;
 renderer.xr.setReferenceSpaceType('local-floor');
 // Reflejos PBR suaves: el inoxidable y el acero no parecen negros sin entorno.
@@ -67,6 +78,18 @@ scene.environmentIntensity=.75;
 room.dispose();pmrem.dispose();
 document.body.append(renderer.domElement);
 const controls=new OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true;
+controls.dampingFactor=.10;
+controls.zoomSpeed=.62;
+controls.minDistance=.15;
+controls.maxDistance=100;
+// Los cambios de calidad solo alteran la resolución de pantalla, no el modelo.
+function applyQuality(){
+  const cap=quality.value==='high'?1.5:quality.value==='balanced'?1.25:1.0;
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1,cap));
+  renderer.setSize(innerWidth,innerHeight);
+}
+quality.addEventListener('change',applyQuality);
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.MeshLambertMaterial({color:0x526479}));
 ground.rotation.x=-Math.PI/2;
 ground.position.y=-.012;
@@ -313,6 +336,7 @@ function stick(source){
   return axes?.length>=4?[axes[2],axes[3]]:[axes?.[0]??0,axes?.[1]??0];
 }
 const dead=n=>Math.abs(n)<.18?0:n;
+let meterStart=0,meterFrames=0,meterSlowest=0,meterLast=0;
 renderer.setAnimationLoop(time=>{
   const dt=lastTime?Math.min(.05,(time-lastTime)/1000):0;
   lastTime=time;
@@ -337,7 +361,22 @@ renderer.setAnimationLoop(time=>{
       rig.rotation.y+=angle;
     }
   }
+  if(!renderer.xr.isPresenting)controls.update(); // amortiguación de la rueda en escritorio
   renderer.render(scene,camera);
+  if(!meterStart)meterStart=time;
+  if(meterLast){
+    const frameMs=time-meterLast;
+    if(frameMs>0&&frameMs<250)meterSlowest=Math.max(meterSlowest,frameMs);
+  }
+  meterLast=time;
+  meterFrames++;
+  const windowMs=time-meterStart;
+  if(windowMs>=1000){
+    const fps=Math.round(meterFrames*1000/windowMs);
+    const worst=Math.round(meterSlowest);
+    performanceLabel.textContent=(renderer.xr.isPresenting?'VR':'PC')+': '+fps+' FPS · peor fotograma '+worst+' ms · '+renderer.info.render.calls+' grupos de dibujo';
+    meterStart=time;meterFrames=0;meterSlowest=0;
+  }
 });
 addEventListener('resize',()=>{
   camera.aspect=innerWidth/innerHeight;
