@@ -251,31 +251,40 @@ function isCladdingPanel(mesh){
   const size=box.getSize(new THREE.Vector3());
   return size.y>=.65&&Math.max(size.x,size.z)>=1.4&&Math.min(size.x,size.z)<=.38;
 }
-function materialFromLibrary(material,forcedKind=null){
+function materialFromLibrary(material,forcedKind=null,uvScale='standard'){
   const lib=globalThis.FusionMaterialLib,kind=forcedKind||lib?.identify(material?.name);
   if(!kind)return null;
-  let maps=surfaceTextures.get(kind);
+  const cacheKey=kind+(kind==='anthracite'&&uvScale==='cad'?'@fusion-cad-uv':'');
+  let maps=surfaceTextures.get(cacheKey);
   if(!maps){
     const images=lib.getMaps(kind);
     if(!images)return null;
     const cladding=kind==='cladding';
-    const tex=(canvas,isColor)=>cladding
-      ?libraryTexture(canvas,isColor,1)
-      :libraryTexture(canvas,isColor,images.tileMeters||1,images.tileMetersX,images.tileMetersY);
+    const tex=(canvas,isColor)=>{
+      const result=cladding
+        ?libraryTexture(canvas,isColor,1)
+        :libraryTexture(canvas,isColor,images.tileMeters||1,images.tileMetersX,images.tileMetersY);
+      // Fusion exporta algunos UV en centímetros (0..400 para una pieza de 4 m).
+      // Repetir el mapa cada 1 UV produce centenares de micro-repeticiones:
+      // el satinado se ve liso o mate. Corregimos sólo esa clase de UV.
+      if(kind==='anthracite'&&uvScale==='cad')result.repeat.set(.012,.012);
+      return result;
+    };
     maps={
       diffuse:tex(images.color,true),
       normal:tex(images.normal,false),
       rough:tex(images.roughness,false),
       config:images
     };
-    surfaceTextures.set(kind,maps);
+    surfaceTextures.set(cacheKey,maps);
   }
   const p=maps.config;
   const color=(kind==='paint'||kind==='plastic')&&material?.color?material.color.clone():new THREE.Color(0xffffff);
   const strength=kind==='anthracite'?.16:kind==='cladding'?.92:kind==='concrete'?1.0:
     ['pine','oak','wood'].includes(kind)?1.12:
     ['stainless','steel','blacksteel'].includes(kind)?.42:.6;
-  const replacement=new THREE.MeshStandardMaterial({
+  const MaterialClass=kind==='anthracite'?THREE.MeshPhysicalMaterial:THREE.MeshStandardMaterial;
+  const replacement=new MaterialClass({
     name:material.name,
     color,
     map:maps.diffuse,
@@ -285,17 +294,19 @@ function materialFromLibrary(material,forcedKind=null){
     roughnessMap:maps.rough,
     metalness:p.metalness,
     roughness:1,
-    envMapIntensity:kind==='anthracite'?1.12:1,
+    envMapIntensity:kind==='anthracite'?1.30:1,
+    ...(kind==='anthracite'?{clearcoat:.32,clearcoatRoughness:.30}:{}),
     side:THREE.DoubleSide,
     transparent:material.transparent,
     opacity:material.opacity??1
   });
   replacement.userData.fusionVrPreset=kind;
+  replacement.userData.fusionUvScale=uvScale;
   return replacement;
 }
 function applyLibrary(root){
   const substitutions=new Map();
-  let applied=0,panels=0;
+  let applied=0,panels=0,anthraciteMeshes=0,anthraciteCadUvMeshes=0;
   root.updateMatrixWorld(true);
   root.traverse(mesh=>{
     if(!mesh.isMesh)return;
@@ -305,9 +316,28 @@ function applyLibrary(root){
       if(!original)return original;
       const originalKind=globalThis.FusionMaterialLib?.identify(original.name);
       const kind=cladding?'cladding':originalKind==='cladding'?'pine':originalKind;
-      const key=(kind||'unknown')+':'+original.uuid;
+      let uvScale='standard';
+      if(kind==='anthracite'){
+        anthraciteMeshes++;
+        const uv=mesh.geometry?.getAttribute('uv');
+        if(uv?.count){
+          // Usar los metadatos del buffer si existen, sin iterar todo el modelo.
+          // Detectar un rango excesivo, característico del mapeado CAD.
+          let minU=Infinity,maxU=-Infinity,minV=Infinity,maxV=-Infinity;
+          const step=Math.max(1,Math.floor(uv.count/512));
+          for(let i=0;i<uv.count;i+=step){
+            const u=uv.getX(i),v=uv.getY(i);
+            minU=Math.min(minU,u);maxU=Math.max(maxU,u);
+            minV=Math.min(minV,v);maxV=Math.max(maxV,v);
+          }
+          if(Math.max(maxU-minU,maxV-minV)>32){
+            uvScale='cad';anthraciteCadUvMeshes++;
+          }
+        }
+      }
+      const key=(kind||'unknown')+':'+uvScale+':'+original.uuid;
       if(substitutions.has(key))return substitutions.get(key);
-      const next=materialFromLibrary(original,kind);
+      const next=materialFromLibrary(original,kind,uvScale);
       substitutions.set(key,next||original);
       if(next)applied++;
       return next||original;
@@ -315,6 +345,8 @@ function applyLibrary(root){
     mesh.material=Array.isArray(mesh.material)?mesh.material.map(change):change(mesh.material);
   });
   root.userData.fusionVrCladdingPanels=panels;
+  root.userData.fusionVrAnthraciteMeshes=anthraciteMeshes;
+  root.userData.fusionVrAnthraciteCadUvMeshes=anthraciteCadUvMeshes;
   return applied;
 }
 // Fusion exporta algunos diseños con Z vertical; glTF convencional usa Y vertical.
@@ -559,7 +591,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.36 · caminar, escaleras y pintura satinada';
+versionLabel.textContent='Visor VR 0.37 · antracita satinada corregida';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -946,7 +978,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.36';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.37';
     vrButton.hidden=false;
     return true;
   }catch(error){
