@@ -1,4 +1,4 @@
-/* Fusion VR Studio - biblioteca de materiales PBR v8.
+/* Fusion VR Studio - biblioteca de materiales PBR v9.
    Materiales propios: identifica por nombre, aplica un único material por cuerpo.
    Los mapas se generan localmente en el navegador y se incrustan al exportar FBX->GLB.
 */
@@ -163,6 +163,45 @@ async function remotePBR(kind){
    roughnessFactor:spec.roughness,tileMeters:info.meters,
    label:spec.label,photographic:true,source:'Poly Haven · '+info.slug};
 }
+
+const localPBR={
+ cladding:{
+   color:'assets/materiales/pino_revestimiento_8x2m_color.jpg',
+   normal:'assets/materiales/pino_revestimiento_8x2m_normal.jpg',
+   rough:'assets/materiales/pino_revestimiento_8x2m_rough.jpg',
+   tileMetersX:8,tileMetersY:2,
+   source:'Fusion VR · imagen aprobada · atlas fotográfico 8 × 2 m'
+ },
+ concrete:{
+   color:'assets/materiales/hormigon_arquitectonico_color.jpg',
+   normal:'assets/materiales/hormigon_arquitectonico_normal.jpg',
+   rough:'assets/materiales/hormigon_arquitectonico_rough.jpg',
+   tileMeters:1.15,
+   source:'Fusion VR · hormigón gris fotográfico local'
+ }
+};
+function canvasNative(image){
+ const c=document.createElement('canvas');
+ c.width=image.naturalWidth||image.width;
+ c.height=image.naturalHeight||image.height;
+ c.getContext('2d').drawImage(image,0,0,c.width,c.height);
+ return c;
+}
+async function prepareLocalPBR(kind){
+ if(prepared.has(kind))return prepared.get(kind);
+ const set=localPBR[kind],spec=specs[kind];
+ const files=[set.color,set.normal,set.rough];
+ const [c,n,r]=await Promise.all(files.map(fetchPhoto));
+ const asset={
+  kind,color:canvasNative(c),normal:canvasNative(n),roughness:canvasNative(r),
+  metalness:spec.metalness,roughnessFactor:spec.roughness,
+  tileMeters:set.tileMeters||1,tileMetersX:set.tileMetersX,tileMetersY:set.tileMetersY,
+  label:spec.label,photographic:true,source:set.source
+ };
+ prepared.set(kind,asset);
+ return asset;
+}
+
 async function prepare(){
  await Promise.all(['pine','oak','wood'].map(async kind=>{
   if(prepared.has(kind))return;
@@ -200,15 +239,18 @@ async function prepare(){
   pending.set(kind,promise);
   try{await promise}finally{pending.delete(kind)}
  }));
- // Intentar primero un PBR fotografiado específicamente con nudos bien visibles.
- // Si la red falla, se usa la fotografía de pino guardada en el repositorio.
- if(!prepared.has('cladding')){
-  let source=null;
-  try{source=await remotePBR('cladding');if(source)remoteLoaded++}
-  catch(error){console.info('Pino con nudos remoto no disponible; usando foto local:',error.message)}
-  try{prepared.set('cladding',await createPhotoCladding(source))}
-  catch(error){console.warn('No se pudo crear el revestimiento fotográfico:',error.message)}
- }
+ // Estos dos mapas son recursos propios, subidos a GitHub con el proyecto.
+ // No requieren Poly Haven ni generar el atlas al abrir el diseño.
+ await Promise.all(['cladding','concrete'].map(async kind=>{
+  try{await prepareLocalPBR(kind)}
+  catch(error){
+   console.warn('Material local '+kind+' no disponible; uso respaldo:',error.message);
+   if(kind==='cladding'){
+    try{prepared.set('cladding',await createPhotoCladding())}
+    catch(e){console.warn('No se pudo crear el respaldo fotográfico:',e.message)}
+   }
+  }
+ }));
 }
 
 
@@ -451,5 +493,5 @@ function getMaps(kind){
  const data={kind,color,normal,roughness:rough,metalness:spec.metalness,roughnessFactor:spec.roughness,tileMeters:kind==='concrete'?1.10:kind==='pine'?.55:kind==='oak'?.70:kind==='wood'?.85:1,label:spec.label,source:'Procedural'};
  cache.set(kind,data);return data;
 }
-root.FusionMaterialLib={version:8,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded},getSource(kind){return getMaps(kind)?.source||'Desconocida'}};
+root.FusionMaterialLib={version:9,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded},getSource(kind){return getMaps(kind)?.source||'Desconocida'}};
 })(globalThis);
