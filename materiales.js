@@ -1,4 +1,4 @@
-/* Fusion VR Studio - biblioteca de materiales PBR v9.
+/* Fusion VR Studio - biblioteca de materiales PBR v10.
    Materiales propios: identifica por nombre, aplica un único material por cuerpo.
    Los mapas se generan localmente en el navegador y se incrustan al exportar FBX->GLB.
 */
@@ -6,6 +6,7 @@
 'use strict';
 const specs={
  cladding:{label:'Revestimiento pino claro 200 × 2000 mm',metalness:0,roughness:.78,size:1024},
+ anthracite:{label:'Pintura antracita satinada · RAL 7016 aproximado',metalness:.10,roughness:.39,size:512},
  pine:{label:'Pino natural',metalness:0,roughness:.80,size:768},
  oak:{label:'Roble',metalness:0,roughness:.70,size:768},
  wood:{label:'Madera',metalness:0,roughness:.75,size:768},
@@ -31,9 +32,13 @@ const aliases=Object.freeze({
  'inox':'stainless','inoxidable':'stainless',
  'steel':'steel','acero':'steel','hierro':'steel',
  'paint':'paint','pintura':'paint','lacado':'paint',
+ 'antracita':'anthracite','gris antracita':'anthracite','anthracite':'anthracite',
+ 'pintura antracita':'anthracite','pintura gris antracita':'anthracite',
+ 'ral 7016':'anthracite','ral7016':'anthracite',
  'abs':'plastic','plastic':'plastic','plastico':'plastic'
 });
 const rules=[
+ {kind:'anthracite',test:/\b(antracita|anthracite|ral\s*7016)\b|\b7016\b/},
  {kind:'cladding',test:/\b(revestimiento|friso|panelado|cladding|siding|entablado|lambriz|tablones?)\b/},
  {kind:'concrete',test:/\b(concrete|hormigon|cemento?|mortero|microcemento|cementitious)\b/},
  {kind:'stainless',test:/\b(inox|inoxidable|stainless|ss\s?(304|316)|aisi\s?(304|316)|304l|316l)\b|acero[\s_-]*inoxidable/},
@@ -187,6 +192,44 @@ function canvasNative(image){
  c.getContext('2d').drawImage(image,0,0,c.width,c.height);
  return c;
 }
+// La fotografía aprobada incluye algunas juntas casi negras (2-3 píxeles).
+// Sólo se suavizan filas oscuras que cruzan casi todo el atlas, nunca nudos
+// ni vetas locales. Conserva una sombra fina, sin borrar la separación.
+function softenCladdingSeams(canvas){
+ const ctx=canvas.getContext('2d',{willReadFrequently:true});
+ const w=canvas.width,h=canvas.height;
+ const img=ctx.getImageData(0,0,w,h),data=img.data;
+ const brightness=new Float32Array(h);
+ for(let y=0;y<h;y++){
+   let sum=0,count=0;
+   for(let x=8;x<w-8;x+=32){
+     const i=(y*w+x)*4;
+     sum+=.2126*data[i]+.7152*data[i+1]+.0722*data[i+2];
+     count++;
+   }
+   brightness[y]=sum/Math.max(1,count);
+ }
+ const seamRows=[];
+ for(let y=4;y<h-4;y++){
+   const target=(brightness[y-3]+brightness[y+3])/2;
+   // Sólo las sombras realmente fuertes y extendidas de borde a borde.
+   if(brightness[y]<target-24)seamRows.push(y);
+ }
+ if(!seamRows.length)return;
+ const original=new Uint8ClampedArray(data);
+ for(const y of seamRows){
+   for(let x=0;x<w;x++){
+     const at=(y*w+x)*4;
+     const before=((y-3)*w+x)*4,after=((y+3)*w+x)*4;
+     for(let c=0;c<3;c++){
+       const adjacent=(original[before+c]+original[after+c])*.5;
+       // Mantener ~18% de la sombra para que sigan viéndose las juntas.
+       data[at+c]=clamp(original[at+c]*.18+adjacent*.82);
+     }
+   }
+ }
+ ctx.putImageData(img,0,0);
+}
 async function prepareLocalPBR(kind){
  if(prepared.has(kind))return prepared.get(kind);
  const set=localPBR[kind],spec=specs[kind];
@@ -198,6 +241,7 @@ async function prepareLocalPBR(kind){
   tileMeters:set.tileMeters||1,tileMetersX:set.tileMetersX,tileMetersY:set.tileMetersY,
   label:spec.label,photographic:true,source:set.source
  };
+ if(kind==='cladding')softenCladdingSeams(asset.color);
  prepared.set(kind,asset);
  return asset;
 }
@@ -439,7 +483,7 @@ function getMaps(kind){
  for(const c of [color,normal,rough]){c.width=n;c.height=n;}
  const colorCtx=color.getContext('2d'),normalCtx=normal.getContext('2d'),roughCtx=rough.getContext('2d');
  const colorPixels=colorCtx.createImageData(n,n),normalPixels=normalCtx.createImageData(n,n),roughPixels=roughCtx.createImageData(n,n),height=new Float32Array(total);
- const base=kind==='pine'?[179,126,72]:kind==='oak'?[143,105,68]:kind==='wood'?[150,110,74]:kind==='concrete'?[139,139,131]:kind==='stainless'?[194,199,203]:kind==='steel'?[123,132,141]:kind==='blacksteel'?[43,48,54]:kind==='paint'?[183,186,189]:[160,164,169];
+ const base=kind==='anthracite'?[54,57,60]:kind==='pine'?[179,126,72]:kind==='oak'?[143,105,68]:kind==='wood'?[150,110,74]:kind==='concrete'?[139,139,131]:kind==='stainless'?[194,199,203]:kind==='steel'?[123,132,141]:kind==='blacksteel'?[43,48,54]:kind==='paint'?[183,186,189]:[160,164,169];
  for(let y=0;y<n;y++){const v=y/n;
   for(let x=0;x<n;x++){
    const u=x/n,i=y*n+x,k=i*4;
@@ -465,6 +509,11 @@ function getMaps(kind){
      variation=7*brushed+9*(fine-.5)+7*(large-.5);
      h=.5+brushed*.035+(fine-.5)*.025;
      r+=.09*(fine-.5);
+   }else if(kind==='anthracite'){
+     // Polvo/lacado satinado: acabado fino, sin rayas cepilladas ni brillo metálico.
+     variation=2.8*(large-.5)+2.4*(fine-.5)+1.3*(grain-.5);
+     h=.5+(fine-.5)*.006+(grain-.5)*.009;
+     r+=.018*(fine-.5)+.012*(grain-.5);
    }else{
      variation=3*(large-.5)+3*(fine-.5);
      h=.5+(grain-.5)*.018;r+=.035*(grain-.5);
@@ -476,7 +525,7 @@ function getMaps(kind){
    height[i]=h;
   }
  }
- const power=wood?.75:kind==='concrete'?1.2:metal?.33:.09;
+ const power=wood?.75:kind==='concrete'?1.2:metal?.33:kind==='anthracite'?.045:.09;
  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
   const i=y*n+x,k=4*i,left=height[y*n+(x+n-1)%n],right=height[y*n+(x+1)%n],
    above=height[((y+n-1)%n)*n+x],below=height[((y+1)%n)*n+x];
@@ -493,5 +542,5 @@ function getMaps(kind){
  const data={kind,color,normal,roughness:rough,metalness:spec.metalness,roughnessFactor:spec.roughness,tileMeters:kind==='concrete'?1.10:kind==='pine'?.55:kind==='oak'?.70:kind==='wood'?.85:1,label:spec.label,source:'Procedural'};
  cache.set(kind,data);return data;
 }
-root.FusionMaterialLib={version:9,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded},getSource(kind){return getMaps(kind)?.source||'Desconocida'}};
+root.FusionMaterialLib={version:10,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded},getSource(kind){return getMaps(kind)?.source||'Desconocida'}};
 })(globalThis);
