@@ -70,6 +70,9 @@ renderer.toneMappingExposure=1.0;
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1));
 renderer.xr.enabled=true;
 renderer.xr.setReferenceSpaceType('local-floor');
+// Perfil de prueba Quest 2: controla el coste de renderizado estéreo.
+// Debe establecerse ANTES de entrar en la sesión WebXR.
+renderer.xr.setFramebufferScaleFactor(.8);
 // Reflejos PBR suaves: el inoxidable y el acero no parecen negros sin entorno.
 const pmrem=new THREE.PMREMGenerator(renderer);
 const room=new RoomEnvironment();
@@ -323,6 +326,8 @@ async function openModel(){
   }catch(error){if(load===generation)status.textContent='No se pudo abrir el diseño. '+error.message}
 }
 renderer.xr.addEventListener('sessionstart',()=>{
+  // Reducción periférica de resolución cuando el compositor lo permita.
+  if(typeof renderer.xr.setFoveation==='function')renderer.xr.setFoveation(.65);
   controls.enabled=false;
   rig.position.set(0,0,distance);
   rig.rotation.set(0,0,0);
@@ -374,7 +379,7 @@ renderer.setAnimationLoop(time=>{
   if(windowMs>=1000){
     const fps=Math.round(meterFrames*1000/windowMs);
     const worst=Math.round(meterSlowest);
-    performanceLabel.textContent=(renderer.xr.isPresenting?'VR':'PC')+': '+fps+' FPS · peor fotograma '+worst+' ms · '+renderer.info.render.calls+' grupos de dibujo';
+    performanceLabel.textContent=(renderer.xr.isPresenting?'Quest/VR':'PC')+': '+fps+' FPS · peor fotograma '+worst+' ms · '+renderer.info.render.calls+' grupos de dibujo';
     meterStart=time;meterFrames=0;meterSlowest=0;
   }
 });
