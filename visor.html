@@ -44,8 +44,8 @@ p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-va
 <option value="65" selected>Normal · 65°/s</option>
 <option value="100">Rápida · 100°/s</option>
 </select>
-<p>En VR, usa el mando izquierdo para caminar y mueve la palanca derecha para girar. Si notas mareo, cambia a giro por pasos.</p>
-<a href="./">Volver a la biblioteca</a>
+<p>En VR, usa el mando izquierdo para caminar y la palanca derecha para girar. <strong>Pulsa X en el mando izquierdo para abrir la biblioteca dentro de VR.</strong> Apunta a un diseño y selecciónalo con el gatillo. Si notas mareo, cambia a giro por pasos.</p>
+<a href="./quest.html">Volver a la biblioteca</a>
 </header>
 <script type="module">
 import * as THREE from 'three';
@@ -259,6 +259,159 @@ function materialStats(root){
  });
  return {materials:materials.size,textured:textured.size};
 }
+// Biblioteca tridimensional dentro del modo inmersivo: no hace falta salir de VR.
+const MENU_W=1024,MENU_H=768,MENU_PAGE_SIZE=5;
+const menuCanvas=document.createElement('canvas');
+menuCanvas.width=MENU_W;menuCanvas.height=MENU_H;
+const menuCtx=menuCanvas.getContext('2d');
+const menuTexture=new THREE.CanvasTexture(menuCanvas);
+menuTexture.colorSpace=THREE.SRGBColorSpace;
+const menuBoard=new THREE.Mesh(
+  new THREE.PlaneGeometry(1.8,1.35),
+  new THREE.MeshBasicMaterial({map:menuTexture,side:THREE.DoubleSide,depthTest:false,depthWrite:false})
+);
+menuBoard.renderOrder=999;
+const menuGroup=new THREE.Group();
+menuGroup.add(menuBoard);
+menuGroup.visible=false;
+scene.add(menuGroup);
+let menuPage=0,menuBusy=false,menuNote='',menuHovered='';
+const menuRaycaster=new THREE.Raycaster();
+const menuControllerObjects=[];
+for(let i=0;i<2;i++){
+  const controller=renderer.xr.getController(i);
+  const rayGeometry=new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0,0,0),new THREE.Vector3(0,0,-2.5)
+  ]);
+  const laser=new THREE.Line(rayGeometry,new THREE.LineBasicMaterial({
+    color:0x79e9ff,transparent:true,opacity:.85,depthTest:false
+  }));
+  laser.visible=false;
+  laser.renderOrder=1000;
+  controller.add(laser);
+  scene.add(controller);
+  menuControllerObjects.push({controller,laser});
+  controller.addEventListener('selectstart',()=>{
+    if(!renderer.xr.isPresenting||!menuGroup.visible||menuBusy)return;
+    const hit=menuHit(controller);
+    if(hit)void activateMenuHit(hit);
+  });
+}
+function drawVRMenu(){
+  const ctx=menuCtx;
+  ctx.fillStyle='#0c1b2e';ctx.fillRect(0,0,MENU_W,MENU_H);
+  ctx.strokeStyle='#6bb6e8';ctx.lineWidth=6;ctx.strokeRect(8,8,MENU_W-16,MENU_H-16);
+  ctx.textBaseline='middle';
+  ctx.font='bold 57px system-ui';ctx.fillStyle='#ffffff';
+  ctx.fillText('BIBLIOTECA VR',75,82);
+  ctx.font='25px system-ui';ctx.fillStyle='#a7d6f5';
+  ctx.fillText('Apunta al diseño y pulsa el gatillo',75,137);
+  const start=menuPage*MENU_PAGE_SIZE;
+  for(let i=0;i<MENU_PAGE_SIZE;i++){
+    const option=models.options[start+i];
+    const cy=210+82*i;
+    if(!option)continue;
+    const active=menuHovered==='model:'+i,selected=option.value===models.value;
+    ctx.fillStyle=active?'#306e83':selected?'#305479':'#1d344e';
+    ctx.fillRect(70,cy-34,884,68);
+    if(selected){ctx.fillStyle='#87ffcd';ctx.fillRect(70,cy-34,8,68)}
+    ctx.fillStyle='#ffffff';ctx.font='bold 35px system-ui';
+    const textName=(option.textContent||'Diseño').slice(0,38);
+    ctx.fillText(textName,101,cy,790);
+    if(selected){ctx.font='20px system-ui';ctx.fillStyle='#87ffcd';ctx.fillText('ABIERTO',788,cy)}
+  }
+  function footer(key,label,x,w){
+    ctx.fillStyle=menuHovered===key?'#32718a':'#254663';
+    ctx.fillRect(x,635,w,90);
+    ctx.font='bold 27px system-ui';ctx.fillStyle='#fff';ctx.textAlign='center';
+    ctx.fillText(label,x+w/2,681);
+    ctx.textAlign='left';
+  }
+  footer('prev','◀ Anterior',52,258);
+  footer('close','Cerrar',372,278);
+  footer('next','Siguiente ▶',711,258);
+  ctx.fillStyle='#a8d5ee';ctx.font='22px system-ui';ctx.textAlign='center';
+  ctx.fillText(menuNote||'Pulsa X para abrir o cerrar este menú',MENU_W/2,594);
+  ctx.textAlign='left';
+  ctx.fillStyle='#b2c9df';ctx.font='18px system-ui';ctx.textAlign='right';
+  ctx.fillText('Página '+(menuPage+1)+' / '+Math.max(1,Math.ceil(models.options.length/MENU_PAGE_SIZE)),970,139);
+  ctx.textAlign='left';
+  menuTexture.needsUpdate=true;
+}
+function menuHit(controller){
+  controller.updateMatrixWorld(true);
+  menuRaycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+  menuRaycaster.ray.direction.set(0,0,-1).transformDirection(controller.matrixWorld);
+  const intersection=menuRaycaster.intersectObject(menuBoard,false)[0];
+  if(!intersection?.uv)return null;
+  const px=intersection.uv.x*MENU_W,py=(1-intersection.uv.y)*MENU_H;
+  if(px>=70&&px<=954){
+    for(let i=0;i<MENU_PAGE_SIZE;i++){
+      if(py>=176+82*i&&py<=244+82*i&&models.options[menuPage*MENU_PAGE_SIZE+i])
+        return {type:'model',i};
+    }
+  }
+  if(py>=635&&py<=725){
+    if(px>=52&&px<=310)return {type:'prev'};
+    if(px>=372&&px<=650)return {type:'close'};
+    if(px>=711&&px<=969)return {type:'next'};
+  }
+  return null;
+}
+function closeVRMenu(){
+  menuGroup.visible=false;
+  menuHovered='';
+  menuNote='';
+  for(const {laser} of menuControllerObjects)laser.visible=false;
+}
+function showVRMenu(){
+  if(!renderer.xr.isPresenting||!models.options.length)return;
+  const index=Array.from(models.options).findIndex(o=>o.value===models.value);
+  menuPage=Math.floor(Math.max(0,index)/MENU_PAGE_SIZE);
+  menuBusy=false;menuNote='';menuHovered='';
+  const headset=renderer.xr.getCamera();
+  headset.updateMatrixWorld(true);
+  const eye=new THREE.Vector3(),direction=new THREE.Vector3();
+  headset.getWorldPosition(eye);
+  headset.getWorldDirection(direction);
+  direction.y=0;
+  if(direction.lengthSq()<.001)direction.set(0,0,-1);
+  direction.normalize();
+  menuGroup.position.copy(eye).addScaledVector(direction,1.65);
+  menuGroup.rotation.set(0,Math.atan2(-direction.x,-direction.z),0);
+  menuGroup.visible=true;
+  for(const {laser} of menuControllerObjects)laser.visible=true;
+  drawVRMenu();
+}
+async function activateMenuHit(hit){
+  if(menuBusy)return;
+  if(hit.type==='close'){closeVRMenu();return}
+  if(hit.type==='prev'){
+    if(menuPage>0){menuPage--;menuHovered='';drawVRMenu()}
+    return;
+  }
+  if(hit.type==='next'){
+    const max=Math.max(0,Math.ceil(models.options.length/MENU_PAGE_SIZE)-1);
+    if(menuPage<max){menuPage++;menuHovered='';drawVRMenu()}
+    return;
+  }
+  if(hit.type==='model'){
+    const selected=models.options[menuPage*MENU_PAGE_SIZE+hit.i];
+    if(!selected)return;
+    if(models.value===selected.value){closeVRMenu();return}
+    menuBusy=true;menuNote='Cargando '+selected.textContent+'…';drawVRMenu();
+    const previous=models.value;
+    models.value=selected.value;
+    const success=await openModel();
+    menuBusy=false;
+    if(success){closeVRMenu()}
+    else{
+      models.value=previous;
+      menuNote='Error al cargar. Prueba con otro diseño.';
+      drawVRMenu();
+    }
+  }
+}
 const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']});
 vrButton.hidden=true;
 document.body.append(vrButton);
@@ -347,10 +500,20 @@ async function openModel(){
     distance=Math.max(3,size.z/2+Math.max(size.x,size.y,2));
     height=size.y;
     scene.add(model);
-    desktopView();
+    if(renderer.xr.isPresenting){
+      // Cambia el diseño y recoloca al visitante sin cerrar la sesión inmersiva.
+      rig.position.set(0,0,distance);
+      rig.rotation.set(0,0,0);
+      smoothTurnAxis=0;
+    }else desktopView();
     status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'');
     vrButton.hidden=false;
-  }catch(error){if(load===generation)status.textContent='No se pudo abrir el diseño. '+error.message}
+    return true;
+  }catch(error){
+    if(load===generation)status.textContent='No se pudo abrir el diseño. '+error.message;
+    if(model)vrButton.hidden=false;
+    return false;
+  }
 }
 renderer.xr.addEventListener('sessionstart',()=>{
   // Reducción periférica de resolución cuando el compositor lo permita.
@@ -359,12 +522,16 @@ renderer.xr.addEventListener('sessionstart',()=>{
   rig.position.set(0,0,distance);
   rig.rotation.set(0,0,0);
   lastTime=0;
+  menuButtonHeld=false;
   canTurn=true;
   smoothTurnAxis=0;
+  closeVRMenu();
 });
 renderer.xr.addEventListener('sessionend',()=>{
+  menuButtonHeld=false;
   controls.enabled=true;
   smoothTurnAxis=0;
+  closeVRMenu();
   desktopView();
 });
 const forward=new THREE.Vector3(), right=new THREE.Vector3(), pivot=new THREE.Vector3(), turned=new THREE.Vector3();
@@ -388,6 +555,7 @@ function rotateAroundHeadset(headset,angle){
  rig.position.add(pivot).sub(turned);
  rig.rotation.y+=angle;
 }
+let menuButtonHeld=false;
 let meterStart=0,meterFrames=0,meterSlowest=0,meterLast=0;
 renderer.setAnimationLoop(time=>{
   const dt=lastTime?Math.min(.05,(time-lastTime)/1000):0;
@@ -397,6 +565,23 @@ renderer.setAnimationLoop(time=>{
     const inputs=Array.from(renderer.xr.getSession().inputSources);
     const [x,y]=stick(inputs.find(s=>s.handedness==='left'));
     const [turn]=stick(inputs.find(s=>s.handedness==='right'));
+    const left=inputs.find(s=>s.handedness==='left');
+    // WebXR Quest Touch: face button 4 = X, 5 = Y (también permite Y).
+    // Solo alterna al pulsar, no vuelve a alternar por mantenerlo presionado.
+    const menuPressed=Boolean(left?.gamepad?.buttons?.[4]?.pressed||left?.gamepad?.buttons?.[5]?.pressed);
+    if(menuPressed&&!menuButtonHeld){
+      if(menuGroup.visible){if(!menuBusy)closeVRMenu()}
+      else showVRMenu();
+    }
+    menuButtonHeld=menuPressed;
+    if(menuGroup.visible&&!menuBusy){
+      let nextHover='';
+      for(const {controller} of menuControllerObjects){
+        const hit=menuHit(controller);
+        if(hit){nextHover=hit.type+(hit.i===undefined?'':':'+hit.i);break}
+      }
+      if(nextHover!==menuHovered){menuHovered=nextHover;drawVRMenu()}
+    }
     forward.set(0,0,-1).transformDirection(headset.matrixWorld);
     forward.y=0;
     forward.normalize();
