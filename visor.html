@@ -12,7 +12,7 @@ p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-va
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js"></script>
+<script src="./materiales.js?v=5"></script>
 <header>
 <h1>Fusion VR Studio · Visor</h1>
 <label for="models">Diseño</label><select id="models" disabled></select>
@@ -228,7 +228,13 @@ function materialFromLibrary(material){
     color,
     map:maps.diffuse,
     normalMap:maps.normal,
-    normalScale:new THREE.Vector2(['stainless','steel','blacksteel'].includes(kind)?.24:.6,['stainless','steel','blacksteel'].includes(kind)?.24:.6),
+    // Normal OpenGL en espacio tangente: simula vetas y poros con luz y sombra,
+    // sin deformar cuerpos ni afectar a las colisiones del visor.
+    normalMapType:THREE.TangentSpaceNormalMap,
+    normalScale:new THREE.Vector2(
+      ['pine','oak','wood'].includes(kind)?1.35:kind==='concrete'?1.55:['stainless','steel','blacksteel'].includes(kind)?.42:.6,
+      ['pine','oak','wood'].includes(kind)?1.35:kind==='concrete'?1.55:['stainless','steel','blacksteel'].includes(kind)?.42:.6
+    ),
     roughnessMap:maps.rough,
     metalness:p.metalness,
     roughness:1,
@@ -498,7 +504,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.30 · PBR CC0';
+versionLabel.textContent='Visor VR 0.31 · veta fina y relieve PBR';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -881,7 +887,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/4 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.30';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/4 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.31';
     vrButton.hidden=false;
     return true;
   }catch(error){
