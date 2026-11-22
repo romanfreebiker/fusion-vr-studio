@@ -152,10 +152,10 @@ function applyQuality(){
   renderer.setSize(innerWidth,innerHeight);
 }
 quality.addEventListener('change',applyQuality);
-const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.MeshLambertMaterial({color:0x526479}));
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.MeshLambertMaterial({color:0x64707c}));
 ground.rotation.x=-Math.PI/2;
 ground.position.y=-.012;
-scene.add(ground,new THREE.GridHelper(400,400,0x8495a8,0x697b91));
+scene.add(ground);
 scene.add(new THREE.HemisphereLight(0xffffff,0x8b95a3,1.0));
 const sun=new THREE.DirectionalLight(0xfff3de,1.7);
 sun.position.set(4,8,6);
@@ -530,7 +530,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.25 · suelo local-floor';
+versionLabel.textContent='Visor VR 0.26 · suelo neutro';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
