@@ -33,6 +33,7 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRButton} from 'three/addons/webxr/VRButton.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 
 const status=document.querySelector('#status'), models=document.querySelector('#models');
 const orientation=document.querySelector('#orientation'), appearance=document.querySelector('#appearance');
@@ -56,6 +57,12 @@ renderer.toneMappingExposure=1.25;
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
 renderer.xr.enabled=true;
 renderer.xr.setReferenceSpaceType('local-floor');
+// Reflejos PBR suaves: el inoxidable y el acero no parecen negros sin entorno.
+const pmrem=new THREE.PMREMGenerator(renderer);
+const room=new RoomEnvironment();
+scene.environment=pmrem.fromScene(room,.04).texture;
+scene.environmentIntensity=.75;
+room.dispose();pmrem.dispose();
 document.body.append(renderer.domElement);
 const controls=new OrbitControls(camera,renderer.domElement);
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.MeshLambertMaterial({color:0x526479}));
@@ -173,7 +180,9 @@ function dispose(root){
       m.dispose();
     }
   });
-  for(const texture of textures)texture.dispose();
+  const shared=new Set();
+  for(const m of surfaceTextures.values()){shared.add(m.diffuse);shared.add(m.normal);shared.add(m.rough)}
+  for(const texture of textures)if(!shared.has(texture))texture.dispose();
 }
 async function openModel(){
   const load=++generation;
