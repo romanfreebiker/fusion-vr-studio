@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "actualizado": "2026-11-22T08:38:03.763Z",
+  "modelos": [
+    {
+      "id": "barbacoa-mwrl3t31",
+      "nombre": "barbacoa",
+      "categoria": "Viviendas",
+      "descripcion": "",
+      "archivo": "modelos/barbacoa-mwrl3t31.glb",
+      "miniatura": "",
+      "bytes": 271592,
+      "fecha": "2026-11-22T08:38:03.763Z"
+    }
+  ]
+}
