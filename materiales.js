@@ -1,4 +1,4 @@
-/* Fusion VR Studio - biblioteca de materiales PBR v7.
+/* Fusion VR Studio - biblioteca de materiales PBR v8.
    Materiales propios: identifica por nombre, aplica un único material por cuerpo.
    Los mapas se generan localmente en el navegador y se incrustan al exportar FBX->GLB.
 */
@@ -102,13 +102,15 @@ function calibrate(canvas,kind){
  // La fotografía original es madera oscura: se ajusta a pino claro
  // conservando la veta, los nudos y las variaciones fotográficas.
  if(kind!=='concrete'){
-  const color=kind==='pine'?[220,194,158]:kind==='oak'?[186,157,119]:[199,172,135];
+  const color=kind==='pine'||kind==='cladding'?[224,198,157]:kind==='oak'?[186,157,119]:[199,172,135];
   for(let i=0;i<px.length;i+=4){
    const l=.2126*px[i]+.7152*px[i+1]+.0722*px[i+2];
-   const variation=(l-112)*.45;
-   px[i]=clamp(color[0]+variation);
-   px[i+1]=clamp(color[1]+variation*.92);
-   px[i+2]=clamp(color[2]+variation*.80);
+   // Conservar el contraste fotográfico de nudos/vetas; sólo neutralizar el tinte rojo.
+   // La versión anterior aplicaba un contraste .45 y borraba los nudos.
+   const variation=(l-128)*.96;
+   px[i]=clamp(color[0]+variation+(px[i]-l)*.10);
+   px[i+1]=clamp(color[1]+variation*.95+(px[i+1]-l)*.10);
+   px[i+2]=clamp(color[2]+variation*.87+(px[i+2]-l)*.08);
   }
  }else{
   for(let i=0;i<px.length;i+=4){
@@ -123,6 +125,7 @@ function calibrate(canvas,kind){
 // cualquier GLB de Fusion; solo cambia la fuente de las fotografías PBR.
 // Si no hay red, falla CORS o se supera el tiempo, conservar la biblioteca local.
 const remoteAssets={
+ cladding:{slug:'stained_pine',meters:1},
  pine:{slug:'coated_pine',meters:.55},
  oak:{slug:'oak_veneer_01',meters:.70},
  wood:{slug:'white_oak_veneer',meters:.85},
@@ -154,7 +157,7 @@ async function remotePBR(kind){
  const [albedo,normal,roughness]=await limited(Promise.all(paths.map(fetchPhoto)),9000);
  const spec=specs[kind],col=photoCanvas(albedo);
  // Color constante y claro; conservar la información de veta, eliminar el tinte rojizo.
- if(kind==='pine'||kind==='wood'||kind==='oak')calibrate(col,kind);
+ if(kind==='pine'||kind==='wood'||kind==='oak'||kind==='cladding')calibrate(col,kind);
  return {kind,color:col,normal:photoCanvas(normal),
    roughness:photoCanvas(roughness),metalness:spec.metalness,
    roughnessFactor:spec.roughness,tileMeters:info.meters,
@@ -197,10 +200,13 @@ async function prepare(){
   pending.set(kind,promise);
   try{await promise}finally{pending.delete(kind)}
  }));
- // El atlas fotográfico del revestimiento se genera una sola vez a partir de
- // las fotos PBR LOCALES, sin depender de servidores externos ni CORS.
+ // Intentar primero un PBR fotografiado específicamente con nudos bien visibles.
+ // Si la red falla, se usa la fotografía de pino guardada en el repositorio.
  if(!prepared.has('cladding')){
-  try{prepared.set('cladding',await createPhotoCladding())}
+  let source=null;
+  try{source=await remotePBR('cladding');if(source)remoteLoaded++}
+  catch(error){console.info('Pino con nudos remoto no disponible; usando foto local:',error.message)}
+  try{prepared.set('cladding',await createPhotoCladding(source))}
   catch(error){console.warn('No se pudo crear el revestimiento fotográfico:',error.message)}
  }
 }
@@ -246,9 +252,17 @@ function mapsFromHeight(kind,w,h,paint,normalPower,tileX,tileY){
 // y cuatro tablones de 2 m por fila (40 piezas distintas).
 // Cada tablón usa una franja diferente de la fotografía REAL y su normal PBR,
 // sin la trama procedural de ladrillos de la versión anterior.
-async function createPhotoCladding(){
- const [photo,photoNormal,photoRough]=await Promise.all(
-   [photos.pine.color,photos.pine.normal,photos.pine.rough].map(fetchPhoto));
+async function createPhotoCladding(pbrSource=null){
+ const photosUsed=pbrSource||prepared.get('pine');
+ let photo,photoNormal,photoRough;
+ if(photosUsed){
+   // La fuente son los tres mapas PBR originales, no una veta sintetizada.
+   photo=photosUsed.color;photoNormal=photosUsed.normal;
+   photoRough=photosUsed.roughness;
+ }else{
+   [photo,photoNormal,photoRough]=await Promise.all(
+     [photos.pine.color,photos.pine.normal,photos.pine.rough].map(fetchPhoto));
+ }
  const w=2048,h=512,rowH=h/10,plankW=w/4;
  const sourceCanvases=[photo,photoNormal,photoRough].map(image=>{
    const c=document.createElement('canvas');
@@ -277,17 +291,35 @@ async function createPhotoCladding(){
    const c=document.createElement('canvas');c.width=w;c.height=h;return c;
  });
  const contexts=canvases.map(c=>c.getContext('2d'));
- // A 2 metros por tablón corresponden 512 px; usar el mismo factor de
- // escala en ambos ejes evita ensanchar artificialmente los nudos.
- const srcW=960,srcH=Math.round(srcW*rowH/plankW);
+ // Un recorte largo y estrecho puede dejar fuera todos los nudos.
+ // Se localizan las zonas fotográficas de mayor contraste, priorizando las
+ // vetas y nudos existentes en la fuente; nunca se dibujan nudos falsos.
+ const srcW=850,srcH=Math.round(srcW*rowH/plankW);
+ const sample=sourceCanvases[0].getContext('2d').getImageData(0,0,1024,1024).data;
+ const candidates=[];
+ for(let y=0;y<=1024-srcH;y+=Math.max(16,Math.floor(srcH/2))){
+   for(let x=0;x<=1024-srcW;x+=45){
+     let dark=0,range=0;
+     for(let yy=y;yy<y+srcH;yy+=6)for(let xx=x;xx<x+srcW;xx+=8){
+       const k=(yy*1024+xx)*4;
+       const v=(sample[k]*.2126+sample[k+1]*.7152+sample[k+2]*.0722);
+       if(v<155)dark++;
+       range+=Math.abs(v-190);
+     }
+     candidates.push({x,y,score:dark*8+range*.03});
+   }
+ }
+ candidates.sort((a,b)=>b.score-a.score);
+ const selected=candidates.slice(0,Math.max(10,Math.floor(candidates.length*.32)));
  for(let row=0;row<10;row++){
    const y=row*rowH;
    const offset=(row%2)?plankW/2:0; // juntas a 1 m, 3 m, 5 m... en filas alternas
    for(let column=-1;column<5;column++){
      const key=row*19+column+3;
      const x=column*plankW-offset;
-     const sourceX=Math.floor(hash(key,17,30)*(1024-srcW));
-     const sourceY=Math.floor(hash(key,11,63)*(1024-srcH));
+     const selectedPatch=selected[Math.min(selected.length-1,Math.floor(hash(key,17,30)*selected.length))];
+     const sourceX=selectedPatch?.x??0;
+     const sourceY=selectedPatch?.y??0;
      for(let k=0;k<3;k++){
        const ctx=contexts[k];
        ctx.save();ctx.beginPath();ctx.rect(Math.max(0,x),y,Math.min(plankW,w-x),rowH);ctx.clip();
@@ -305,7 +337,8 @@ async function createPhotoCladding(){
  }
  // Cambiar el color del pino oscuro rojizo manteniendo intacta la fotografía:
  // su luminancia produce las vetas y nudos reales, no ondas dibujadas.
- calibrate(canvases[0],'pine');
+ // Ya se calibró la fotografía original, no volver a blanquear el atlas.
+ if(!photosUsed)calibrate(canvases[0],'pine');
  const color=contexts[0],normal=contexts[1],roughness=contexts[2];
  // Juntas de 2-3 mm muy discretas: separación de tablas de madera,
  // no mortero ni líneas de ladrillo negras.
@@ -327,7 +360,7 @@ async function createPhotoCladding(){
  return {kind:'cladding',color:canvases[0],normal:canvases[1],roughness:canvases[2],
   metalness:0,roughnessFactor:.78,tileMetersX:8,tileMetersY:2,tileMeters:1,
   label:'Pino natural · tablas fotográficas de 200 × 2000 mm',
-  source:'Fotografía PBR local de pino · 40 piezas distintas'};
+  source:(pbrSource?'Poly Haven · stained_pine con nudos':photosUsed?.source||'Fotografía PBR local')+' · atlas 2m'};
 }
 function makeCladding(){
  // Sólo si falló la fotografía local: evitar volver al patrón de ladrillos.
@@ -418,5 +451,5 @@ function getMaps(kind){
  const data={kind,color,normal,roughness:rough,metalness:spec.metalness,roughnessFactor:spec.roughness,tileMeters:kind==='concrete'?1.10:kind==='pine'?.55:kind==='oak'?.70:kind==='wood'?.85:1,label:spec.label,source:'Procedural'};
  cache.set(kind,data);return data;
 }
-root.FusionMaterialLib={version:7,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded}};
+root.FusionMaterialLib={version:8,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded},getSource(kind){return getMaps(kind)?.source||'Desconocida'}};
 })(globalThis);
