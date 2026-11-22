@@ -53,7 +53,7 @@ try {
 renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.25;
+renderer.toneMappingExposure=1.0;
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
 renderer.xr.enabled=true;
 renderer.xr.setReferenceSpaceType('local-floor');
@@ -69,16 +69,17 @@ const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.MeshLambe
 ground.rotation.x=-Math.PI/2;
 ground.position.y=-.012;
 scene.add(ground,new THREE.GridHelper(400,400,0x8495a8,0x697b91));
-scene.add(new THREE.HemisphereLight(0xffffff,0x8b95a3,2.1));
-const sun=new THREE.DirectionalLight(0xfff3de,2);
+scene.add(new THREE.HemisphereLight(0xffffff,0x8b95a3,1.0));
+const sun=new THREE.DirectionalLight(0xfff3de,1.7);
 sun.position.set(4,8,6);
 scene.add(sun);
 const loader=new GLTFLoader();
 // Biblioteca propia de materiales, sin adivinar materiales según la posición de la pieza.
 const surfaceTextures=new Map();
-function libraryTexture(canvas,isColor){
+function libraryTexture(canvas,isColor,tileMeters=1){
   const texture=new THREE.CanvasTexture(canvas);
   texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+  texture.repeat.set(1/tileMeters,1/tileMeters);
   texture.flipY=false; // Los GLB guardan UV con el convenio glTF.
   texture.colorSpace=isColor?THREE.SRGBColorSpace:THREE.NoColorSpace;
   texture.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),4);
@@ -93,9 +94,9 @@ function materialFromLibrary(material){
     const images=lib.getMaps(kind);
     if(!images)return null;
     maps={
-      diffuse:libraryTexture(images.color,true),
-      normal:libraryTexture(images.normal,false),
-      rough:libraryTexture(images.roughness,false),
+      diffuse:libraryTexture(images.color,true,images.tileMeters||1),
+      normal:libraryTexture(images.normal,false,images.tileMeters||1),
+      rough:libraryTexture(images.roughness,false,images.tileMeters||1),
       config:images
     };
     surfaceTextures.set(kind,maps);
@@ -200,6 +201,11 @@ async function openModel(){
       case 'x': next.rotateZ(Math.PI/2); break;
       case '-x': next.rotateZ(-Math.PI/2); break;
       case '-y': next.rotateX(Math.PI); break;
+    }
+    if(appearance.value==='library'){
+      if(!globalThis.FusionMaterialLib)throw Error('No se pudo cargar nuestra biblioteca de materiales.');
+      status.textContent='Cargando fotografías PBR de madera y hormigón…';
+      await globalThis.FusionMaterialLib.prepare();
     }
     const applied=appearance.value==='library'?applyLibrary(next):0;
     if(appearance.value==='clear'){
