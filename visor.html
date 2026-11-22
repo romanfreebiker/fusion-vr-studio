@@ -591,7 +591,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.37 · antracita satinada corregida';
+versionLabel.textContent='Visor VR 0.38 · escaleras lentas al subir y bajar';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -663,11 +663,11 @@ let colliderMeshes=[],lastFloorY=0,modelFloorY=0,vrDiagnostics='';
 // Separar la altura física del apoyo de la altura visual evita que la cámara
 // salte instantáneamente al siguiente peldaño.
 let physicsFeetY=null;
-const STEP_VISUAL_SPEED=1.2; // metros por segundo (20 cm ≈ 0.17 s)
-const STEP_VISUAL_SMOOTHING=13; // amortiguación para el inicio y final
-// Caminar normal ~7% más lento; en escaleras ~50% más despacio.
-const WALK_SPEED=1.95,STAIR_SPEED_FACTOR=.49;
-let stairSlowUntil=0;
+const STEP_VISUAL_SPEED=.36; // 20 cm necesitan al menos ~0,56 s: subida natural
+const STEP_VISUAL_SMOOTHING=5; // suavizar la transición tanto al subir como al bajar
+// Caminar normal intacto; sobre peldaños movimiento horizontal lento.
+const WALK_SPEED=1.95,STAIR_SPEED_FACTOR=.34;
+let stairSlowUntil=0,lastStairContactMs=0;
 
 function normalOf(hit,target){
   normalMatrix.getNormalMatrix(hit.object.matrixWorld);
@@ -796,6 +796,18 @@ function solveMovement(headset,desired,dt){
   joystickMeters+=desired.length();
   if(physicsFeetY===null)physicsFeetY=rig.position.y;
   const feet=physicsFeetY;
+  // Detectar directamente cambios de superficie durante la resolución física.
+  // A diferencia del sondeo frontal, no falla cuando la nariz del avatar
+  // todavía está ante la contrahuella o acaba de abandonar un peldaño.
+  const preFloor=floorUnder(startX,startZ,feet);
+  if(desired.lengthSq()>1e-8){
+    const towards=desired.clone().normalize().multiplyScalar(.29);
+    const ahead=floorUnder(startX+towards.x,startZ+towards.z,feet);
+    if(Math.abs(ahead-preFloor)>.035&&Math.abs(ahead-preFloor)<MAX_STEP+.10){
+      lastStairContactMs=performance.now();
+      stairSlowUntil=Math.max(stairSlowUntil,lastStairContactMs+1100);
+    }
+  }
   liveHeadWallDepth=wallPenetration(startX,startZ,feet);
   let x=startX,z=startZ,footY=feet;
   const count=Math.max(1,Math.ceil(desired.length()/.018));
@@ -816,6 +828,8 @@ function solveMovement(headset,desired,dt){
       wallPenetration(x+step.x,z+step.z,candidateFloor)<.005&&
       wallClearance(x,z,candidateFloor,step)>=step.length()-.00001){
       x+=step.x;z+=step.z;footY=candidateFloor;
+      lastStairContactMs=performance.now();
+      stairSlowUntil=Math.max(stairSlowUntil,lastStairContactMs+1100);
       verticalVelocity=0;continue;
     }
     // Deslizar perpendicularmente a la pared, sin retroceso.
@@ -846,15 +860,19 @@ function solveMovement(headset,desired,dt){
     }
   }
   physicsFeetY=footY;
-  // Los escalones se resuelven instantáneamente para la física, pero la
-  // elevación de la vista se interpola: no hay teletransporte visual.
-  if(footY>rig.position.y){
-    const difference=footY-rig.position.y;
-    const eased=difference*(1-Math.exp(-STEP_VISUAL_SMOOTHING*dt));
-    rig.position.y+=Math.min(difference,Math.max(0,Math.min(STEP_VISUAL_SPEED*dt,eased)));
-    if(footY-rig.position.y<.003)rig.position.y=footY;
+  // El apoyo y las colisiones permanecen en el escalón físico correcto.
+  // La cámara se mueve despacio EN AMBAS DIRECCIONES; antes la bajada
+  // copiaba directamente footY, creando el salto brusco que notabas.
+  const visualDelta=footY-rig.position.y;
+  const isStairMotion=performance.now()<stairSlowUntil&&Math.abs(visualDelta)<=MAX_STEP+.12;
+  if(isStairMotion||visualDelta>0){
+    const easing=1-Math.exp(-STEP_VISUAL_SMOOTHING*dt);
+    const amount=Math.min(Math.abs(visualDelta),STEP_VISUAL_SPEED*dt,
+                          Math.abs(visualDelta)*easing);
+    rig.position.y+=Math.sign(visualDelta)*amount;
+    if(Math.abs(footY-rig.position.y)<.002)rig.position.y=footY;
   }else{
-    // Conservar el descenso guiado por gravedad que ya funcionaba bien.
+    // Caídas mayores de un peldaño conservan la gravedad y el apoyo físicos.
     rig.position.y=footY;
   }
   lastFloorY=surface;
@@ -864,7 +882,7 @@ function solveMovement(headset,desired,dt){
 }
 function resetPhysics(){
   physicsFeetY=null;
-  stairSlowUntil=0;
+  stairSlowUntil=0;lastStairContactMs=0;
   verticalVelocity=0;
   isGrounded=false;
   lastFloorY=0;
@@ -978,7 +996,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.37';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.38';
     vrButton.hidden=false;
     return true;
   }catch(error){
@@ -1109,7 +1127,7 @@ renderer.setAnimationLoop(time=>{
       const supportAhead=floorUnder(avatarHead.x+probe.x,avatarHead.z+probe.z,feet);
       const riseOrDrop=supportAhead-supportHere;
       if(Math.abs(riseOrDrop)>.045&&Math.abs(riseOrDrop)<=MAX_STEP+.06){
-        stairSlowUntil=time+470;
+        stairSlowUntil=time+1100;
       }
     }
     const walkingSpeed=time<stairSlowUntil?WALK_SPEED*STAIR_SPEED_FACTOR:WALK_SPEED;
