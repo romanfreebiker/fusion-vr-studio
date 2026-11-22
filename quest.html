@@ -28,7 +28,7 @@ a.back{color:#82cfff}
 <body>
 <main>
 <header><div class="small">META QUEST 2 · FUSION VR</div><h1>Elige un diseño</h1><p>Biblioteca conectada a GitHub. Selecciona el modelo que quieras visitar.</p></header>
-<div class="notice"><strong>Cómo entrar en realidad virtual:</strong> abre esta página desde el navegador de las Quest 2, pulsa un diseño y después el botón <strong>ENTER VR</strong> del visor. Al terminar, sal del modo VR para elegir otro.</div>
+<div class="notice"><strong>Cómo entrar en realidad virtual:</strong> abre esta página desde el navegador de las Quest 2, pulsa un diseño y después <strong>ENTER VR</strong>. Para cambiar de diseño sin salir de VR, pulsa <strong>X (o Y) en el mando izquierdo</strong>, apunta a otro diseño y aprieta el gatillo.</div>
 <section id="list" aria-label="Biblioteca de diseños"><p id="state">Cargando diseños de GitHub…</p></section>
 <p style="margin-top:28px" class="small"><a class="back" href="./">Volver al gestor de diseños para PC</a></p>
 </main>
@@ -49,6 +49,7 @@ try{
   name.className='caption';
   const viewer=new URL('./visor.html',location.href);
   viewer.searchParams.set('diseno',m.id);
+  viewer.searchParams.set('v','8'); // evita reutilizar la versión anterior del visor en Quest Browser
   card.href=viewer.href;
   if(m.miniatura&&/^miniaturas\/[a-zA-Z0-9_-]+\.(jpg|jpeg|png|webp)$/.test(m.miniatura)){
    const img=document.createElement('img');img.src=new URL(m.miniatura,location.href).href;
