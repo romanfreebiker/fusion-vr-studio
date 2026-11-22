@@ -4340,7 +4340,7 @@ thumbnailsButton.addEventListener('click',async()=>{
     await refresh();
     toast('Miniaturas creadas: '+done+(failed?' · errores: '+failed:''));
   }catch(error){toast('No se pudieron completar las miniaturas: '+error.message,true)}
-  finally{state.busy=false;thumbnailsButton.disabled=false;thumbnailsButton.textContent='▣ Generar miniaturas pendientes';}
+  finally{state.busy=false;thumbnailsButton.disabled=false;thumbnailsButton.textContent='▣ Generar miniaturas pendientes';render();}
 });
 $('searchInput').addEventListener('input',render);$('categoryFilter').addEventListener('change',render);$('refreshBtn').addEventListener('click',refresh);
 async function inspectGlb(file){
@@ -4423,7 +4423,7 @@ $('uploadForm').addEventListener('submit',async e=>{
    items.unshift(item);const payload={message:'Actualizar catálogo VR: '+name,content:jsonToB64({version:1,actualizado:new Date().toISOString(),modelos:items}),branch:state.branch};if(state.catalogSha)payload.sha=state.catalogSha;
    await request('PUT','catalogo.json',payload);progress(100,'¡Diseño publicado correctamente en GitHub!');$('uploadStatus').classList.add('good');$('uploadForm').reset();fileSelected();if(thumbPreviewUrl)URL.revokeObjectURL(thumbPreviewUrl);$('thumbPreview').replaceChildren(textNode('span','◈','fallback'));await refresh();toast('Diseño guardado: '+name);
  }catch(err){status('uploadStatus','No se completó la publicación: '+err.message+'\nSi el modelo se subió pero falló el catálogo, puede haber un archivo pendiente en GitHub.','bad');toast('Error al subir el diseño',true)}
- finally{state.busy=false;$('uploadBtn').disabled=false;setTimeout(()=>{$('uploadProgress').style.display='none';$('uploadBar').style.width='0%'},1200)}
+ finally{state.busy=false;$('uploadBtn').disabled=false;render();setTimeout(()=>{$('uploadProgress').style.display='none';$('uploadBar').style.width='0%'},1200)}
 });
 window.addEventListener('beforeunload',()=>{for(const u of state.thumbUrls.values())URL.revokeObjectURL(u);if(thumbPreviewUrl)URL.revokeObjectURL(thumbPreviewUrl)});
 const authRestored=restoreAuth();
