@@ -349,7 +349,7 @@ function drawVRMenu(){
   ctx.textBaseline='middle';
   ctx.font='bold 57px system-ui';ctx.fillStyle='#ffffff';
   ctx.fillText('BIBLIOTECA VR',75,82);
-  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.17',760,83);
+  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.18',760,83);
   ctx.font='25px system-ui';ctx.fillStyle='#a7d6f5';
   ctx.fillText('Apunta al diseño y pulsa el gatillo',75,137);
   const start=menuPage*MENU_PAGE_SIZE;
@@ -457,7 +457,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.17 · posición XR corregida';
+versionLabel.textContent='Visor VR 0.18 · subida suave de escalones';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -494,6 +494,11 @@ const floorNormal=new THREE.Vector3(),normalMatrix=new THREE.Matrix3();
 const WALKABLE_SLOPE=.67,SKIN=.045,MAX_STEP=.28;
 const probeOffsets=[0,-BODY_RADIUS*.72,BODY_RADIUS*.72];
 let colliderMeshes=[],lastFloorY=0,modelFloorY=0,vrDiagnostics='';
+// Separar la altura física del apoyo de la altura visual evita que la cámara
+// salte instantáneamente al siguiente peldaño.
+let physicsFeetY=null;
+const STEP_VISUAL_SPEED=1.2; // metros por segundo (20 cm ≈ 0.17 s)
+const STEP_VISUAL_SMOOTHING=13; // amortiguación para el inicio y final
 
 function normalOf(hit,target){
   normalMatrix.getNormalMatrix(hit.object.matrixWorld);
@@ -620,7 +625,8 @@ function solveMovement(headset,desired,dt){
   if(!lastTrackedHead)lastTrackedHead=new THREE.Vector3();
   lastTrackedHead.set(startX,avatarHead.y,startZ);
   joystickMeters+=desired.length();
-  const feet=rig.position.y;
+  if(physicsFeetY===null)physicsFeetY=rig.position.y;
+  const feet=physicsFeetY;
   liveHeadWallDepth=wallPenetration(startX,startZ,feet);
   let x=startX,z=startZ,footY=feet;
   const count=Math.max(1,Math.ceil(desired.length()/.018));
@@ -670,13 +676,25 @@ function solveMovement(headset,desired,dt){
       if(isGrounded)verticalVelocity=0;
     }
   }
-  rig.position.y=footY;
+  physicsFeetY=footY;
+  // Los escalones se resuelven instantáneamente para la física, pero la
+  // elevación de la vista se interpola: no hay teletransporte visual.
+  if(footY>rig.position.y){
+    const difference=footY-rig.position.y;
+    const eased=difference*(1-Math.exp(-STEP_VISUAL_SMOOTHING*dt));
+    rig.position.y+=Math.min(difference,Math.max(0,Math.min(STEP_VISUAL_SPEED*dt,eased)));
+    if(footY-rig.position.y<.003)rig.position.y=footY;
+  }else{
+    // Conservar el descenso guiado por gravedad que ya funcionaba bien.
+    rig.position.y=footY;
+  }
   lastFloorY=surface;
   vrDiagnostics='Paredes '+wallCount+' · bloqueos '+collisionStops+
     ' · joystick '+joystickMeters.toFixed(1)+'m · HMD '+startX.toFixed(2)+','+startZ.toFixed(2)+
     ' · pared '+liveHeadWallDepth.toFixed(3)+'m';
 }
 function resetPhysics(){
+  physicsFeetY=null;
   verticalVelocity=0;
   isGrounded=false;
   lastFloorY=0;
@@ -789,7 +807,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.17';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.18';
     vrButton.hidden=false;
     return true;
   }catch(error){
