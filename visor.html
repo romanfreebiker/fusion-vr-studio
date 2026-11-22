@@ -26,10 +26,11 @@ p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-va
 <p id="status" role="status">Cargando el visor…</p>
 <label for="quality">Calidad de visualización</label>
 <select id="quality" aria-label="Calidad gráfica">
- <option value="optimized">Optimizada (más fluida)</option>
- <option value="balanced">Equilibrada</option>
- <option value="high">Alta resolución</option>
+ <option value="optimized">Optimizada · más FPS (VR 70%)</option>
+ <option value="balanced" selected>Equilibrada · VR 85%</option>
+ <option value="high">Alta resolución · VR 105%</option>
 </select>
+<p id="qualityNote" style="font-size:12px;color:#a6e1f6">El modo elegido se aplicará al entrar en VR.</p>
 <p id="performance" role="status">Midiendo rendimiento…</p>
 <details><summary>Materiales y cuerpos detectados</summary><div id="detectedMaterials">Se mostrarán al abrir un diseño.</div></details>
 <p>En el ordenador, arrastra para girar y usa la rueda para acercarte.</p>
@@ -90,6 +91,7 @@ const status=document.querySelector('#status'), models=document.querySelector('#
 const orientation=document.querySelector('#orientation'), appearance=document.querySelector('#appearance');
 const detectedMaterials=document.querySelector('#detectedMaterials');
 const quality=document.querySelector('#quality');
+const qualityNote=document.querySelector('#qualityNote');
 const performanceLabel=document.querySelector('#performance');
 const turnMode=document.querySelector('#turnMode');
 const turnSpeed=document.querySelector('#turnSpeed');
@@ -133,7 +135,8 @@ renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 // Perfil de prueba Quest 2: controla el coste de renderizado estéreo.
 // Debe establecerse ANTES de entrar en la sesión WebXR.
-renderer.xr.setFramebufferScaleFactor(.8);
+// El factor real se establece por applyQuality() antes de iniciar WebXR.
+renderer.xr.setFramebufferScaleFactor(.85);
 // Reflejos PBR suaves: el inoxidable y el acero no parecen negros sin entorno.
 const pmrem=new THREE.PMREMGenerator(renderer);
 const room=new RoomEnvironment();
@@ -147,13 +150,32 @@ controls.dampingFactor=.10;
 controls.zoomSpeed=.62;
 controls.minDistance=.15;
 controls.maxDistance=100;
-// Los cambios de calidad solo alteran la resolución de pantalla, no el modelo.
+// Calidad VR real: más escala significa más píxeles en AMBOS ojos.
+// WebXR no permite cambiar el tamaño del framebuffer durante una sesión activa.
+const qualityProfiles={
+  optimized:{xrScale:.70,foveation:.80,desktopScale:1},
+  balanced:{xrScale:.85,foveation:.50,desktopScale:1.25},
+  high:{xrScale:1.05,foveation:.15,desktopScale:1.5}
+};
+let activeQuality=null;
+try{
+ const saved=localStorage.getItem('fusionvr-quality');
+ if(qualityProfiles[saved])quality.value=saved;
+}catch{}
 function applyQuality(){
-  const cap=quality.value==='high'?1.5:quality.value==='balanced'?1.25:1.0;
-  renderer.setPixelRatio(Math.min(devicePixelRatio||1,cap));
-  renderer.setSize(innerWidth,innerHeight);
+  const profile=qualityProfiles[quality.value]||qualityProfiles.balanced;
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1,profile.desktopScale));
+  if(!renderer.xr.isPresenting){
+    renderer.setSize(innerWidth,innerHeight);
+    renderer.xr.setFramebufferScaleFactor(profile.xrScale);
+    qualityNote.textContent='Modo VR preparado: '+quality.value+' · escala '+Math.round(profile.xrScale*100)+'%. Se aplica al entrar en VR.';
+  }else{
+    qualityNote.textContent='Para cambiar la resolución VR, sal de VR y vuelve a entrar. El cambio no se aplica durante la sesión.';
+  }
+  try{localStorage.setItem('fusionvr-quality',quality.value)}catch{}
 }
 quality.addEventListener('change',applyQuality);
+applyQuality();
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.MeshLambertMaterial({color:0xb9c3cd}));
 ground.rotation.x=-Math.PI/2;
 ground.position.y=-.012;
@@ -476,7 +498,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.28 · menú mínimo';
+versionLabel.textContent='Visor VR 0.29 · calidad XR real';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -869,8 +891,13 @@ async function openModel(){
   }
 }
 renderer.xr.addEventListener('sessionstart',()=>{
-  // Reducción periférica de resolución cuando el compositor lo permita.
-  if(typeof renderer.xr.setFoveation==='function')renderer.xr.setFoveation(.65);
+  // El framebuffer elegido ya se configuró ANTES de entrar en VR.
+  activeQuality=quality.value;
+  if(typeof renderer.xr.setFoveation==='function'){
+    renderer.xr.setFoveation(qualityProfiles[activeQuality]?.foveation??.50);
+  }
+  qualityNote.textContent='VR activo · '+activeQuality+' · escala '+Math.round((qualityProfiles[activeQuality]?.xrScale??.85)*100)+'%.';
+
   controls.enabled=false;
   rig.position.set(0,0,distance);
   rig.rotation.set(0,0,0);
@@ -902,7 +929,9 @@ renderer.xr.addEventListener('sessionend',()=>{
   smoothTurnAxis=0;
   closeVRMenu();
   desktopView();
+  activeQuality=null;
   if(returnToLibrary)location.assign(new URL('./quest.html',location.href).href);
+  else applyQuality();
 });
 const forward=new THREE.Vector3(), right=new THREE.Vector3(), pivot=new THREE.Vector3(), turned=new THREE.Vector3();
 function stick(source){
