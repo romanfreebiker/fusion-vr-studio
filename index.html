@@ -3863,6 +3863,8 @@ function Ou(o){
    t.name=o+(isColor?' color':' PBR');
    if(isColor)t.colorSpace=G;
    t.wrapS=t.wrapT=Ie;
+   const tile=images.tileMeters||1;
+   t.repeat.set(1/tile,1/tile);
    t.anisotropy=4;
    t.needsUpdate=true;
    return t;
@@ -4008,6 +4010,13 @@ function nav(view){state.activeView=view;document.querySelectorAll('[data-view]'
 function renderMaterialLibrary(){
  const area=$('materialGallery'),lib=globalThis.FusionMaterialLib;
  if(!lib){area.textContent='No se pudo cargar la biblioteca de materiales.';return}
+ if(area.dataset.prepared!=='yes'){
+  area.textContent='Cargando biblioteca fotográfica…';
+  lib.prepare().then(()=>{
+   area.dataset.prepared='yes';area.replaceChildren();renderMaterialLibrary();
+  }).catch(error=>{area.textContent='No se pudieron descargar los mapas PBR: '+error.message});
+  return;
+ }
  if(area.childElementCount)return;
  for(const [kind,spec] of Object.entries(lib.specs)){
   const tile=document.createElement('article');tile.className='tile';
@@ -4019,6 +4028,7 @@ function renderMaterialLibrary(){
   const body=document.createElement('div');body.className='tile-body';
   body.append(textNode('h3',spec.label));
   body.append(textNode('p','Nombre interno: '+kind,'muted tiny'));
+  if(lib.getMaps(kind).photographic)body.append(textNode('p','Textura fotográfica CC0','muted tiny'));
   body.append(textNode('p','Metal '+Math.round(spec.metalness*100)+' % · Rugosidad '+Math.round(spec.roughness*100)+' %','muted tiny'));
   tile.append(cover,body);area.append(tile);
  }
@@ -4223,7 +4233,9 @@ $('uploadForm').addEventListener('submit',async e=>{
  try{
    let model=f;
    if(isFbx){
-     progress(5,'Convirtiendo FBX a GLB en tu navegador...');
+     progress(5,'Preparando materiales fotográficos PBR...');
+     await globalThis.FusionMaterialLib.prepare();
+     progress(8,'Convirtiendo FBX a GLB en tu navegador...');
      const binary=await window.convertFusionFbx(await f.arrayBuffer());
      model=new Blob([binary],{type:'model/gltf-binary'});
      if(model.size>75*1048576)throw Error('El GLB convertido supera 75 MB.');
