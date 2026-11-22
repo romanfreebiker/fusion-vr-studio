@@ -1,4 +1,4 @@
-/* Fusion VR Studio - biblioteca de materiales PBR v1.
+/* Fusion VR Studio - biblioteca de materiales PBR v4.
    Materiales propios: identifica por nombre, aplica un único material por cuerpo.
    Los mapas se generan localmente en el navegador y se incrustan al exportar FBX->GLB.
 */
@@ -80,6 +80,7 @@ function fetchPhoto(path){
    const img=new Image();
    img.onload=()=>resolve(img);
    img.onerror=()=>reject(Error('No se pudo cargar textura: '+path));
+   if(/^https:\/\//.test(path))img.crossOrigin='anonymous';
    img.src=new URL(path,document.baseURI).href;
  });
  photoLoads.set(path,work);return work;
@@ -114,25 +115,84 @@ function calibrate(canvas,kind){
  }
  ctx.putImageData(im,0,0);
 }
+// Materiales CC0 de Poly Haven. Los nombres siguen siendo universales para
+// cualquier GLB de Fusion; solo cambia la fuente de las fotografías PBR.
+// Si no hay red, falla CORS o se supera el tiempo, conservar la biblioteca local.
+const remoteAssets={
+ pine:{slug:'coated_pine',meters:1.4},
+ oak:{slug:'oak_wood_planks',meters:1.7},
+ wood:{slug:'wood_floor',meters:1.7},
+ concrete:{slug:'rough_concrete',meters:1.8}
+};
+let remoteLoaded=0;
+const limited=(promise,ms)=>Promise.race([
+ promise,
+ new Promise((_,reject)=>setTimeout(()=>reject(Error('Se agotó el tiempo de descarga PBR')),ms))
+]);
+async function remotePBR(kind){
+ const info=remoteAssets[kind];
+ if(!info||typeof fetch!=='function')return null;
+ const response=await limited(fetch('https://api.polyhaven.com/files/'+info.slug,{mode:'cors'}),7000);
+ if(!response.ok)throw Error('Catálogo PBR HTTP '+response.status);
+ const index=await response.json();
+ // Poly Haven ofrece un árbol: tipo de mapa -> resolución -> formato -> url.
+ const pick=(keys)=>{
+   for(const key of keys){
+     const group=index[key]||index[Object.keys(index).find(k=>k.toLowerCase()===key.toLowerCase())];
+     const variant=group?.['1k'];
+     const entry=variant?.jpg||variant?.jpeg||variant?.png;
+     if(entry?.url && new URL(entry.url).hostname==='dl.polyhaven.org')return entry.url;
+   }
+   return null;
+ };
+ const paths=[pick(['Diffuse','diffuse']),pick(['nor_gl']),pick(['Rough','rough'])];
+ if(paths.some(x=>!x))throw Error('Mapas PBR incompletos');
+ const [albedo,normal,roughness]=await limited(Promise.all(paths.map(fetchPhoto)),9000);
+ const spec=specs[kind];
+ return {kind,color:photoCanvas(albedo),normal:photoCanvas(normal),
+   roughness:photoCanvas(roughness),metalness:spec.metalness,
+   roughnessFactor:spec.roughness,tileMeters:info.meters,
+   label:spec.label,photographic:true,source:'Poly Haven · '+info.slug};
+}
 async function prepare(){
  await Promise.all(['pine','oak','wood','concrete'].map(async kind=>{
   if(prepared.has(kind))return;
   if(pending.has(kind))return pending.get(kind);
-  const set=photos[kind==='concrete'?'concrete':'pine'];
   const promise=(async()=>{
-   const [color,normal,rough]=await Promise.all([set.color,set.normal,set.rough].map(fetchPhoto));
-   const col=photoCanvas(color);calibrate(col,kind);
-   const spec=specs[kind],value={
-    kind,color:col,normal:photoCanvas(normal),roughness:photoCanvas(rough),
-    metalness:spec.metalness,roughnessFactor:spec.roughness,
-    tileMeters:kind==='concrete'?1.6:1.15,label:spec.label,photographic:true
-   };
-   prepared.set(kind,value);return value;
+    try{
+      const asset=await remotePBR(kind);
+      if(asset){
+        prepared.set(kind,asset);
+        remoteLoaded++;
+        return asset;
+      }
+    }catch(error){
+      // No bloquear ningún modelo si no hay internet o falla un servidor.
+      console.info('PBR remoto no disponible para '+kind+', se usa respaldo local:',error.message);
+    }
+    const set=photos[kind==='concrete'?'concrete':'pine'];
+    try{
+      const [color,normal,rough]=await Promise.all([set.color,set.normal,set.rough].map(fetchPhoto));
+      const col=photoCanvas(color);calibrate(col,kind);
+      const spec=specs[kind],value={
+        kind,color:col,normal:photoCanvas(normal),roughness:photoCanvas(rough),
+        metalness:spec.metalness,roughnessFactor:spec.roughness,
+        tileMeters:kind==='concrete'?1.6:1.15,label:spec.label,
+        photographic:true,source:'Respaldo local'
+      };
+      prepared.set(kind,value);
+      return value;
+    }catch(error){
+      // Último recurso: mapas procedurales existentes.
+      console.warn('No hay fotos locales de '+kind, error);
+      return getMaps(kind);
+    }
   })();
   pending.set(kind,promise);
-  try{await promise;}finally{pending.delete(kind);}
+  try{await promise}finally{pending.delete(kind)}
  }));
 }
+
 const cache=new Map();
 function getMaps(kind){
  if(prepared.has(kind))return prepared.get(kind);
@@ -198,5 +258,5 @@ function getMaps(kind){
  const data={kind,color,normal,roughness:rough,metalness:spec.metalness,roughnessFactor:spec.roughness,label:spec.label};
  cache.set(kind,data);return data;
 }
-root.FusionMaterialLib={version:3,specs,aliases,identify,describe,getMaps,prepare};
+root.FusionMaterialLib={version:4,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded}};
 })(globalThis);
