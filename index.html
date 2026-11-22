@@ -4094,7 +4094,28 @@ async function deleteDesign(model){
 async function attachImage(img,path){if(!state.repoPrivate){img.src=rawUrl(path);return}if(state.thumbUrls.has(path)){img.src=state.thumbUrls.get(path);return}if(!state.token)return;try{const blob=await request('GET',path,null,false,true);const url=URL.createObjectURL(blob);state.thumbUrls.set(path,url);img.src=url}catch{}}
 async function downloadModel(m){try{toast('Preparando descarga de '+m.nombre+'...');const blob=await request('GET',m.archivo,null,false,true);const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=(m.nombre||'diseno').replace(/[\\/:*?"<>|]/g,'_')+'.glb';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000)}catch(e){toast('No se pudo descargar: '+e.message,true)}}
 $('searchInput').addEventListener('input',render);$('categoryFilter').addEventListener('change',render);$('refreshBtn').addEventListener('click',refresh);
-function fileSelected(){const f=$('modelFile').files?.[0];$('modelInfo').textContent=f?'Archivo seleccionado: '+f.name+' · '+humanSize(f.size):'Ningún modelo seleccionado';if(f&&!$('modelTitle').value)$('modelTitle').value=f.name.replace(/\.(fbx|glb)$/i,'').replace(/[-_]/g,' ')}
+async function inspectGlb(file){
+  if(!file||!/\.glb$/i.test(file.name))return null;
+  const head=await file.slice(0,20).arrayBuffer(),h=new DataView(head);
+  if(head.byteLength<20||h.getUint32(0,true)!==0x46546c67||h.getUint32(4,true)!==2)throw Error('GLB no válido: cabecera o versión incorrecta.');
+  const total=h.getUint32(8,true),jsonLength=h.getUint32(12,true);
+  if(total!==file.size||h.getUint32(16,true)!==0x4e4f534a||jsonLength<2||jsonLength>file.size-20)throw Error('GLB incompleto o mal estructurado.');
+  const json=JSON.parse(new TextDecoder().decode(await file.slice(20,20+jsonLength).arrayBuffer()));
+  const nmat=json.materials?.length||0,nimg=json.images?.length||0;
+  const textured=(json.materials||[]).filter(m=>m.pbrMetallicRoughness?.baseColorTexture||m.normalTexture||m.occlusionTexture||m.emissiveTexture).length;
+  return {nmat,nimg,textured};
+}
+let selectionCheck=0;
+async function fileSelected(){
+  const f=$('modelFile').files?.[0],current=++selectionCheck;
+  $('modelInfo').textContent=f?'Archivo seleccionado: '+f.name+' · '+humanSize(f.size):'Ningún modelo seleccionado';
+  if(f&&!$('modelTitle').value)$('modelTitle').value=f.name.replace(/\.(fbx|glb)$/i,'').replace(/[-_]/g,' ');
+  if(!f||!/\.glb$/i.test(f.name))return;
+  try{
+    const d=await inspectGlb(f);if(current!==selectionCheck)return;
+    $('modelInfo').textContent+=' · '+d.nmat+' materiales · '+d.nimg+' imágenes incrustadas · '+d.textured+' materiales texturizados'+(d.nimg?'':' · AVISO: sin texturas; solo colores');
+  }catch(error){if(current===selectionCheck)$('modelInfo').textContent+=' · '+error.message}
+}
 $('modelFile').addEventListener('change',fileSelected);
 const drop=$('modelDrop');drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over')});drop.addEventListener('dragleave',()=>drop.classList.remove('over'));drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');const f=e.dataTransfer.files[0];if(f){try{const dt=new DataTransfer();dt.items.add(f);$('modelFile').files=dt.files;fileSelected()}catch{toast('Selecciona el archivo con el botón de búsqueda',true)}}});
 $('thumbFile').addEventListener('change',()=>{if(thumbPreviewUrl)URL.revokeObjectURL(thumbPreviewUrl);const file=$('thumbFile').files?.[0];$('thumbPreview').replaceChildren();if(file){thumbPreviewUrl=URL.createObjectURL(file);const img=document.createElement('img');img.src=thumbPreviewUrl;img.alt='Portada provisional';$('thumbPreview').append(img)}else $('thumbPreview').append(textNode('span','◈','fallback'))});
@@ -4119,7 +4140,11 @@ $('uploadForm').addEventListener('submit',async e=>{
      model=new Blob([binary],{type:'model/gltf-binary'});
      if(model.size>75*1048576)throw Error('El GLB convertido supera 75 MB.');
    }
-   progress(15,'Leyendo el modelo...');const b64=await fileToB64(model);
+   progress(15,'Comprobando texturas y leyendo modelo...');
+   const check=await inspectGlb(model);
+   if(!check)throw Error('No se pudo comprobar el GLB.');
+   if(!check.nimg)status('uploadStatus','Aviso: el GLB no contiene imágenes de textura. Se conservarán sus colores, pero no aparecerán vetas ni superficies fotográficas.');
+   const b64=await fileToB64(model);
    progress(25,'Subiendo modelo a GitHub. No cierres esta pestaña...');await request('PUT',modelPath,{message:'Añadir diseño 3D: '+name,content:b64,branch:state.branch});
    if(img){const ext=img.type==='image/png'?'png':img.type==='image/webp'?'webp':'jpg';imagePath=`miniaturas/${id}.${ext}`;progress(55,'Subiendo miniatura...');await request('PUT',imagePath,{message:'Añadir portada: '+name,content:await fileToB64(img),branch:state.branch})}
    progress(75,'Actualizando catálogo de proyectos...');
