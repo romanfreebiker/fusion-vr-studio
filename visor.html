@@ -32,7 +32,13 @@ const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.03,500);
 const rig=new THREE.Group();
 rig.add(camera);
 scene.add(rig);
-const renderer=new THREE.WebGLRenderer({antialias:true});
+let renderer;
+try {
+  renderer=new THREE.WebGLRenderer({antialias:true});
+} catch (error) {
+  status.textContent='Este navegador tiene WebGL desactivado. Abre el visor en el navegador de las Quest 2.';
+  throw error;
+}
 renderer.setSize(innerWidth,innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
 renderer.xr.enabled=true;
