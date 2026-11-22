@@ -530,7 +530,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.24 · diagnóstico de inicio';
+versionLabel.textContent='Visor VR 0.25 · suelo local-floor';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -543,34 +543,12 @@ const avatarHead=new THREE.Vector3();
 const xrLocalHead=new THREE.Vector3(),xrHeadOrientation=new THREE.Quaternion();
 const xrWorldForward=new THREE.Vector3(),xrHeadOffset=new THREE.Vector3();
 let xrPoseAvailable=false,liveHeadWallDepth=0,liveLocalHead='';
-// Altura de los ojos de referencia, medida sobre la cuadrícula Y=0.
-// La calibración afecta SOLO al espacio virtual, no al Guardian de Quest.
-const VIRTUAL_EYE_HEIGHT=1.50; // Ajuste de comodidad: el suelo visual estaba demasiado bajo.
+// La cuadrícula Y=0 coincide con el suelo físico de local-floor de WebXR.
+// No forzar una altura de ojos fija: desplaza el suelo respecto a los pies reales.
+// Mantener el punto de llamada sin alterar el movimiento ni las colisiones.
 let heightReferenceReady=false,virtualHeightCorrection=0,heightReferenceError='';
 function calibrateVirtualFloor(){
-  if(heightReferenceReady||!renderer.xr.isPresenting)return false;
-  const frame=renderer.xr.getFrame(),space=renderer.xr.getReferenceSpace();
-  const pose=frame&&space?frame.getViewerPose(space):null;
-  if(!pose||!Number.isFinite(pose.transform.position.y))return false;
-  const rawHeight=pose.transform.position.y;
-  // Para una referencia desplazada hacia arriba `rawHeight-target`,
-  // la posición de las gafas medida desde ella pasa a ser `target`.
-  const offset=rawHeight-VIRTUAL_EYE_HEIGHT;
-  try{
-    const correctedSpace=space.getOffsetReferenceSpace(
-      new XRRigidTransform({x:0,y:offset,z:0})
-    );
-    renderer.xr.setReferenceSpace(correctedSpace);
-    virtualHeightCorrection=offset;
-    heightReferenceReady=true;
-    heightReferenceError='';
-    return true;
-  }catch(error){
-    heightReferenceError=String(error?.message||error);
-    // Si el navegador no permite la operación, evitar repetirla en bucle.
-    heightReferenceReady=true;
-    return false;
-  }
+  return false;
 }
 function syncViewerPose(){
   const frame=renderer.xr.getFrame();
