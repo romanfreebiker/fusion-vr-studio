@@ -3946,6 +3946,7 @@ three/examples/jsm/libs/fflate.module.js:
     <nav class="nav" aria-label="Secciones">
       <button class="active" data-view="biblioteca"><span>▦</span> Mis diseños</button>
       <button data-view="subir"><span>↥</span> Subir diseño</button>
+      <button data-view="materiales"><span>◈</span> Materiales realistas</button>
       <button data-view="configuracion"><span>⚙</span> Conexión GitHub</button>
     </nav>
     <div class="side-note"><b>◉ Preparado para Meta Quest 2</b><p>Esta web organiza los archivos GLB. El visor de las gafas leerá el catálogo compartido desde GitHub.</p></div>
@@ -3974,6 +3975,10 @@ three/examples/jsm/libs/fflate.module.js:
         </form></div>
         <div class="panel"><h2>Vista de portada</h2><div class="preview" id="thumbPreview"><span style="font-size:54px;opacity:.65">◈</span></div><p class="muted tiny" style="margin-top:13px">La miniatura será visible tanto en esta web como en el futuro menú de las Quest 2.</p><div class="steps"><div class="step"><b>01</b><div>Selecciona el FBX exportado desde Fusion o un GLB.</div></div><div class="step"><b>02</b><div>Añade un nombre y, si quieres, una foto.</div></div><div class="step"><b>03</b><div>El HTML publica archivos y actualiza <code>catalogo.json</code> en GitHub.</div></div><div class="step"><b>04</b><div>Al abrir la biblioteca desde otro ordenador, verás los mismos modelos.</div></div></div></div></div>
     </section>
+    <section id="view-materiales" class="hidden">
+      <div class="alert"><b>Biblioteca automática de materiales.</b> Se reconoce el nombre del material asignado en Fusion 360. Cada cuerpo conserva su material y recibirá un acabado mejorado de color, relieve y rugosidad. Los materiales desconocidos se dejan sin cambios.</div>
+      <div class="gallery" id="materialGallery"></div>
+    </section>
     <section id="view-configuracion" class="hidden">
       <div class="panel">
         <h2>Conectar con GitHub</h2>
@@ -3990,7 +3995,7 @@ three/examples/jsm/libs/fflate.module.js:
 <script>
 (()=>{'use strict';
 const $=id=>document.getElementById(id);
-const views={biblioteca:['Biblioteca de diseños','Un lugar para todos tus proyectos de Fusion 360'],subir:['Añadir nuevo diseño','Sube un GLB y su miniatura a GitHub'],configuracion:['Conexión con GitHub','Gestiona el repositorio y los permisos de escritura']};
+const views={biblioteca:['Biblioteca de diseños','Un lugar para todos tus proyectos de Fusion 360'],subir:['Añadir nuevo diseño','Sube un GLB y su miniatura a GitHub'],configuracion:['Conexión con GitHub','Gestiona el repositorio y los permisos de escritura'],materiales:['Biblioteca de materiales','Nuestros acabados automáticos para los modelos de Fusion 360']};
 const state={owner:'',repo:'',branch:'main',token:'',models:[],repoPrivate:false,activeView:'biblioteca',catalogSha:null,thumbUrls:new Map(),busy:false};
 let thumbPreviewUrl=null,toastTimeout=null;
 const encPath=p=>p.split('/').map(encodeURIComponent).join('/');
@@ -3999,7 +4004,25 @@ const safeName=s=>String(s||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
 const textNode=(tag,text,cls)=>{const el=document.createElement(tag);el.textContent=text;if(cls)el.className=cls;return el};
 function toast(message,bad=false){const t=$('toast');t.textContent=message;t.className='toast'+(bad?' bad':'');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>t.classList.add('hidden'),5000)}
 function status(id,message,type){const e=$(id);e.textContent=message;e.className='status show'+(type?' '+type:'')}
-function nav(view){state.activeView=view;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));Object.keys(views).forEach(v=>$('view-'+v).classList.toggle('hidden',v!==view));$('pageTitle').textContent=views[view][0];$('pageSubtitle').textContent=views[view][1];window.scrollTo({top:0,behavior:'smooth'})}
+function nav(view){state.activeView=view;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));Object.keys(views).forEach(v=>$('view-'+v).classList.toggle('hidden',v!==view));$('pageTitle').textContent=views[view][0];$('pageSubtitle').textContent=views[view][1];if(view==='materiales')renderMaterialLibrary();window.scrollTo({top:0,behavior:'smooth'})}
+function renderMaterialLibrary(){
+ const area=$('materialGallery'),lib=globalThis.FusionMaterialLib;
+ if(!lib){area.textContent='No se pudo cargar la biblioteca de materiales.';return}
+ if(area.childElementCount)return;
+ for(const [kind,spec] of Object.entries(lib.specs)){
+  const tile=document.createElement('article');tile.className='tile';
+  const cover=document.createElement('div');cover.className='cover';
+  const preview=document.createElement('img');
+  preview.alt='Muestra de '+spec.label;
+  preview.src=lib.getMaps(kind).color.toDataURL('image/jpeg',.84);
+  cover.append(preview);
+  const body=document.createElement('div');body.className='tile-body';
+  body.append(textNode('h3',spec.label));
+  body.append(textNode('p','Nombre interno: '+kind,'muted tiny'));
+  body.append(textNode('p','Metal '+Math.round(spec.metalness*100)+' % · Rugosidad '+Math.round(spec.roughness*100)+' %','muted tiny'));
+  tile.append(cover,body);area.append(tile);
+ }
+}
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>nav(b.dataset.view)));
 document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>nav(b.dataset.goto)));
 Object.assign(state,{owner:'romanfreebiker',repo:'fusion-vr-studio',branch:'main'});
