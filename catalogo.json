@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado": "2026-11-22T10:53:22.287Z",
+  "actualizado": "2026-11-22T10:54:37.272Z",
   "modelos": [
     {
       "id": "garaje2-mwrpxn9m",
@@ -11,16 +11,6 @@
       "miniatura": "",
       "bytes": 7095364,
       "fecha": "2026-11-22T10:53:22.287Z"
-    },
-    {
-      "id": "barbacoa-v13-mwrnfo2j",
-      "nombre": "barbacoa v13",
-      "categoria": "Viviendas",
-      "descripcion": "",
-      "archivo": "modelos/barbacoa-v13-mwrnfo2j-materiales-corregidos.glb",
-      "miniatura": "",
-      "bytes": 399404,
-      "fecha": "2026-11-22T09:43:15.989Z"
     }
   ]
 }
