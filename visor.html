@@ -349,7 +349,7 @@ function drawVRMenu(){
   ctx.textBaseline='middle';
   ctx.font='bold 57px system-ui';ctx.fillStyle='#ffffff';
   ctx.fillText('BIBLIOTECA VR',75,82);
-  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.15',760,83);
+  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.16',760,83);
   ctx.font='25px system-ui';ctx.fillStyle='#a7d6f5';
   ctx.fillText('Apunta al diseño y pulsa el gatillo',75,137);
   const start=menuPage*MENU_PAGE_SIZE;
@@ -377,7 +377,7 @@ function drawVRMenu(){
   footer('close','Cerrar',372,278);
   footer('next','Siguiente ▶',711,258);
   ctx.fillStyle='#a8d5ee';ctx.font='22px system-ui';ctx.textAlign='center';
-  ctx.fillText(menuNote||('Paredes: '+wallCount+' triángulos · Bloqueos: '+collisionStops),MENU_W/2,594);
+  ctx.fillText(menuNote||('Paredes: '+wallCount+' · Bloqueos: '+collisionStops+' · joystick: '+joystickMeters.toFixed(1)+'m'),MENU_W/2,594);
   ctx.textAlign='left';
   ctx.fillStyle='#b2c9df';ctx.font='18px system-ui';ctx.textAlign='right';
   ctx.fillText('Página '+(menuPage+1)+' / '+Math.max(1,Math.ceil(models.options.length/MENU_PAGE_SIZE)),970,139);
@@ -454,7 +454,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.15 · Z vertical · pared sólida';
+versionLabel.textContent='Visor VR 0.16 · diagnóstico de colisiones';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -500,7 +500,8 @@ const wallDirection=new THREE.Vector3(),wallRayStart=new THREE.Vector3();
 // depender del material ni del resultado de Mesh.raycast.
 const wallCells=new Map(),largeWalls=[];
 const WALL_CELL=.75,WALL_RADIUS=.20;
-let wallCount=0,wallChecks=0;
+let wallCount=0,wallChecks=0,joystickMeters=0,physicalMeters=0;
+let lastTrackedHead=null;
 const closestWallPoint=new THREE.Vector3();
 const wallBodyProbe=new THREE.Vector3();
 function wallKey(ix,iz){return ix+','+iz}
@@ -587,6 +588,13 @@ function solveMovement(headset,desired,dt){
   headset.getWorldPosition(avatarHead);
   const localEyeHeight=THREE.MathUtils.clamp(avatarHead.y-rig.position.y,1.05,2.25);
   const startX=avatarHead.x,startZ=avatarHead.z;
+  if(lastTrackedHead){
+    const delta=Math.hypot(startX-lastTrackedHead.x,startZ-lastTrackedHead.z);
+    if(delta<.5 && desired.length()<.003)physicalMeters+=delta;
+  }
+  if(!lastTrackedHead)lastTrackedHead=new THREE.Vector3();
+  lastTrackedHead.set(startX,avatarHead.y,startZ);
+  joystickMeters+=desired.length();
   const feet=rig.position.y;
   let x=startX,z=startZ,footY=feet;
   const count=Math.max(1,Math.ceil(desired.length()/.018));
@@ -638,13 +646,14 @@ function solveMovement(headset,desired,dt){
   }
   rig.position.y=footY;
   lastFloorY=surface;
-  vrDiagnostics='Paredes '+wallCount+' triángulos · bloqueos '+collisionStops+' · suelo '+surface.toFixed(2)+'m';
+  vrDiagnostics='Paredes '+wallCount+' · bloqueos '+collisionStops+' · joystick '+joystickMeters.toFixed(1)+'m · cabeza '+physicalMeters.toFixed(1)+'m';
 }
 function resetPhysics(){
   verticalVelocity=0;
   isGrounded=false;
   lastFloorY=0;
   vrDiagnostics='';
+  joystickMeters=0;physicalMeters=0;lastTrackedHead=null;
 }
 
 function desktopView(){
@@ -752,7 +761,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.15';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.16';
     vrButton.hidden=false;
     return true;
   }catch(error){
