@@ -1,4 +1,4 @@
-/* Fusion VR Studio - biblioteca de materiales PBR v10.
+/* Fusion VR Studio - biblioteca de materiales PBR v11.
    Materiales propios: identifica por nombre, aplica un único material por cuerpo.
    Los mapas se generan localmente en el navegador y se incrustan al exportar FBX->GLB.
 */
@@ -195,40 +195,69 @@ function canvasNative(image){
 // La fotografía aprobada incluye algunas juntas casi negras (2-3 píxeles).
 // Sólo se suavizan filas oscuras que cruzan casi todo el atlas, nunca nudos
 // ni vetas locales. Conserva una sombra fina, sin borrar la separación.
-function softenCladdingSeams(canvas){
- const ctx=canvas.getContext('2d',{willReadFrequently:true});
- const w=canvas.width,h=canvas.height;
- const img=ctx.getImageData(0,0,w,h),data=img.data;
- const brightness=new Float32Array(h);
+// Atlas aprobado 8 x 2 m: las juntas de la fotografía original se oscurecieron
+// al componer las 10 filas (y algunas franjas quedaron dentro de los recortes).
+// Reparar la franja completa, NO solamente su píxel central: interpolación
+// fotográfica desde los dos lados + una sombra de separación muy tenue.
+// Trabajar sobre tiras pequeñas para no duplicar 16 MB en Quest 2.
+function softenCladdingSeams(colorCanvas,normalCanvas){
+ const ctx=colorCanvas.getContext('2d',{willReadFrequently:true});
+ const w=colorCanvas.width,h=colorCanvas.height;
+ const sample=ctx.getImageData(0,0,w,h).data;
+ const avg=new Float32Array(h);
  for(let y=0;y<h;y++){
    let sum=0,count=0;
-   for(let x=8;x<w-8;x+=32){
-     const i=(y*w+x)*4;
-     sum+=.2126*data[i]+.7152*data[i+1]+.0722*data[i+2];
+   for(let x=4;x<w-4;x+=32){
+     const k=(y*w+x)*4;
+     sum+=.2126*sample[k]+.7152*sample[k+1]+.0722*sample[k+2];
      count++;
    }
-   brightness[y]=sum/Math.max(1,count);
+   avg[y]=sum/count;
  }
- const seamRows=[];
- for(let y=4;y<h-4;y++){
-   const target=(brightness[y-3]+brightness[y+3])/2;
-   // Sólo las sombras realmente fuertes y extendidas de borde a borde.
-   if(brightness[y]<target-24)seamRows.push(y);
+ // Las juntas nominales son cada 200 mm: diez filas en 2 metros.
+ const candidates=[];
+ for(let i=0;i<=10;i++)candidates.push(Math.round(i*h/10));
+ // Identificar también sombras lineales heredadas de la fotografía,
+ // independientemente de que coincidan o no con la junta de la fila.
+ for(let y=7;y<h-7;y++){
+   const neighbors=(avg[y-6]+avg[y+6])*.5;
+   if(avg[y]<neighbors-19)candidates.push(y);
  }
- if(!seamRows.length)return;
- const original=new Uint8ClampedArray(data);
- for(const y of seamRows){
-   for(let x=0;x<w;x++){
-     const at=(y*w+x)*4;
-     const before=((y-3)*w+x)*4,after=((y+3)*w+x)*4;
-     for(let c=0;c<3;c++){
-       const adjacent=(original[before+c]+original[after+c])*.5;
-       // Mantener ~18% de la sombra para que sigan viéndose las juntas.
-       data[at+c]=clamp(original[at+c]*.18+adjacent*.82);
+ const flagged=new Uint8Array(h);
+ for(const center of candidates){
+   for(let y=Math.max(0,center-3);y<=Math.min(h-1,center+3);y++)
+     flagged[y]=1;
+ }
+ // Reparar cada grupo contiguo usando píxeles intactos de ambos extremos.
+ // No manipular áreas pequeñas (vetas o nudos): sólo filas extendidas.
+ const contexts=[ctx,normalCanvas?.getContext('2d',{willReadFrequently:true})].filter(Boolean);
+ for(let begin=0;begin<h;){
+   if(!flagged[begin]){begin++;continue}
+   let end=begin;
+   while(end+1<h&&flagged[end+1])end++;
+   const before=Math.max(0,begin-5),after=Math.min(h-1,end+5);
+   for(let layer=0;layer<contexts.length;layer++){
+     const context=contexts[layer];
+     const top=context.getImageData(0,before,w,1).data;
+     const bottom=context.getImageData(0,after,w,1).data;
+     const rect=context.getImageData(0,begin,w,end-begin+1);
+     const px=rect.data,rows=end-begin+1;
+     for(let j=0;j<rows;j++){
+       const t=(j+1)/(rows+1);
+       for(let x=0;x<w;x++){
+         const dest=(j*w+x)*4,src=x*4;
+         for(let c=0;c<3;c++){
+           const base=top[src+c]*(1-t)+bottom[src+c]*t;
+           // Junta visible, pero nunca una raya negra.
+           const shade=layer===0?Math.max(0,1-Math.abs(t-.5)*2)*5:0;
+           px[dest+c]=Math.max(0,Math.min(255,base-shade));
+         }
+       }
      }
+     context.putImageData(rect,0,begin);
    }
+   begin=end+1;
  }
- ctx.putImageData(img,0,0);
 }
 async function prepareLocalPBR(kind){
  if(prepared.has(kind))return prepared.get(kind);
@@ -241,7 +270,7 @@ async function prepareLocalPBR(kind){
   tileMeters:set.tileMeters||1,tileMetersX:set.tileMetersX,tileMetersY:set.tileMetersY,
   label:spec.label,photographic:true,source:set.source
  };
- if(kind==='cladding')softenCladdingSeams(asset.color);
+ if(kind==='cladding')softenCladdingSeams(asset.color,asset.normal);
  prepared.set(kind,asset);
  return asset;
 }
@@ -542,5 +571,5 @@ function getMaps(kind){
  const data={kind,color,normal,roughness:rough,metalness:spec.metalness,roughnessFactor:spec.roughness,tileMeters:kind==='concrete'?1.10:kind==='pine'?.55:kind==='oak'?.70:kind==='wood'?.85:1,label:spec.label,source:'Procedural'};
  cache.set(kind,data);return data;
 }
-root.FusionMaterialLib={version:10,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded},getSource(kind){return getMaps(kind)?.source||'Desconocida'}};
+root.FusionMaterialLib={version:11,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded},getSource(kind){return getMaps(kind)?.source||'Desconocida'}};
 })(globalThis);
