@@ -3940,6 +3940,7 @@ document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',(
 Object.assign(state,{owner:'romanfreebiker',repo:'fusion-vr-studio',branch:'main'});
 const authOrigin='https://fusion-vr-studio-roman-auth.independentoffer16.chatgpt.site';
 let authWindow=null, authState=null, sessionExpiry;
+let postAuthView='subir';
 function disconnectGitHub(){
   clearTimeout(sessionExpiry);
   state.token='';
@@ -3966,7 +3967,8 @@ window.addEventListener('message',event=>{
   if(Number.isFinite(data.expiresIn)&&data.expiresIn>0){
     sessionExpiry=setTimeout(()=>{disconnectGitHub();status('settingsStatus','La sesión ha caducado. Conecta con GitHub de nuevo.');},Math.min(data.expiresIn,86400)*1000);
   }
-  nav('subir');
+  nav(postAuthView);
+  postAuthView='subir';
   toast('GitHub conectado');
 });
 $('disconnectGitHub').addEventListener('click',()=>{disconnectGitHub();status('settingsStatus','Sesión de GitHub cerrada.');});
@@ -4036,19 +4038,23 @@ function render(){
     view.href=viewerUrl.href;
     foot.append(view);
     const dl=document.createElement('button');dl.className='button secondary small';dl.textContent='↓ Descargar GLB';dl.addEventListener('click',()=>downloadModel(m));foot.append(dl);
-    if(state.token){
-      const remove=textNode('button','Eliminar','button secondary small delete-design');
-      remove.type='button';
-      remove.disabled=state.busy;
-      remove.addEventListener('click',()=>deleteDesign(m));
-      remove.setAttribute('aria-label','Eliminar '+(m.nombre||'diseño'));
-      foot.append(remove);
-    }
+    const remove=textNode('button','Eliminar','button secondary small delete-design');
+    remove.type='button';
+    remove.disabled=state.busy;
+    remove.addEventListener('click',()=>deleteDesign(m));
+    remove.setAttribute('aria-label','Eliminar '+(m.nombre||'diseño'));
+    foot.append(remove);
     body.append(foot);tile.append(body);$('gallery').append(tile);
   }
 }
 async function deleteDesign(model){
-  if(!state.token||state.busy)return;
+  if(state.busy)return;
+  if(!state.token){
+    postAuthView='biblioteca';
+    nav('configuracion');
+    status('settingsStatus','Conecta con GitHub para eliminar diseños.');
+    return;
+  }
   if(!confirm('¿Eliminar «'+model.nombre+'» del catálogo y quitar sus archivos de la versión pública del repositorio?'))return;
   state.busy=true;
   render();
@@ -4097,7 +4103,7 @@ function progress(n,msg){$('uploadProgress').style.display='block';$('uploadBar'
 $('uploadForm').addEventListener('submit',async e=>{
  e.preventDefault();if(state.busy)return;
  const f=$('modelFile').files?.[0],img=$('thumbFile').files?.[0],name=$('modelTitle').value.trim();
- if(!state.owner||!state.repo||!state.token){nav('configuracion');status('settingsStatus','Conecta con GitHub para guardar el diseño seleccionado.');return}
+ if(!state.owner||!state.repo||!state.token){postAuthView='subir';nav('configuracion');status('settingsStatus','Conecta con GitHub para guardar el diseño seleccionado.');return}
  if(!f||!name){status('uploadStatus','Faltan el nombre o el archivo 3D.','bad');return}
  const isFbx=/\.fbx$/i.test(f.name);
  if(!isFbx&&!/\.glb$/i.test(f.name)){status('uploadStatus','El archivo debe ser .fbx o .glb.','bad');return}
