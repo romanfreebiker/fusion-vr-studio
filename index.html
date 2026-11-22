@@ -3985,9 +3985,14 @@ three/examples/jsm/libs/fflate.module.js:
       <div class="panel">
         <h2>Conectar con GitHub</h2>
         <p>Conecta la cuenta romanfreebiker para subir diseños. La biblioteca se puede consultar sin iniciar sesión.</p>
+        <label style="display:flex;gap:10px;align-items:flex-start;margin:14px 0 10px;color:#dbe5f4;cursor:pointer">
+          <input id="rememberGitHub" type="checkbox" style="width:18px;height:18px;accent-color:#2784d0;flex:none;margin-top:3px">
+          <span><strong>Recordar conexión en este ordenador</strong><small style="display:block;color:#9fb0c6;font-size:12px;line-height:1.5">Solo en un equipo privado o de confianza: guarda temporalmente la autorización en este navegador hasta su caducidad. Si no lo marcas, se recuerda únicamente en esta pestaña.</small></span>
+        </label>
         <button class="button" id="connectGitHub" type="button">Conectar con GitHub</button>
         <button class="button ghost" id="disconnectGitHub" type="button" hidden>Desconectar</button>
         <div class="status" id="settingsStatus" role="status"></div>
+        <p class="muted tiny" id="savedConnectionStatus">Consulta los diseños sin iniciar sesión; para subir o eliminar necesitas autorizar GitHub.</p>
       </div>
     </section>
     <footer class="footer"><span>Fusion VR Studio · Versión 0.1</span><span>Biblioteca pública de modelos</span></footer>
@@ -4037,16 +4042,118 @@ document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',(
 document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>nav(b.dataset.goto)));
 Object.assign(state,{owner:'romanfreebiker',repo:'fusion-vr-studio',branch:'main'});
 const authOrigin='https://fusion-vr-studio-roman-auth.independentoffer16.chatgpt.site';
-let authWindow=null, authState=null, sessionExpiry;
+const authKey='fusion-vr-studio-auth-v1';
+const rememberInput=$('rememberGitHub');
+let authWindow=null, authState=null, sessionExpiry=null;
 let postAuthView='subir';
-function disconnectGitHub(){
+// Nunca incluir un token en los archivos públicos de GitHub. La autorización
+// permanece en el navegador concreto donde el usuario la haya concedido.
+function storageRead(storage){
+  try{const value=storage.getItem(authKey);return value?JSON.parse(value):null}catch{return null}
+}
+function storageWrite(storage,value){
+  try{storage.setItem(authKey,JSON.stringify(value));return true}catch{return false}
+}
+function storageRemove(storage){
+  try{storage.removeItem(authKey)}catch{}
+}
+function clearStoredAuth(){
+  storageRemove(sessionStorage);storageRemove(localStorage);
+}
+function updateAuthUI(){
+  const hasAuth=!!state.token&&Date.now()<state.tokenExpiresAt;
+  $('connectGitHub').hidden=hasAuth;
+  $('disconnectGitHub').hidden=!hasAuth;
+  const expiration=hasAuth?new Date(state.tokenExpiresAt).toLocaleString('es-ES',{dateStyle:'short',timeStyle:'short'}):'';
+  $('savedConnectionStatus').textContent=hasAuth
+    ? 'GitHub autorizado hasta '+expiration+'. '+(rememberInput.checked?'Sesión recordada en este navegador.':'Sesión de esta pestaña.')
+    : 'Biblioteca accesible sin iniciar sesión. Conecta GitHub para subir o eliminar diseños.';
+}
+function disconnectGitHub(message='Sesión de GitHub cerrada.'){
   clearTimeout(sessionExpiry);
   state.token='';
+  state.tokenExpiresAt=0;
+  clearStoredAuth();
+  rememberInput.checked=false;
+  updateAuthUI();
+  setConnection('Biblioteca disponible · sin autorización');
   render();
-  $('connectGitHub').hidden=false;
-  $('disconnectGitHub').hidden=true;
+  if(message)status('settingsStatus',message);
 }
+function scheduleExpiry(){
+  clearTimeout(sessionExpiry);
+  if(!state.token)return;
+  const left=state.tokenExpiresAt-Date.now();
+  if(left<=0){disconnectGitHub('La autorización ha caducado. Vuelve a conectar GitHub.');return;}
+  sessionExpiry=setTimeout(()=>disconnectGitHub('La autorización de GitHub ha caducado. Vuelve a conectar para subir diseños.'),Math.min(left,2147483647));
+}
+function persistAuth(){
+  if(!state.token||Date.now()>=state.tokenExpiresAt)return;
+  const entry={token:state.token,expiresAt:state.tokenExpiresAt,owner:state.owner,repo:state.repo};
+  storageWrite(sessionStorage,entry);
+  if(rememberInput.checked){
+    if(!storageWrite(localStorage,entry)){
+      rememberInput.checked=false;
+      status('settingsStatus','El navegador no permite recordar la conexión entre sesiones. Seguirá disponible en esta pestaña.');
+    }
+  }else storageRemove(localStorage);
+  updateAuthUI();
+}
+function setAuth(token,expiresAt){
+  state.token=token;
+  state.tokenExpiresAt=expiresAt;
+  scheduleExpiry();
+  persistAuth();
+  updateAuthUI();
+  setConnection('GitHub autorizado',true);
+  render();
+}
+function candidateValid(entry){
+  return entry&&typeof entry.token==='string'&&entry.token.length>=20&&
+    Number.isFinite(entry.expiresAt)&&entry.expiresAt>Date.now()&&
+    entry.owner===state.owner&&entry.repo===state.repo;
+}
+function restoreAuth(){
+  const local=storageRead(localStorage),perTab=storageRead(sessionStorage);
+  const chosen=candidateValid(local)?local:candidateValid(perTab)?perTab:null;
+  if(!candidateValid(local))storageRemove(localStorage);
+  if(!candidateValid(perTab))storageRemove(sessionStorage);
+  if(!chosen){updateAuthUI();return false;}
+  rememberInput.checked=chosen===local;
+  setAuth(chosen.token,chosen.expiresAt);
+  status('settingsStatus','Conexión recuperada. No necesitas introducir otro código.','good');
+  return true;
+}
+async function validateRestoredAuth(){
+  if(!state.token)return;
+  const token=state.token;
+  try{
+    const res=await fetch('https://api.github.com/user',{
+      headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+token},
+      cache:'no-store'
+    });
+    if(state.token!==token)return;
+    if(res.status===401){
+      disconnectGitHub('GitHub ha rechazado la autorización guardada. Debes conectar otra vez.');
+      return;
+    }
+    if(res.ok){
+      const user=await res.json();
+      if(state.token!==token)return;
+      if(user.login?.toLowerCase()!==state.owner.toLowerCase()){
+        disconnectGitHub('La autorización corresponde a otra cuenta. Conecta '+state.owner+'.');
+        return;
+      }
+      status('settingsStatus','Conectado como '+user.login+'. Puedes subir diseños sin introducir un código nuevo.','good');
+    }
+  }catch{ /* Sin conexión: se validará al siguiente uso. */}
+}
+rememberInput.addEventListener('change',()=>{
+  if(state.token)persistAuth();
+  else updateAuthUI();
+});
 $('connectGitHub').addEventListener('click',()=>{
+  if(state.token&&Date.now()<state.tokenExpiresAt){nav(postAuthView);return}
   if(authWindow&&!authWindow.closed){authWindow.focus();return}
   authState=crypto.randomUUID();
   authWindow=window.open(authOrigin+'/?state='+encodeURIComponent(authState),'fusionGitHub','popup,width=520,height=560');
@@ -4054,22 +4161,22 @@ $('connectGitHub').addEventListener('click',()=>{
 });
 window.addEventListener('message',event=>{
   const data=event.data;
-  if(!authWindow||event.source!==authWindow||event.origin!==authOrigin||data?.type!=='fusion-github-connected'||data.state!==authState||typeof data.token!=='string'||!data.token)return;
+  if(!authWindow||event.source!==authWindow||event.origin!==authOrigin||
+     data?.type!=='fusion-github-connected'||data.state!==authState||
+     typeof data.token!=='string'||!data.token)return;
   authWindow=null;
   authState=null;
-  state.token=data.token;
-  render();
-  $('connectGitHub').hidden=true;
-  $('disconnectGitHub').hidden=false;
-  status('settingsStatus','GitHub conectado. Ya puedes subir diseños.','good');
-  if(Number.isFinite(data.expiresIn)&&data.expiresIn>0){
-    sessionExpiry=setTimeout(()=>{disconnectGitHub();status('settingsStatus','La sesión ha caducado. Conecta con GitHub de nuevo.');},Math.min(data.expiresIn,86400)*1000);
-  }
+  // Las autorizaciones de GitHub caducan. Si el servidor no informa duración,
+  // se recuerda durante un máximo conservador de 8 horas.
+  const seconds=Number(data.expiresIn);
+  const lifetime=Number.isFinite(seconds)&&seconds>0?Math.min(seconds,86400):28800;
+  setAuth(data.token,Date.now()+lifetime*1000);
+  status('settingsStatus','GitHub conectado. '+(rememberInput.checked?'Se recordará mientras dure la autorización.':'Se mantendrá conectado en esta pestaña.'),'good');
   nav(postAuthView);
   postAuthView='subir';
   toast('GitHub conectado');
 });
-$('disconnectGitHub').addEventListener('click',()=>{disconnectGitHub();status('settingsStatus','Sesión de GitHub cerrada.');});
+$('disconnectGitHub').addEventListener('click',()=>disconnectGitHub('Sesión de GitHub cerrada. Se ha borrado la autorización guardada.'));
 function setConnection(text,ok=false){const p=$('connectionPill');p.textContent=(ok?'● ':'○ ')+text;p.classList.toggle('ok',ok)}
 function repoUrl(){return `https://api.github.com/repos/${encodeURIComponent(state.owner)}/${encodeURIComponent(state.repo)}`}
 function request(method,path,payload=null,missingOk=false,asBlob=false,ref=state.branch){
@@ -4083,6 +4190,7 @@ async function githubRequest(method,path,payload=null,missingOk=false,asBlob=fal
   if(state.token)headers.Authorization='Bearer '+state.token;
   if(payload)headers['Content-Type']='application/json';
   const res=await fetch(url,{method,headers,body:payload?JSON.stringify(payload):undefined,cache:'no-store'});
+  if(res.status===401&&state.token){disconnectGitHub('La autorización de GitHub ha caducado o ha sido revocada. Conecta de nuevo para continuar.');}
   if(res.status===404&&missingOk)return null;
   if(!res.ok){let detail='';try{const j=await res.json();detail=j.message||''}catch{};throw Error('GitHub '+res.status+(detail?' · '+detail:''))}
   return asBlob?res.blob():res.json();
@@ -4100,7 +4208,7 @@ async function loadCatalog(){
 async function refresh(){
   if(!state.owner||!state.repo){setConnection('Sin conectar');render();return}
   setConnection('Consultando...');$('refreshBtn').disabled=true;
-  try{const result=await loadCatalog();state.models=Array.isArray(result.modelos)?result.modelos:[];setConnection('GitHub conectado',true);$('repoLabel').textContent=state.owner+'/'+state.repo+' · '+state.branch;render();}
+  try{const result=await loadCatalog();state.models=Array.isArray(result.modelos)?result.modelos:[];setConnection(state.token?'GitHub autorizado':'Biblioteca disponible · sin autorización',!!state.token);$('repoLabel').textContent=state.owner+'/'+state.repo+' · '+state.branch;render();}
   catch(e){setConnection('Error de conexión');toast(e.message,true);render()}
   finally{$('refreshBtn').disabled=false}
 }
@@ -4257,7 +4365,10 @@ $('uploadForm').addEventListener('submit',async e=>{
  finally{state.busy=false;$('uploadBtn').disabled=false;setTimeout(()=>{$('uploadProgress').style.display='none';$('uploadBar').style.width='0%'},1200)}
 });
 window.addEventListener('beforeunload',()=>{for(const u of state.thumbUrls.values())URL.revokeObjectURL(u);if(thumbPreviewUrl)URL.revokeObjectURL(thumbPreviewUrl)});
-render();if(state.owner&&state.repo){$('repoLabel').textContent=state.owner+'/'+state.repo+' · '+state.branch;refresh()}
+const authRestored=restoreAuth();
+render();
+if(state.owner&&state.repo){$('repoLabel').textContent=state.owner+'/'+state.repo+' · '+state.branch;refresh()}
+if(authRestored)validateRestoredAuth();
 })();
 </script>
 </body>
