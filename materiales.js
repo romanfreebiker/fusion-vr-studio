@@ -1,10 +1,11 @@
-/* Fusion VR Studio - biblioteca de materiales PBR v11.
+/* Fusion VR Studio - biblioteca de materiales PBR v12.
    Materiales propios: identifica por nombre, aplica un único material por cuerpo.
    Los mapas se generan localmente en el navegador y se incrustan al exportar FBX->GLB.
 */
 (function(root){
 'use strict';
 const specs={
+ pineBoard:{label:'Pino natural continuo para peldaños',metalness:0,roughness:.78,size:1024},
  cladding:{label:'Revestimiento pino claro 200 × 2000 mm',metalness:0,roughness:.78,size:1024},
  anthracite:{label:'Pintura antracita satinada · RAL 7016 aproximado',metalness:.10,roughness:.39,size:512},
  pine:{label:'Pino natural',metalness:0,roughness:.80,size:768},
@@ -499,9 +500,42 @@ function makeArchitecturalConcrete(){
  generatedMaps.set('concrete',data);return data;
 }
 
+// Los peldaños utilizan la MISMA madera fotográfica aprobada que las
+// paredes, pero sólo el interior de una tabla, sin ninguna junta horizontal
+// ni vertical. No mezclar distintas fotografías ni volver al pino rojizo.
+let plainBoard=null;
+function makePineBoard(){
+ if(plainBoard)return plainBoard;
+ const source=prepared.get('cladding');
+ if(!source){
+   const fallback=prepared.get('pine')||getMaps('pine');
+   if(!fallback)return null;
+   return {...fallback,kind:'pineBoard',source:'Respaldo pino sin atlas'};
+ }
+ const w=source.color.width,h=source.color.height;
+ // Tomar la zona interna de una pieza horizontal (sin sus bordes).
+ // Las coordenadas son relativas para conservarlas a cualquier resolución.
+ const crop={x:Math.round(w*.265),y:Math.round(h*.618),
+   width:Math.round(w*.21),height:Math.round(h*.058)};
+ const create=(input)=>{
+   const dst=document.createElement('canvas');
+   dst.width=1024;dst.height=128;
+   dst.getContext('2d').drawImage(input,crop.x,crop.y,crop.width,crop.height,
+                                   0,0,1024,128);
+   return dst;
+ };
+ plainBoard={
+   kind:'pineBoard',color:create(source.color),normal:create(source.normal),
+   roughness:create(source.roughness),metalness:0,roughnessFactor:.78,
+   tileMeters:1,label:specs.pineBoard.label,
+   source:'Mismo atlas aprobado, interior fotográfico sin juntas'
+ };
+ return plainBoard;
+}
 const cache=new Map();
 function getMaps(kind){
  if(prepared.has(kind))return prepared.get(kind);
+ if(kind==='pineBoard')return makePineBoard();
  if(kind==='cladding')return makeCladding();
  if(kind==='concrete')return makeArchitecturalConcrete();
  if(cache.has(kind))return cache.get(kind);
@@ -571,5 +605,5 @@ function getMaps(kind){
  const data={kind,color,normal,roughness:rough,metalness:spec.metalness,roughnessFactor:spec.roughness,tileMeters:kind==='concrete'?1.10:kind==='pine'?.55:kind==='oak'?.70:kind==='wood'?.85:1,label:spec.label,source:'Procedural'};
  cache.set(kind,data);return data;
 }
-root.FusionMaterialLib={version:11,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded},getSource(kind){return getMaps(kind)?.source||'Desconocida'}};
+root.FusionMaterialLib={version:12,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded},getSource(kind){return getMaps(kind)?.source||'Desconocida'}};
 })(globalThis);
