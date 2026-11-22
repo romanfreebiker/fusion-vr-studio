@@ -12,7 +12,7 @@ p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-va
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=9"></script>
+<script src="./materiales.js?v=10"></script>
 <header>
 <h1>Fusion VR Studio · Visor</h1>
 <label for="models">Diseño</label><select id="models" disabled></select>
@@ -272,7 +272,7 @@ function materialFromLibrary(material,forcedKind=null){
   }
   const p=maps.config;
   const color=(kind==='paint'||kind==='plastic')&&material?.color?material.color.clone():new THREE.Color(0xffffff);
-  const strength=kind==='cladding'?.92:kind==='concrete'?1.0:
+  const strength=kind==='anthracite'?.16:kind==='cladding'?.92:kind==='concrete'?1.0:
     ['pine','oak','wood'].includes(kind)?1.12:
     ['stainless','steel','blacksteel'].includes(kind)?.42:.6;
   const replacement=new THREE.MeshStandardMaterial({
@@ -285,6 +285,7 @@ function materialFromLibrary(material,forcedKind=null){
     roughnessMap:maps.rough,
     metalness:p.metalness,
     roughness:1,
+    envMapIntensity:kind==='anthracite'?1.12:1,
     side:THREE.DoubleSide,
     transparent:material.transparent,
     opacity:material.opacity??1
@@ -558,7 +559,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.35 · madera fotográfica y hormigón';
+versionLabel.textContent='Visor VR 0.36 · caminar, escaleras y pintura satinada';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -632,6 +633,9 @@ let colliderMeshes=[],lastFloorY=0,modelFloorY=0,vrDiagnostics='';
 let physicsFeetY=null;
 const STEP_VISUAL_SPEED=1.2; // metros por segundo (20 cm ≈ 0.17 s)
 const STEP_VISUAL_SMOOTHING=13; // amortiguación para el inicio y final
+// Caminar normal ~7% más lento; en escaleras ~50% más despacio.
+const WALK_SPEED=1.95,STAIR_SPEED_FACTOR=.49;
+let stairSlowUntil=0;
 
 function normalOf(hit,target){
   normalMatrix.getNormalMatrix(hit.object.matrixWorld);
@@ -828,6 +832,7 @@ function solveMovement(headset,desired,dt){
 }
 function resetPhysics(){
   physicsFeetY=null;
+  stairSlowUntil=0;
   verticalVelocity=0;
   isGrounded=false;
   lastFloorY=0;
@@ -941,7 +946,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.35';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.36';
     vrButton.hidden=false;
     return true;
   }catch(error){
@@ -1060,8 +1065,23 @@ renderer.setAnimationLoop(time=>{
     right.crossVectors(forward,THREE.Object3D.DEFAULT_UP);
     const strafe=dead(x),stride=-dead(y);
     const magnitude=Math.max(1,Math.hypot(strafe,stride));
-    const move=new THREE.Vector3().addScaledVector(forward,stride/magnitude*2.1*dt)
-      .addScaledVector(right,strafe/magnitude*2.1*dt);
+    const walkingDirection=new THREE.Vector3().addScaledVector(forward,stride/magnitude)
+      .addScaledVector(right,strafe/magnitude);
+    // Detectar peldaños por la altura REAL del suelo delante del visitante.
+    // Vale para subir y bajar, y mantiene el paso lento entre peldaños.
+    // La física y los límites de escalón siguen exactamente iguales.
+    if(!menuGroup.visible&&walkingDirection.lengthSq()>.01&&physicsFeetY!==null){
+      const feet=physicsFeetY;
+      const supportHere=floorUnder(avatarHead.x,avatarHead.z,feet);
+      const probe=walkingDirection.clone().normalize().multiplyScalar(.34);
+      const supportAhead=floorUnder(avatarHead.x+probe.x,avatarHead.z+probe.z,feet);
+      const riseOrDrop=supportAhead-supportHere;
+      if(Math.abs(riseOrDrop)>.045&&Math.abs(riseOrDrop)<=MAX_STEP+.06){
+        stairSlowUntil=time+470;
+      }
+    }
+    const walkingSpeed=time<stairSlowUntil?WALK_SPEED*STAIR_SPEED_FACTOR:WALK_SPEED;
+    const move=walkingDirection.multiplyScalar(walkingSpeed*dt);
     if(!heightChanged&&!returnToLibrary)solveMovement(headset,menuGroup.visible?new THREE.Vector3():move,dt);
     if(turnMode.value==='snap'){
       smoothTurnAxis=0;
