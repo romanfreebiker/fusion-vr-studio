@@ -349,7 +349,7 @@ function drawVRMenu(){
   ctx.textBaseline='middle';
   ctx.font='bold 57px system-ui';ctx.fillStyle='#ffffff';
   ctx.fillText('BIBLIOTECA VR',75,82);
-  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.14',760,83);
+  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.15',760,83);
   ctx.font='25px system-ui';ctx.fillStyle='#a7d6f5';
   ctx.fillText('Apunta al diseño y pulsa el gatillo',75,137);
   const start=menuPage*MENU_PAGE_SIZE;
@@ -377,7 +377,7 @@ function drawVRMenu(){
   footer('close','Cerrar',372,278);
   footer('next','Siguiente ▶',711,258);
   ctx.fillStyle='#a8d5ee';ctx.font='22px system-ui';ctx.textAlign='center';
-  ctx.fillText(menuNote||'Pulsa X para abrir o cerrar este menú',MENU_W/2,594);
+  ctx.fillText(menuNote||('Paredes: '+wallCount+' triángulos · Bloqueos: '+collisionStops),MENU_W/2,594);
   ctx.textAlign='left';
   ctx.fillStyle='#b2c9df';ctx.font='18px system-ui';ctx.textAlign='right';
   ctx.fillText('Página '+(menuPage+1)+' / '+Math.max(1,Math.ceil(models.options.length/MENU_PAGE_SIZE)),970,139);
@@ -454,7 +454,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.14 · Z vertical · colisión por malla';
+versionLabel.textContent='Visor VR 0.15 · Z vertical · pared sólida';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -496,6 +496,69 @@ function floorUnder(x,z,feet,maxUp=MAX_STEP){
 // Comprobación predictiva de las superficies trianguladas del GLB.
 // Los rayos cubren pecho/cintura/rodillas y ambos lados del cuerpo.
 const wallDirection=new THREE.Vector3(),wallRayStart=new THREE.Vector3();
+// Índice geométrico propio: triángulos de pared a doble cara, sin
+// depender del material ni del resultado de Mesh.raycast.
+const wallCells=new Map(),largeWalls=[];
+const WALL_CELL=.75,WALL_RADIUS=.20;
+let wallCount=0,wallChecks=0;
+const closestWallPoint=new THREE.Vector3();
+const wallBodyProbe=new THREE.Vector3();
+function wallKey(ix,iz){return ix+','+iz}
+function buildWallIndex(root){
+  wallCells.clear();largeWalls.length=0;wallCount=0;wallChecks=0;
+  root.updateMatrixWorld(true);
+  const a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3();
+  const edge1=new THREE.Vector3(),edge2=new THREE.Vector3(),normal=new THREE.Vector3();
+  root.traverse(mesh=>{
+    if(!mesh.isMesh||!mesh.geometry||!mesh.visible)return;
+    const geo=mesh.geometry,position=geo.attributes.position,index=geo.index;
+    if(!position)return;
+    const count=index?index.count:position.count;
+    for(let i=0;i+2<count;i+=3){
+      const ia=index?index.getX(i):i,ib=index?index.getX(i+1):i+1,ic=index?index.getX(i+2):i+2;
+      a.fromBufferAttribute(position,ia).applyMatrix4(mesh.matrixWorld);
+      b.fromBufferAttribute(position,ib).applyMatrix4(mesh.matrixWorld);
+      c.fromBufferAttribute(position,ic).applyMatrix4(mesh.matrixWorld);
+      edge1.subVectors(b,a);edge2.subVectors(c,a);
+      normal.crossVectors(edge1,edge2);
+      if(normal.lengthSq()<1e-10)continue;
+      normal.normalize();
+      if(Math.abs(normal.y)>.62)continue;
+      const minY=Math.min(a.y,b.y,c.y),maxY=Math.max(a.y,b.y,c.y);
+      if(maxY<.15)continue;
+      const tri=new THREE.Triangle(a.clone(),b.clone(),c.clone());
+      const minX=Math.min(a.x,b.x,c.x)-WALL_RADIUS,maxX=Math.max(a.x,b.x,c.x)+WALL_RADIUS;
+      const minZ=Math.min(a.z,b.z,c.z)-WALL_RADIUS,maxZ=Math.max(a.z,b.z,c.z)+WALL_RADIUS;
+      const x0=Math.floor(minX/WALL_CELL),x1=Math.floor(maxX/WALL_CELL);
+      const z0=Math.floor(minZ/WALL_CELL),z1=Math.floor(maxZ/WALL_CELL);
+      const entry={tri,minY,maxY};
+      wallCount++;
+      if((x1-x0+1)*(z1-z0+1)>250){largeWalls.push(entry);continue}
+      for(let xi=x0;xi<=x1;xi++)for(let zi=z0;zi<=z1;zi++){
+        const key=wallKey(xi,zi);
+        if(!wallCells.has(key))wallCells.set(key,[]);
+        wallCells.get(key).push(entry);
+      }
+    }
+  });
+}
+function wallPenetration(x,z,feet){
+  if(!wallCount)return 0;
+  const ix=Math.floor(x/WALL_CELL),iz=Math.floor(z/WALL_CELL);
+  const candidates=[...(wallCells.get(wallKey(ix,iz))||[]),...largeWalls];
+  let deepest=0;
+  for(const entry of candidates){
+    if(entry.maxY<feet+.20||entry.minY>feet+1.65)continue;
+    for(const h of [.35,.85,1.35]){
+      wallBodyProbe.set(x,feet+h,z);
+      entry.tri.closestPointToPoint(wallBodyProbe,closestWallPoint);
+      const penetration=WALL_RADIUS-wallBodyProbe.distanceTo(closestWallPoint);
+      if(penetration>deepest)deepest=penetration;
+    }
+  }
+  wallChecks++;
+  return deepest;
+}
 let geometryRayHits=0;
 function wallClearance(x,z,feet,move){
   const len=move.length();
@@ -529,14 +592,19 @@ function solveMovement(headset,desired,dt){
   const count=Math.max(1,Math.ceil(desired.length()/.018));
   const step=desired.clone().divideScalar(count);
   for(let i=0;i<count;i++){
-    // Primero intentar avanzar en la dirección deseada.
-    const allowance=wallClearance(x,z,footY,step);
+    // Comprobar el volumen del cuerpo contra las paredes reales del GLB.
+    // Si ya estamos en contacto, sólo permitir salir, nunca profundizar.
+    const baseDepth=wallPenetration(x,z,footY);
+    const targetDepth=wallPenetration(x+step.x,z+step.z,footY);
+    const triangleBlocked=targetDepth>.005&&targetDepth>=Math.max(.005,baseDepth-.0001);
+    const allowance=triangleBlocked?0:wallClearance(x,z,footY,step);
     if(allowance>=step.length()-.00001){x+=step.x;z+=step.z;continue}
     collisionStops++;
     // Probar peldaño; el ascenso debe tener superficie de apoyo y espacio.
     const candidateFloor=floorUnder(x+step.x,z+step.z,footY);
     const rise=candidateFloor-footY;
     if(isGrounded&&rise>.025&&rise<=MAX_STEP&&
+      wallPenetration(x+step.x,z+step.z,candidateFloor)<.005&&
       wallClearance(x,z,candidateFloor,step)>=step.length()-.00001){
       x+=step.x;z+=step.z;footY=candidateFloor;
       verticalVelocity=0;continue;
@@ -544,7 +612,9 @@ function solveMovement(headset,desired,dt){
     // Deslizar perpendicularmente a la pared, sin retroceso.
     for(const axis of ['x','z']){
       const component=new THREE.Vector3(axis==='x'?step.x:0,0,axis==='z'?step.z:0);
-      const permitted=wallClearance(x,z,footY,component);
+      const check=wallPenetration(x+component.x,z+component.z,footY);
+      const permitted=(check>.005&&check>=Math.max(.005,wallPenetration(x,z,footY)-.0001))
+        ?0:wallClearance(x,z,footY,component);
       if(permitted>=component.length()-.00001){
         x+=component.x;z+=component.z;
       }
@@ -568,7 +638,7 @@ function solveMovement(headset,desired,dt){
   }
   rig.position.y=footY;
   lastFloorY=surface;
-  vrDiagnostics='Suelo '+surface.toFixed(2)+' m · pies '+footY.toFixed(2)+' m · impactos '+geometryRayHits;
+  vrDiagnostics='Paredes '+wallCount+' triángulos · bloqueos '+collisionStops+' · suelo '+surface.toFixed(2)+'m';
 }
 function resetPhysics(){
   verticalVelocity=0;
@@ -671,6 +741,7 @@ async function openModel(){
     modelFloorY=0;
     collisionTriangles=0;
     model.traverse(o=>{if(o.isMesh&&o.geometry){collisionTriangles+=o.geometry.index?o.geometry.index.count/3:(o.geometry.attributes.position?.count||0)/3}});
+    buildWallIndex(model);
     collisionStops=0;
     geometryRayHits=0;
     resetPhysics();
@@ -681,7 +752,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos · versión 0.14';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.15';
     vrButton.hidden=false;
     return true;
   }catch(error){
