@@ -7,7 +7,7 @@
 body{margin:0;background:#142034;color:#f4f7fd;font:16px system-ui}canvas{display:block}[hidden]{display:none!important}
 header{position:absolute;z-index:1;top:16px;left:16px;max-width:min(440px,calc(100vw - 72px));padding:14px 18px;background:#131e30ee;border:1px solid #42536f;border-radius:12px}
 h1{font-size:19px;margin:0 0 10px}label{display:block;margin-bottom:5px}select{font:inherit;color:inherit;background:#243652;border:1px solid #637a9d;border-radius:6px;padding:7px;max-width:100%}
-p{margin:9px 0}a{color:#90caff}
+p{margin:9px 0}a{color:#90caff}details{margin-top:12px;border-top:1px solid #42536f;padding-top:9px}summary{cursor:pointer;font-weight:600;color:#b9d9f7}#detectedMaterials{max-height:160px;overflow:auto;font-size:12px;line-height:1.65;white-space:pre-wrap;color:#d5e0f0;margin-top:7px}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
@@ -21,9 +21,10 @@ p{margin:9px 0}a{color:#90caff}
 <option value="auto">Automática (detecta vertical)</option><option value="y">Y arriba</option><option value="z">Z arriba</option><option value="-z">Z invertido</option><option value="x">X arriba</option><option value="-x">X invertido</option><option value="-y">Y invertido</option>
 </select>
 <label for="appearance">Materiales</label>
-<select id="appearance" disabled><option value="library">Biblioteca realista automática</option><option value="original">Originales del GLB</option><option value="clear">Realzar zonas oscuras (originales)</option></select>
+<select id="appearance" disabled><option value="library">Biblioteca realista automática</option><option value="diagnostic">Diagnóstico: resaltar madera</option><option value="original">Originales del GLB</option><option value="clear">Realzar zonas oscuras (originales)</option></select>
 <p style="font-size:12px;color:#a6bbd2">Acabados propios por nombre del material en Fusion: hormigón, madera, inox, acero y pintura.</p>
 <p id="status" role="status">Cargando el visor…</p>
+<details><summary>Materiales y cuerpos detectados</summary><div id="detectedMaterials">Se mostrarán al abrir un diseño.</div></details>
 <p>En el ordenador, arrastra para girar y usa la rueda para acercarte.</p>
 <p>En VR, usa el mando izquierdo para caminar y el derecho para girar.</p>
 <a href="./">Volver a la biblioteca</a>
@@ -37,6 +38,7 @@ import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 
 const status=document.querySelector('#status'), models=document.querySelector('#models');
 const orientation=document.querySelector('#orientation'), appearance=document.querySelector('#appearance');
+const detectedMaterials=document.querySelector('#detectedMaterials');
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x71839c);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.03,500);
@@ -147,6 +149,51 @@ function inferUpAxis(root){
  const zCentered=box.min.z<-size.z*.20&&box.max.z>size.z*.20;
  return zFloor&&yCentered&&!yFloor?'z':yFloor&&zCentered&&!zFloor?'y':'y';
 }
+// Este informe se crea desde los nombres reales del GLB, válido para cualquier diseño.
+function inspectMaterials(root){
+ const groups=new Map(),unknown=new Set(),lib=globalThis.FusionMaterialLib;
+ root.traverse(mesh=>{
+  if(!mesh.isMesh)return;
+  const names=Array.isArray(mesh.material)?mesh.material:[mesh.material];
+  const tris=mesh.geometry?.index?.count?mesh.geometry.index.count/3:(mesh.geometry?.attributes.position?.count||0)/3;
+  const perMaterial=tris/Math.max(names.length,1);
+  for(const mat of names){
+    const name=mat?.name?.trim()||'(sin nombre)';
+    const kind=lib?.identify(name)||null;
+    const key=name+'\x00'+(kind||'');
+    let group=groups.get(key);
+    if(!group){group={name,kind,triangles:0,bodies:new Set()};groups.set(key,group)}
+    group.triangles+=perMaterial;
+    group.bodies.add(mesh.name||'(cuerpo sin nombre)');
+    if(!kind)unknown.add(name);
+  }
+ });
+ const items=[...groups.values()].sort((a,b)=>b.triangles-a.triangles);
+ const lines=items.map(item=>'• '+item.name+' → '+(item.kind||'Sin equivalencia')+' · '+Math.round(item.triangles)+' triángulos · '+item.bodies.size+' cuerpo(s)');
+ if(unknown.size)lines.push('⚠ Sin identificar: '+[...unknown].join(', '));
+ return {items,lines};
+}
+function applyMaterialDiagnostic(root){
+ const palette={pine:0xffc44d,oak:0xf6a53b,wood:0xeaa44e,concrete:0x7996b2,steel:0x8cbbd2,blacksteel:0x354b67,stainless:0x9ee4e9,paint:0xcebfee,plastic:0xbd9fd5};
+ const converted=new Map();
+ root.traverse(mesh=>{
+  if(!mesh.isMesh)return;
+  const materialFor=m=>{
+   if(converted.has(m))return converted.get(m);
+   const kind=globalThis.FusionMaterialLib?.identify(m?.name);
+   const isWood=['pine','oak','wood'].includes(kind);
+   const material=new THREE.MeshBasicMaterial({
+    name:m?.name||'Sin nombre',color:palette[kind]||0xef77cd,
+    transparent:!isWood,opacity:isWood?1:.17,depthWrite:isWood,
+    depthTest:!isWood,side:THREE.DoubleSide
+   });
+   converted.set(m,material);return material;
+  };
+  mesh.material=Array.isArray(mesh.material)?mesh.material.map(materialFor):materialFor(mesh.material);
+  if([...((Array.isArray(mesh.material)?mesh.material:[mesh.material]))].some(m=>m.depthTest===false))mesh.renderOrder=1;
+  else mesh.renderOrder=5;
+ });
+}
 function materialStats(root){
  const materials=new Set(),textured=new Set();
  root.traverse(object=>{
@@ -202,12 +249,15 @@ async function openModel(){
       case '-x': next.rotateZ(-Math.PI/2); break;
       case '-y': next.rotateX(Math.PI); break;
     }
+    const sourceMaterials=inspectMaterials(next);
+    detectedMaterials.textContent=sourceMaterials.lines.join('\n')||'No hay materiales reconocibles.';
     if(appearance.value==='library'){
       if(!globalThis.FusionMaterialLib)throw Error('No se pudo cargar nuestra biblioteca de materiales.');
       status.textContent='Cargando fotografías PBR de madera y hormigón…';
       await globalThis.FusionMaterialLib.prepare();
     }
     const applied=appearance.value==='library'?applyLibrary(next):0;
+    if(appearance.value==='diagnostic')applyMaterialDiagnostic(next);
     if(appearance.value==='clear'){
       const materials=new Set();
       next.traverse(object=>{
@@ -245,7 +295,7 @@ async function openModel(){
     height=size.y;
     scene.add(model);
     desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'');
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'');
     vrButton.hidden=false;
   }catch(error){if(load===generation)status.textContent='No se pudo abrir el diseño. '+error.message}
 }
