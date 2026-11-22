@@ -1,4 +1,4 @@
-/* Fusion VR Studio - biblioteca de materiales PBR v13.
+/* Fusion VR Studio - biblioteca de materiales PBR v14.
    Materiales propios: identifica por nombre, aplica un único material por cuerpo.
    Los mapas se generan localmente en el navegador y se incrustan al exportar FBX->GLB.
 */
@@ -238,10 +238,22 @@ function softenCladdingSeams(colorCanvas,normalCanvas){
        if(seamX)sx=Math.max(0,Math.min(w-1,Math.round(x+(localX<boardWidth/2?9:-9))));
        if(seamY)sy=Math.max(0,Math.min(h-1,Math.round(y+(localY<rowHeight/2?10:-10))));
        const k=(sy*w+sx)*4;
-       const shadow=(edgeY<1.6||edgeX<1.6)?19:edgeY<3||edgeX<3?8:0;
-       for(let c=0;c<3;c++)p[i+c]=Math.max(0,p[k+c]-shadow);
-       // El relieve de la antigua línea negra no debe conservarse.
-       n[i]=128;n[i+1]=128;n[i+2]=255;
+       // Junta estrecha, visible a escala real (~2 mm): sombra marrón
+       // templada + un borde iluminado muy leve, nunca negro puro.
+       // Separación vertical y horizontal siguen sus dimensiones reales.
+       const core=edgeY<2.1||edgeX<2.1;
+       const feather=edgeY<4.1||edgeX<3.6;
+       const highlight=(!core&&feather&&
+         ((edgeY>=2.1&&edgeY<3.1)||(edgeX>=2.1&&edgeX<3.0)));
+       const shadow=core?30:feather?13:0;
+       const light=highlight?7:0;
+       for(let c=0;c<3;c++){
+         const original=p[k+c];
+         const warm= c===2?3:0;
+         p[i+c]=Math.max(0,Math.min(255,original-shadow-warm+light));
+       }
+       // Bisel visual suave, sin normal extrema que produzca raya negra.
+       n[i]=128;n[i+1]=128;n[i+2]=core?243:255;
      }else{
        const variation=drift[row*6+Math.min(5,Math.max(0,col))];
        for(let c=0;c<3;c++)p[i+c]=Math.max(0,Math.min(255,p[i+c]+variation));
@@ -596,5 +608,5 @@ function getMaps(kind){
  const data={kind,color,normal,roughness:rough,metalness:spec.metalness,roughnessFactor:spec.roughness,tileMeters:kind==='concrete'?1.10:kind==='pine'?.55:kind==='oak'?.70:kind==='wood'?.85:1,label:spec.label,source:'Procedural'};
  cache.set(kind,data);return data;
 }
-root.FusionMaterialLib={version:13,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded},getSource(kind){return getMaps(kind)?.source||'Desconocida'}};
+root.FusionMaterialLib={version:14,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded},getSource(kind){return getMaps(kind)?.source||'Desconocida'}};
 })(globalThis);
