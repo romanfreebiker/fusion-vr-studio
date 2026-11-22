@@ -1,4 +1,4 @@
-/* Fusion VR Studio - biblioteca de materiales PBR v4.
+/* Fusion VR Studio - biblioteca de materiales PBR v5.
    Materiales propios: identifica por nombre, aplica un único material por cuerpo.
    Los mapas se generan localmente en el navegador y se incrustan al exportar FBX->GLB.
 */
@@ -119,10 +119,10 @@ function calibrate(canvas,kind){
 // cualquier GLB de Fusion; solo cambia la fuente de las fotografías PBR.
 // Si no hay red, falla CORS o se supera el tiempo, conservar la biblioteca local.
 const remoteAssets={
- pine:{slug:'coated_pine',meters:1.4},
- oak:{slug:'oak_veneer_01',meters:1.8},
- wood:{slug:'white_oak_veneer',meters:1.8},
- concrete:{slug:'rough_concrete',meters:1.8}
+ pine:{slug:'coated_pine',meters:.55},
+ oak:{slug:'oak_veneer_01',meters:.70},
+ wood:{slug:'white_oak_veneer',meters:.85},
+ concrete:{slug:'rough_concrete',meters:1.10}
 };
 let remoteLoaded=0;
 const limited=(promise,ms)=>Promise.race([
@@ -177,7 +177,7 @@ async function prepare(){
       const spec=specs[kind],value={
         kind,color:col,normal:photoCanvas(normal),roughness:photoCanvas(rough),
         metalness:spec.metalness,roughnessFactor:spec.roughness,
-        tileMeters:kind==='concrete'?1.6:1.15,label:spec.label,
+        tileMeters:kind==='concrete'?1.10:kind==='pine'?.55:kind==='oak'?.70:.85,label:spec.label,
         photographic:true,source:'Respaldo local'
       };
       prepared.set(kind,value);
@@ -255,8 +255,8 @@ function getMaps(kind){
  colorCtx.putImageData(colorPixels,0,0);
  normalCtx.putImageData(normalPixels,0,0);
  roughCtx.putImageData(roughPixels,0,0);
- const data={kind,color,normal,roughness:rough,metalness:spec.metalness,roughnessFactor:spec.roughness,label:spec.label};
+ const data={kind,color,normal,roughness:rough,metalness:spec.metalness,roughnessFactor:spec.roughness,tileMeters:kind==='concrete'?1.10:kind==='pine'?.55:kind==='oak'?.70:kind==='wood'?.85:1,label:spec.label,source:'Procedural'};
  cache.set(kind,data);return data;
 }
-root.FusionMaterialLib={version:4,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded}};
+root.FusionMaterialLib={version:5,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded}};
 })(globalThis);
