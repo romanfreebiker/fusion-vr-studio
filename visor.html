@@ -142,6 +142,17 @@ async function openModel(){
         }
       }
     }
+    // Los diseños de interiores de Fusion pueden utilizar superficies de una sola cara.
+    // Mostrarlas desde ambos lados evita paredes invisibles al entrar en el modelo.
+    next.traverse(object=>{
+      if(!object.isMesh)return;
+      for(const material of [object.material].flat()){
+        if(material&&material.side!==THREE.DoubleSide){
+          material.side=THREE.DoubleSide;
+          material.needsUpdate=true;
+        }
+      }
+    });
     const stats=materialStats(next);
     const bounds=new THREE.Box3().setFromObject(next,true);
     if(bounds.isEmpty()){dispose(next);throw Error('El archivo está vacío.')}
