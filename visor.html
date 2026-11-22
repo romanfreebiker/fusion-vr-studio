@@ -352,7 +352,7 @@ function drawVRMenu(){
   ctx.textBaseline='middle';ctx.textAlign='left';
   ctx.fillStyle='#fff';ctx.font='bold 51px system-ui';
   ctx.fillText('MIS DISEÑOS',55,71);
-  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.22',786,71);
+  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.23',786,71);
   ctx.font='23px system-ui';ctx.fillStyle='#adcce6';
   ctx.fillText('Apunta a una tarjeta y pulsa el gatillo',55,119);
   const start=menuPage*MENU_PAGE_SIZE;
@@ -439,7 +439,7 @@ async function refreshVRLibrary(){
     const selected=models.value;
     libraryEntries=items;
     for(const entry of items){
-      if(!entry.miniatura||!/^(miniaturas\\/)[a-zA-Z0-9_-]+\\.(jpg|jpeg|png|webp)$/.test(entry.miniatura)||thumbnailCache.has(entry.miniatura))continue;
+      if(!entry.miniatura||!/^miniaturas\/[a-zA-Z0-9_-]+\.(jpg|jpeg|png|webp)$/.test(entry.miniatura)||thumbnailCache.has(entry.miniatura))continue;
       const img=new Image();
       thumbnailCache.set(entry.miniatura,img);
       img.onload=()=>{if(menuGroup.visible)drawVRMenu()};
@@ -500,7 +500,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.22 · suelo y velocidad ajustados';
+versionLabel.textContent='Visor VR 0.23 · visor reparado';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -879,7 +879,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.22';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.23';
     vrButton.hidden=false;
     return true;
   }catch(error){
