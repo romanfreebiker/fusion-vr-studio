@@ -1,15 +1,15 @@
 {
   "version": 1,
-  "actualizado": "2026-11-22T09:59:15.126Z",
+  "actualizado": "2026-11-22T10:17:54.608Z",
   "modelos": [
     {
       "id": "barbacoa-v13-mwrnfo2j",
       "nombre": "barbacoa v13",
       "categoria": "Viviendas",
       "descripcion": "",
-      "archivo": "modelos/barbacoa-v13-mwrnfo2j-acabados.glb",
+      "archivo": "modelos/barbacoa-v13-mwrnfo2j-uv-corregido.glb",
       "miniatura": "",
-      "bytes": 387688,
+      "bytes": 387716,
       "fecha": "2026-11-22T09:43:15.989Z"
     }
   ]
