@@ -108,7 +108,7 @@ turnSpeed.addEventListener('change',()=>{
   try{localStorage.setItem('fusionvr-turn-speed',turnSpeed.value)}catch{}
 });
 const scene=new THREE.Scene();
-scene.background=new THREE.Color(0x71839c);
+scene.background=new THREE.Color(0xa9bdcf);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.03,500);
 const rig=new THREE.Group();
 rig.add(camera);
@@ -123,12 +123,14 @@ try {
 renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.0;
+renderer.toneMappingExposure=1.12;
 // El zoom en pantallas HiDPI puede forzar muchos píxeles por fotograma.
 // Predeterminado a 1x, sin reducir calidad de los mapas de materiales.
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1));
 renderer.xr.enabled=true;
 renderer.xr.setReferenceSpaceType('local-floor');
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 // Perfil de prueba Quest 2: controla el coste de renderizado estéreo.
 // Debe establecerse ANTES de entrar en la sesión WebXR.
 renderer.xr.setFramebufferScaleFactor(.8);
@@ -136,7 +138,7 @@ renderer.xr.setFramebufferScaleFactor(.8);
 const pmrem=new THREE.PMREMGenerator(renderer);
 const room=new RoomEnvironment();
 scene.environment=pmrem.fromScene(room,.04).texture;
-scene.environmentIntensity=.75;
+scene.environmentIntensity=.9;
 room.dispose();pmrem.dispose();
 document.body.append(renderer.domElement);
 const controls=new OrbitControls(camera,renderer.domElement);
@@ -152,13 +154,22 @@ function applyQuality(){
   renderer.setSize(innerWidth,innerHeight);
 }
 quality.addEventListener('change',applyQuality);
-const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.MeshLambertMaterial({color:0x64707c}));
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.MeshLambertMaterial({color:0xb9c3cd}));
 ground.rotation.x=-Math.PI/2;
 ground.position.y=-.012;
+ground.receiveShadow=true;
 scene.add(ground);
-scene.add(new THREE.HemisphereLight(0xffffff,0x8b95a3,1.0));
-const sun=new THREE.DirectionalLight(0xfff3de,1.7);
-sun.position.set(4,8,6);
+scene.add(new THREE.HemisphereLight(0xf0f7ff,0x9ea5ac,1.45));
+const sun=new THREE.DirectionalLight(0xfff1d9,2.0);
+sun.position.set(8,16,10);
+sun.castShadow=true;
+sun.shadow.mapSize.set(1024,1024);
+sun.shadow.camera.left=-24;sun.shadow.camera.right=24;
+sun.shadow.camera.top=24;sun.shadow.camera.bottom=-24;
+sun.shadow.camera.near=.5;sun.shadow.camera.far=90;
+sun.shadow.bias=-.00008;
+sun.shadow.normalBias=.025;
+sun.shadow.radius=2;
 scene.add(sun);
 const loader=new GLTFLoader();
 // Biblioteca propia de materiales, sin adivinar materiales según la posición de la pieza.
@@ -382,7 +393,7 @@ function drawVRMenu(){
   ctx.textBaseline='middle';ctx.textAlign='left';
   ctx.fillStyle='#fff';ctx.font='bold 51px system-ui';
   ctx.fillText('MIS DISEÑOS',55,71);
-  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.24',786,71);
+  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.27',786,71);
   ctx.font='23px system-ui';ctx.fillStyle='#adcce6';
   ctx.fillText('Apunta a una tarjeta y pulsa el gatillo',55,119);
   const start=menuPage*MENU_PAGE_SIZE;
@@ -421,9 +432,11 @@ function drawVRMenu(){
     ctx.font='bold 26px system-ui';ctx.fillStyle='#fff';ctx.textAlign='center';
     ctx.fillText(label,x+w/2,654);ctx.textAlign='left';
   };
-  footer('prev','◀ Anterior',45,260);
-  footer('close',model?'Cerrar':'Biblioteca',369,278);
-  footer('next','Siguiente ▶',714,260);
+  footer('prev','◀ Pág.',45,150);
+  footer('floorDown','Suelo −10cm',202,175);
+  footer('close',model?'Cerrar':'Biblioteca',384,250);
+  footer('floorUp','Suelo +10cm',641,175);
+  footer('next','Pág. ▶',823,151);
   ctx.font='19px system-ui';ctx.fillStyle='#b6d9f5';ctx.textAlign='center';
   ctx.fillText(menuNote||('Diseños '+models.options.length+' · Pulsa X para volver aquí'),MENU_W/2,577);
   ctx.fillText('Página '+(menuPage+1)+' / '+Math.max(1,Math.ceil(models.options.length/MENU_PAGE_SIZE)),MENU_W/2,735);
@@ -444,9 +457,11 @@ function menuHit(controller){
     if(px>=x&&px<=x+293&&py>=y&&py<=y+194)return {type:'model',i};
   }
   if(py>=612&&py<=698){
-    if(px>=45&&px<=305)return {type:'prev'};
-    if(px>=369&&px<=647)return {type:'close'};
-    if(px>=714&&px<=974)return {type:'next'};
+    if(px>=45&&px<=195)return {type:'prev'};
+    if(px>=202&&px<=377)return {type:'floorDown'};
+    if(px>=384&&px<=634)return {type:'close'};
+    if(px>=641&&px<=816)return {type:'floorUp'};
+    if(px>=823&&px<=974)return {type:'next'};
   }
   return null;
 }
@@ -490,7 +505,7 @@ function showVRMenu(){
   if(!renderer.xr.isPresenting||!models.options.length)return;
   const index=Array.from(models.options).findIndex(o=>o.value===models.value);
   menuPage=Math.floor(Math.max(0,index)/MENU_PAGE_SIZE);
-  menuBusy=false;menuNote='';menuHovered='';
+  menuBusy=false;menuNote='Suelo: '+(floorOffsetCm>0?'+':'')+floorOffsetCm+' cm · usa los botones inferiores';menuHovered='';
   updateMenuPlacement(renderer.xr.getCamera(),0);
   menuGroup.visible=true;
   for(const {laser} of menuControllerObjects)laser.visible=true;
@@ -500,6 +515,8 @@ function showVRMenu(){
 async function activateMenuHit(hit){
   if(menuBusy)return;
   if(hit.type==='close'){if(model)closeVRMenu();return}
+  if(hit.type==='floorUp'){setFloorOffset(10);return}
+  if(hit.type==='floorDown'){setFloorOffset(-10);return}
   if(hit.type==='prev'){
     if(menuPage>0){menuPage--;menuHovered='';drawVRMenu()}
     return;
@@ -530,7 +547,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.26 · suelo neutro';
+versionLabel.textContent='Visor VR 0.27 · luz y altura ajustable';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -543,12 +560,37 @@ const avatarHead=new THREE.Vector3();
 const xrLocalHead=new THREE.Vector3(),xrHeadOrientation=new THREE.Quaternion();
 const xrWorldForward=new THREE.Vector3(),xrHeadOffset=new THREE.Vector3();
 let xrPoseAvailable=false,liveHeadWallDepth=0,liveLocalHead='';
-// La cuadrícula Y=0 coincide con el suelo físico de local-floor de WebXR.
-// No forzar una altura de ojos fija: desplaza el suelo respecto a los pies reales.
-// Mantener el punto de llamada sin alterar el movimiento ni las colisiones.
-let heightReferenceReady=false,virtualHeightCorrection=0,heightReferenceError='';
+// Corrección virtual: nunca mueve los modelos, las colisiones ni el Guardian.
+let floorOffsetCm=0;
+try{
+  const saved=Number(localStorage.getItem('fusionvr-floor-offset-cm'));
+  if(Number.isFinite(saved))floorOffsetCm=THREE.MathUtils.clamp(Math.round(saved/10)*10,-50,80);
+}catch{}
+let floorBaseSpace=null,appliedFloorOffsetCm=null;
+function setFloorOffset(delta){
+  floorOffsetCm=THREE.MathUtils.clamp(floorOffsetCm+delta,-50,80);
+  try{localStorage.setItem('fusionvr-floor-offset-cm',String(floorOffsetCm))}catch{}
+  menuNote='Suelo '+(floorOffsetCm>0?'+':'')+floorOffsetCm+' cm · se aplica al salir del menú';
+  drawVRMenu();
+}
 function calibrateVirtualFloor(){
-  return false;
+  if(!renderer.xr.isPresenting)return false;
+  const current=renderer.xr.getReferenceSpace();
+  if(!current)return false;
+  if(!floorBaseSpace)floorBaseSpace=current;
+  if(appliedFloorOffsetCm===floorOffsetCm)return false;
+  try{
+    renderer.xr.setReferenceSpace(floorBaseSpace.getOffsetReferenceSpace(
+      new XRRigidTransform({x:0,y:floorOffsetCm/100,z:0})
+    ));
+    appliedFloorOffsetCm=floorOffsetCm;
+    return true;
+  }catch(error){
+    menuNote='Error al ajustar suelo: '+String(error?.message||error);
+    appliedFloorOffsetCm=floorOffsetCm;
+    if(menuGroup.visible)drawVRMenu();
+    return false;
+  }
 }
 function syncViewerPose(){
   const frame=renderer.xr.getFrame();
@@ -860,6 +902,7 @@ async function openModel(){
     const center=bounds.getCenter(new THREE.Vector3()), size=bounds.getSize(new THREE.Vector3());
     if(model){scene.remove(model);dispose(model)}
     model=next;
+    model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
     model.position.x-=center.x;
     model.position.y-=bounds.min.y;
     model.position.z-=center.z;
@@ -907,9 +950,8 @@ renderer.xr.addEventListener('sessionstart',()=>{
   canTurn=true;
   smoothTurnAxis=0;
   resetPhysics();
-  heightReferenceReady=false;
-  virtualHeightCorrection=0;
-  heightReferenceError='';
+  floorBaseSpace=null;
+  appliedFloorOffsetCm=null;
   closeVRMenu();
   showLibraryOnEntry=LIBRARY_START;
 });
