@@ -33,7 +33,18 @@ p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-va
 <p id="performance" role="status">Midiendo rendimiento…</p>
 <details><summary>Materiales y cuerpos detectados</summary><div id="detectedMaterials">Se mostrarán al abrir un diseño.</div></details>
 <p>En el ordenador, arrastra para girar y usa la rueda para acercarte.</p>
-<p>En VR, usa el mando izquierdo para caminar y el derecho para girar.</p>
+<label for="turnMode">Tipo de giro en VR</label>
+<select id="turnMode" aria-label="Tipo de giro en realidad virtual">
+<option value="smooth">Suave y continuo</option>
+<option value="snap">Por pasos de 30°</option>
+</select>
+<label for="turnSpeed">Velocidad del giro suave</label>
+<select id="turnSpeed" aria-label="Velocidad del giro en realidad virtual">
+<option value="40">Lenta · 40°/s</option>
+<option value="65" selected>Normal · 65°/s</option>
+<option value="100">Rápida · 100°/s</option>
+</select>
+<p>En VR, usa el mando izquierdo para caminar y mueve la palanca derecha para girar. Si notas mareo, cambia a giro por pasos.</p>
 <a href="./">Volver a la biblioteca</a>
 </header>
 <script type="module">
@@ -48,6 +59,22 @@ const orientation=document.querySelector('#orientation'), appearance=document.qu
 const detectedMaterials=document.querySelector('#detectedMaterials');
 const quality=document.querySelector('#quality');
 const performanceLabel=document.querySelector('#performance');
+const turnMode=document.querySelector('#turnMode');
+const turnSpeed=document.querySelector('#turnSpeed');
+// Guardar únicamente preferencias de confort en este navegador.
+try{
+ const selectedMode=localStorage.getItem('fusionvr-turn-mode');
+ const selectedSpeed=localStorage.getItem('fusionvr-turn-speed');
+ if(['smooth','snap'].includes(selectedMode))turnMode.value=selectedMode;
+ if(['40','65','100'].includes(selectedSpeed))turnSpeed.value=selectedSpeed;
+}catch{}
+turnMode.addEventListener('change',()=>{
+  smoothTurnAxis=0;canTurn=true;
+  try{localStorage.setItem('fusionvr-turn-mode',turnMode.value)}catch{}
+});
+turnSpeed.addEventListener('change',()=>{
+  try{localStorage.setItem('fusionvr-turn-speed',turnSpeed.value)}catch{}
+});
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x71839c);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.03,500);
@@ -235,7 +262,7 @@ function materialStats(root){
 const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']});
 vrButton.hidden=true;
 document.body.append(vrButton);
-let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true;
+let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
 function desktopView(){
   rig.position.set(0,0,0);
   rig.rotation.set(0,0,0);
@@ -333,14 +360,34 @@ renderer.xr.addEventListener('sessionstart',()=>{
   rig.rotation.set(0,0,0);
   lastTime=0;
   canTurn=true;
+  smoothTurnAxis=0;
 });
-renderer.xr.addEventListener('sessionend',()=>{controls.enabled=true;desktopView()});
+renderer.xr.addEventListener('sessionend',()=>{
+  controls.enabled=true;
+  smoothTurnAxis=0;
+  desktopView();
+});
 const forward=new THREE.Vector3(), right=new THREE.Vector3(), pivot=new THREE.Vector3(), turned=new THREE.Vector3();
 function stick(source){
   const axes=source?.gamepad?.axes;
   return axes?.length>=4?[axes[2],axes[3]]:[axes?.[0]??0,axes?.[1]??0];
 }
 const dead=n=>Math.abs(n)<.18?0:n;
+function smoothStick(value){
+ const deadzone=.16;
+ const magnitude=Math.abs(value);
+ if(magnitude<deadzone)return 0;
+ return Math.sign(value)*Math.pow((Math.min(1,magnitude)-deadzone)/(1-deadzone),1.1);
+}
+function rotateAroundHeadset(headset,angle){
+ if(Math.abs(angle)<1e-7)return;
+ // Gira alrededor de la posición real de la cabeza para no crear órbitas.
+ pivot.setFromMatrixPosition(headset.matrixWorld).sub(rig.position);
+ pivot.y=0;
+ turned.copy(pivot).applyAxisAngle(THREE.Object3D.DEFAULT_UP,angle);
+ rig.position.add(pivot).sub(turned);
+ rig.rotation.y+=angle;
+}
 let meterStart=0,meterFrames=0,meterSlowest=0,meterLast=0;
 renderer.setAnimationLoop(time=>{
   const dt=lastTime?Math.min(.05,(time-lastTime)/1000):0;
@@ -355,15 +402,22 @@ renderer.setAnimationLoop(time=>{
     forward.normalize();
     right.crossVectors(forward,THREE.Object3D.DEFAULT_UP);
     rig.position.addScaledVector(forward,-dead(y)*1.35*dt).addScaledVector(right,dead(x)*1.35*dt);
-    if(Math.abs(turn)<.25)canTurn=true;
-    if(canTurn&&Math.abs(turn)>.65){
-      canTurn=false;
-      const angle=-Math.sign(turn)*Math.PI/6;
-      pivot.setFromMatrixPosition(headset.matrixWorld).sub(rig.position);
-      pivot.y=0;
-      turned.copy(pivot).applyAxisAngle(THREE.Object3D.DEFAULT_UP,angle);
-      rig.position.add(pivot).sub(turned);
-      rig.rotation.y+=angle;
+    if(turnMode.value==='snap'){
+      smoothTurnAxis=0;
+      if(Math.abs(turn)<.25)canTurn=true;
+      if(canTurn&&Math.abs(turn)>.65){
+        canTurn=false;
+        rotateAroundHeadset(headset,-Math.sign(turn)*Math.PI/6);
+      }
+    }else{
+      // Giro proporcional y continuo a cada fotograma, sin saltos de 30°.
+      // La amortiguación suaviza el inicio y el final del movimiento.
+      const desired=smoothStick(turn);
+      const blend=1-Math.exp(-12*dt);
+      smoothTurnAxis+=(desired-smoothTurnAxis)*blend;
+      if(Math.abs(smoothTurnAxis)<.001&&Math.abs(desired)<.001)smoothTurnAxis=0;
+      const radiansPerSecond=Number(turnSpeed.value)*Math.PI/180;
+      rotateAroundHeadset(headset,-smoothTurnAxis*radiansPerSecond*dt);
     }
   }
   if(!renderer.xr.isPresenting)controls.update(); // amortiguación de la rueda en escritorio
