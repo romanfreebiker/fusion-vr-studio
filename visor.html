@@ -262,7 +262,10 @@ function materialStats(root){
  return {materials:materials.size,textured:textured.size};
 }
 // Biblioteca tridimensional dentro del modo inmersivo: no hace falta salir de VR.
-const MENU_W=1024,MENU_H=768,MENU_PAGE_SIZE=5;
+const MENU_W=1024,MENU_H=768,MENU_PAGE_SIZE=6;
+const LIBRARY_START=new URLSearchParams(location.search).get('biblioteca')==='1';
+let showLibraryOnEntry=LIBRARY_START,libraryEntries=[];
+const thumbnailCache=new Map();
 const menuCanvas=document.createElement('canvas');
 menuCanvas.width=MENU_W;menuCanvas.height=MENU_H;
 const menuCtx=menuCanvas.getContext('2d');
@@ -346,44 +349,54 @@ function drawVRMenu(){
   const ctx=menuCtx;
   ctx.fillStyle='#0c1b2e';ctx.fillRect(0,0,MENU_W,MENU_H);
   ctx.strokeStyle='#6bb6e8';ctx.lineWidth=6;ctx.strokeRect(8,8,MENU_W-16,MENU_H-16);
-  ctx.textBaseline='middle';
-  ctx.font='bold 57px system-ui';ctx.fillStyle='#ffffff';
-  ctx.fillText('BIBLIOTECA VR',75,82);
-  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.20',760,83);
-  ctx.font='25px system-ui';ctx.fillStyle='#a7d6f5';
-  ctx.fillText('Apunta al diseño y pulsa el gatillo',75,137);
+  ctx.textBaseline='middle';ctx.textAlign='left';
+  ctx.fillStyle='#fff';ctx.font='bold 51px system-ui';
+  ctx.fillText('MIS DISEÑOS',55,71);
+  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.21',786,71);
+  ctx.font='23px system-ui';ctx.fillStyle='#adcce6';
+  ctx.fillText('Apunta a una tarjeta y pulsa el gatillo',55,119);
   const start=menuPage*MENU_PAGE_SIZE;
   for(let i=0;i<MENU_PAGE_SIZE;i++){
     const option=models.options[start+i];
-    const cy=210+82*i;
     if(!option)continue;
-    const active=menuHovered==='model:'+i,selected=option.value===models.value;
-    ctx.fillStyle=active?'#306e83':selected?'#305479':'#1d344e';
-    ctx.fillRect(70,cy-34,884,68);
-    if(selected){ctx.fillStyle='#87ffcd';ctx.fillRect(70,cy-34,8,68)}
-    ctx.fillStyle='#ffffff';ctx.font='bold 35px system-ui';
-    const textName=(option.textContent||'Diseño').slice(0,38);
-    ctx.fillText(textName,101,cy,790);
-    if(selected){ctx.font='20px system-ui';ctx.fillStyle='#87ffcd';ctx.fillText('ABIERTO',788,cy)}
+    const col=i%3,row=Math.floor(i/3),x=47+col*320,y=154+row*213,w=293,h=194;
+    const focused=menuHovered==='model:'+i;
+    ctx.fillStyle=focused?'#2e7992':'#213750';
+    ctx.fillRect(x,y,w,h);
+    ctx.strokeStyle=focused?'#a9f2ff':'#507190';
+    ctx.lineWidth=focused?5:2;ctx.strokeRect(x,y,w,h);
+    const item=libraryEntries.find(entry=>entry.archivo===option.value);
+    const image=item?thumbnailCache.get(item.miniatura):null;
+    if(image && image.complete&&image.naturalWidth){
+      const ratio=Math.max((w-14)/image.naturalWidth,126/image.naturalHeight);
+      const tw=image.naturalWidth*ratio,th=image.naturalHeight*ratio;
+      ctx.save();ctx.beginPath();ctx.rect(x+7,y+7,w-14,126);ctx.clip();
+      ctx.drawImage(image,x+(w-tw)/2,y+7+(126-th)/2,tw,th);
+      ctx.restore();
+    }else{
+      ctx.fillStyle='#304a69';ctx.fillRect(x+7,y+7,w-14,126);
+      ctx.font='bold 52px system-ui';ctx.fillStyle='#85b8e7';ctx.textAlign='center';
+      ctx.fillText('3D',x+w/2,y+70);ctx.textAlign='left';
+    }
+    ctx.fillStyle='#fff';ctx.font='bold 27px system-ui';
+    ctx.fillText((option.textContent||'Diseño').slice(0,19),x+16,y+158,w-32);
+    if(model&&option.value===models.value){
+      ctx.fillStyle='#a0ffd5';ctx.font='17px system-ui';
+      ctx.fillText('ABIERTO',x+16,y+183);
+    }
   }
-  function footer(key,label,x,w){
+  const footer=(key,label,x,w)=>{
     ctx.fillStyle=menuHovered===key?'#32718a':'#254663';
-    ctx.fillRect(x,635,w,90);
-    ctx.font='bold 27px system-ui';ctx.fillStyle='#fff';ctx.textAlign='center';
-    ctx.fillText(label,x+w/2,681);
-    ctx.textAlign='left';
-  }
-  footer('prev','◀ Anterior',52,258);
-  footer('close','Cerrar',372,278);
-  footer('next','Siguiente ▶',711,258);
-  ctx.fillStyle='#a8d5ee';ctx.font='22px system-ui';ctx.textAlign='center';
-  ctx.fillText(menuNote||('Paredes '+wallCount+' · bloqueos '+collisionStops+' · joystick '+joystickMeters.toFixed(1)+'m'),MENU_W/2,582);
-  ctx.font='19px system-ui';ctx.fillStyle='#d2f4ff';
-  ctx.fillText('Altura virtual 1,65 m · ajuste '+virtualHeightCorrection.toFixed(2)+' m'+
-    (heightReferenceError?' · sin soporte XR':''),MENU_W/2,611);
-  ctx.textAlign='left';
-  ctx.fillStyle='#b2c9df';ctx.font='18px system-ui';ctx.textAlign='right';
-  ctx.fillText('Página '+(menuPage+1)+' / '+Math.max(1,Math.ceil(models.options.length/MENU_PAGE_SIZE)),970,139);
+    ctx.fillRect(x,612,w,86);
+    ctx.font='bold 26px system-ui';ctx.fillStyle='#fff';ctx.textAlign='center';
+    ctx.fillText(label,x+w/2,654);ctx.textAlign='left';
+  };
+  footer('prev','◀ Anterior',45,260);
+  footer('close',model?'Cerrar':'Biblioteca',369,278);
+  footer('next','Siguiente ▶',714,260);
+  ctx.font='19px system-ui';ctx.fillStyle='#b6d9f5';ctx.textAlign='center';
+  ctx.fillText(menuNote||('Diseños '+models.options.length+' · Pulsa X para volver aquí'),MENU_W/2,577);
+  ctx.fillText('Página '+(menuPage+1)+' / '+Math.max(1,Math.ceil(models.options.length/MENU_PAGE_SIZE)),MENU_W/2,735);
   ctx.textAlign='left';
   menuTexture.needsUpdate=true;
 }
@@ -394,16 +407,16 @@ function menuHit(controller){
   const intersection=menuRaycaster.intersectObject(menuBoard,false)[0];
   if(!intersection?.uv)return null;
   const px=intersection.uv.x*MENU_W,py=(1-intersection.uv.y)*MENU_H;
-  if(px>=70&&px<=954){
-    for(let i=0;i<MENU_PAGE_SIZE;i++){
-      if(py>=176+82*i&&py<=244+82*i&&models.options[menuPage*MENU_PAGE_SIZE+i])
-        return {type:'model',i};
-    }
+  for(let i=0;i<MENU_PAGE_SIZE;i++){
+    const option=models.options[menuPage*MENU_PAGE_SIZE+i];
+    if(!option)continue;
+    const x=47+(i%3)*320,y=154+Math.floor(i/3)*213;
+    if(px>=x&&px<=x+293&&py>=y&&py<=y+194)return {type:'model',i};
   }
-  if(py>=635&&py<=725){
-    if(px>=52&&px<=310)return {type:'prev'};
-    if(px>=372&&px<=650)return {type:'close'};
-    if(px>=711&&px<=969)return {type:'next'};
+  if(py>=612&&py<=698){
+    if(px>=45&&px<=305)return {type:'prev'};
+    if(px>=369&&px<=647)return {type:'close'};
+    if(px>=714&&px<=974)return {type:'next'};
   }
   return null;
 }
@@ -424,6 +437,14 @@ async function refreshVRLibrary(){
     const items=Array.isArray(json.modelos)?json.modelos.filter(item=>item.id&&item.archivo):[];
     if(!items.length)throw Error('Catálogo vacío');
     const selected=models.value;
+    libraryEntries=items;
+    for(const entry of items){
+      if(!entry.miniatura||!/^(miniaturas\\/)[a-zA-Z0-9_-]+\\.(jpg|jpeg|png|webp)$/.test(entry.miniatura)||thumbnailCache.has(entry.miniatura))continue;
+      const img=new Image();
+      thumbnailCache.set(entry.miniatura,img);
+      img.onload=()=>{if(menuGroup.visible)drawVRMenu()};
+      img.src=new URL(entry.miniatura,location.href).href;
+    }
     models.replaceChildren();
     for(const item of items)models.add(new Option(item.nombre||item.id,item.archivo));
     if([...models.options].some(option=>option.value===selected))models.value=selected;
@@ -448,7 +469,7 @@ function showVRMenu(){
 }
 async function activateMenuHit(hit){
   if(menuBusy)return;
-  if(hit.type==='close'){closeVRMenu();return}
+  if(hit.type==='close'){if(model)closeVRMenu();return}
   if(hit.type==='prev'){
     if(menuPage>0){menuPage--;menuHovered='';drawVRMenu()}
     return;
@@ -461,7 +482,7 @@ async function activateMenuHit(hit){
   if(hit.type==='model'){
     const selected=models.options[menuPage*MENU_PAGE_SIZE+hit.i];
     if(!selected)return;
-    if(models.value===selected.value){closeVRMenu();return}
+    if(model&&models.value===selected.value){closeVRMenu();return}
     menuBusy=true;menuNote='Cargando '+selected.textContent+'…';drawVRMenu();
     const previous=models.value;
     models.value=selected.value;
@@ -479,7 +500,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.20 · suelo virtual automático';
+versionLabel.textContent='Visor VR 0.21 · biblioteca inmersiva';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -858,7 +879,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.20';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.21';
     vrButton.hidden=false;
     return true;
   }catch(error){
@@ -882,6 +903,7 @@ renderer.xr.addEventListener('sessionstart',()=>{
   virtualHeightCorrection=0;
   heightReferenceError='';
   closeVRMenu();
+  showLibraryOnEntry=LIBRARY_START;
 });
 renderer.xr.addEventListener('sessionend',()=>{
   menuButtonHeld=false;
@@ -929,8 +951,12 @@ renderer.setAnimationLoop(time=>{
     // WebXR Quest Touch: face button 4 = X, 5 = Y (también permite Y).
     // Solo alterna al pulsar, no vuelve a alternar por mantenerlo presionado.
     const menuPressed=Boolean(left?.gamepad?.buttons?.[4]?.pressed||left?.gamepad?.buttons?.[5]?.pressed);
+    if(showLibraryOnEntry&&models.options.length&&!heightChanged){
+      showLibraryOnEntry=false;
+      showVRMenu();
+    }
     if(menuPressed&&!menuButtonHeld){
-      if(menuGroup.visible){if(!menuBusy)closeVRMenu()}
+      if(menuGroup.visible){if(!menuBusy&&model)closeVRMenu()}
       else showVRMenu();
     }
     menuButtonHeld=menuPressed;
@@ -1005,6 +1031,7 @@ try{
   if(!response.ok)throw Error('No se pudo leer el catálogo.');
   const {modelos=[]}=await response.json();
   orientation.value='z';
+  libraryEntries=modelos;
   for(const item of modelos)models.add(new Option(item.nombre,item.archivo));
   if(!models.length)throw Error('Todavía no hay diseños publicados.');
   const requestedId=new URLSearchParams(location.search).get('diseno');
@@ -1012,7 +1039,10 @@ try{
   if(requested)models.value=requested.archivo;
   for(const control of [models,orientation,appearance])control.disabled=false;
   appearance.value='library';
-  await openModel();
+  if(LIBRARY_START){
+    status.textContent='Biblioteca VR lista · Pulsa ENTER VR para escoger un diseño.';
+    vrButton.hidden=false;
+  }else await openModel();
 }catch(error){status.textContent=error.message}
 </script>
 </html>
