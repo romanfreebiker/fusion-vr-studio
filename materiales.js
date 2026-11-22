@@ -9,8 +9,8 @@ const specs={
  oak:{label:'Roble',metalness:0,roughness:.70,size:768},
  wood:{label:'Madera',metalness:0,roughness:.75,size:768},
  concrete:{label:'Hormigón',metalness:0,roughness:.93,size:768},
- stainless:{label:'Acero inoxidable satinado',metalness:.83,roughness:.38,size:512},
- steel:{label:'Acero',metalness:.72,roughness:.57,size:512},
+ stainless:{label:'Acero inoxidable satinado',metalness:.93,roughness:.31,size:512},
+ steel:{label:'Acero',metalness:.85,roughness:.50,size:512},
  blacksteel:{label:'Acero pintado negro',metalness:.34,roughness:.48,size:512},
  paint:{label:'Pintura',metalness:.03,roughness:.55,size:512},
  plastic:{label:'Plástico',metalness:0,roughness:.54,size:512}
@@ -120,8 +120,8 @@ function calibrate(canvas,kind){
 // Si no hay red, falla CORS o se supera el tiempo, conservar la biblioteca local.
 const remoteAssets={
  pine:{slug:'coated_pine',meters:1.4},
- oak:{slug:'oak_wood_planks',meters:1.7},
- wood:{slug:'wood_floor',meters:1.7},
+ oak:{slug:'oak_veneer_01',meters:1.8},
+ wood:{slug:'white_oak_veneer',meters:1.8},
  concrete:{slug:'rough_concrete',meters:1.8}
 };
 let remoteLoaded=0;
