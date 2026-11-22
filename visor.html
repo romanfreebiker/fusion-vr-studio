@@ -17,10 +17,10 @@ p{margin:9px 0}a{color:#90caff}
 <label for="models">Diseño</label><select id="models" disabled></select>
 <label for="orientation">Orientación</label>
 <select id="orientation" disabled>
-<option value="auto">Automática</option><option value="y">Y arriba</option><option value="z">Z arriba</option><option value="-z">Z invertido</option><option value="x">X arriba</option><option value="-x">X invertido</option><option value="-y">Y invertido</option>
+<option value="auto">Automática (detecta vertical)</option><option value="y">Y arriba</option><option value="z">Z arriba</option><option value="-z">Z invertido</option><option value="x">X arriba</option><option value="-x">X invertido</option><option value="-y">Y invertido</option>
 </select>
 <label for="appearance">Materiales</label>
-<select id="appearance" disabled><option value="original">Originales del GLB</option><option value="clear">Aclarar materiales oscuros</option></select>
+<select id="appearance" disabled><option value="original">Originales del GLB</option><option value="clear">Realzar zonas oscuras (mantiene texturas)</option></select>
 <p id="status" role="status">Cargando el visor…</p>
 <p>En el ordenador, arrastra para girar y usa la rueda para acercarte.</p>
 <p>En VR, usa el mando izquierdo para caminar y el derecho para girar.</p>
@@ -48,6 +48,9 @@ try {
   throw error;
 }
 renderer.setSize(innerWidth,innerHeight);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.25;
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
 renderer.xr.enabled=true;
 renderer.xr.setReferenceSpaceType('local-floor');
@@ -62,6 +65,29 @@ const sun=new THREE.DirectionalLight(0xfff3de,2);
 sun.position.set(4,8,6);
 scene.add(sun);
 const loader=new GLTFLoader();
+// Fusion exporta algunos diseños con Z vertical; glTF convencional usa Y vertical.
+function inferUpAxis(root){
+ const box=new THREE.Box3().setFromObject(root,true);
+ if(box.isEmpty())return 'y';
+ const size=box.getSize(new THREE.Vector3());
+ const zFloor=Math.abs(box.min.z)<Math.max(.03,size.z*.07)&&box.max.z>Math.max(.15,size.z*.4);
+ const yFloor=Math.abs(box.min.y)<Math.max(.03,size.y*.07)&&box.max.y>Math.max(.15,size.y*.4);
+ const yCentered=box.min.y<-size.y*.20&&box.max.y>size.y*.20;
+ const zCentered=box.min.z<-size.z*.20&&box.max.z>size.z*.20;
+ return zFloor&&yCentered&&!yFloor?'z':yFloor&&zCentered&&!zFloor?'y':'y';
+}
+function materialStats(root){
+ const materials=new Set(),textured=new Set();
+ root.traverse(object=>{
+  if(!object.isMesh)return;
+  for(const m of [object.material].flat()){
+   if(!m)continue;
+   materials.add(m);
+   if(m.map?.image)textured.add(m);
+  }
+ });
+ return {materials:materials.size,textured:textured.size};
+}
 const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']});
 vrButton.hidden=true;
 document.body.append(vrButton);
@@ -95,9 +121,7 @@ async function openModel(){
     if(url.origin!==location.origin||!url.pathname.startsWith(new URL('modelos/',location.href).pathname)||!url.pathname.endsWith('.glb'))throw Error('Ruta de modelo no válida.');
     const {scene:next}=await loader.loadAsync(url.href);
     if(load!==generation){dispose(next);return}
-    const upAxis=orientation.value==='auto'
-      ? (url.pathname.endsWith('/barbacoa-mwrl3t31.glb')?'z':'y')
-      : orientation.value;
+    const upAxis=orientation.value==='auto'?inferUpAxis(next):orientation.value;
     switch(upAxis){
       case 'z': next.rotateX(-Math.PI/2); break;
       case '-z': next.rotateX(Math.PI/2); break;
@@ -112,10 +136,13 @@ async function openModel(){
       });
       for(const material of materials){
         if(!material.map&&material.color&&Math.max(material.color.r,material.color.g,material.color.b)<.04){
-          material.color.setHex(0x9a9186);
+          material.color.setHex(0x545960);
+          material.metalness=Math.min(material.metalness??0,.45);
+          material.roughness=Math.max(material.roughness??.7,.6);
         }
       }
     }
+    const stats=materialStats(next);
     const bounds=new THREE.Box3().setFromObject(next,true);
     if(bounds.isEmpty()){dispose(next);throw Error('El archivo está vacío.')}
     const center=bounds.getCenter(new THREE.Vector3()), size=bounds.getSize(new THREE.Vector3());
@@ -128,7 +155,7 @@ async function openModel(){
     height=size.y;
     scene.add(model);
     desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto)';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase();
     vrButton.hidden=false;
   }catch(error){if(load===generation)status.textContent='No se pudo abrir el diseño. '+error.message}
 }
@@ -188,7 +215,7 @@ try{
   const requested=modelos.find(item=>item.id===requestedId);
   if(requested)models.value=requested.archivo;
   for(const control of [models,orientation,appearance])control.disabled=false;
-  if(models.value.endsWith('/barbacoa-mwrl3t31.glb'))appearance.value='clear';
+  if(/barbacoa/i.test(models.options[models.selectedIndex]?.text||''))appearance.value='clear';
   await openModel();
 }catch(error){status.textContent=error.message}
 </script>
