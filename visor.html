@@ -453,10 +453,31 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
-let worldOctree=null,verticalVelocity=0,isGrounded=false;
+let worldOctree=null,verticalVelocity=0,isGrounded=false,collisionTriangles=0,collisionStops=0;
 const BODY_RADIUS=.24,STEP_HEIGHT=.28,GRAVITY=9.81;
 const capsule=new Capsule(new THREE.Vector3(),new THREE.Vector3(),BODY_RADIUS);
 const avatarHead=new THREE.Vector3(),deltaMotion=new THREE.Vector3();
+const sweepRay=new THREE.Ray(),sweepOrigin=new THREE.Vector3(),sweepDir=new THREE.Vector3();
+function sweepSolidWalls(start,displacement,feet){
+  if(!worldOctree||displacement.lengthSq()<1e-12)return displacement;
+  // Bloqueo preventivo antes de que una cápsula llegue a penetrar una pared fina.
+  const length=displacement.length();
+  sweepDir.copy(displacement).divideScalar(length);
+  let limit=length;
+  for(const y of [.55,1.05,1.5]){
+    for(const side of [-BODY_RADIUS*.75,0,BODY_RADIUS*.75]){
+      sweepOrigin.set(start.x+sweepDir.z*side,feet+y,start.z-sweepDir.x*side);
+      sweepRay.set(sweepOrigin,sweepDir);
+      const hit=worldOctree.rayIntersect(sweepRay);
+      // Sólo las caras casi verticales deben bloquear avance horizontal.
+      if(hit&&Math.abs(hit.normal.y)<.55&&hit.distance<limit+BODY_RADIUS){
+        limit=Math.max(0,hit.distance-BODY_RADIUS-.015);
+      }
+    }
+  }
+  if(limit<length){collisionStops++;return displacement.clone().multiplyScalar(limit/length)}
+  return displacement;
+}
 function collideCapsule(test){
   if(!worldOctree)return {grounded:false};
   let grounded=false;
@@ -477,6 +498,8 @@ function solveMovement(headset,xz,dt){
   capsule.start.set(avatarHead.x,feet+BODY_RADIUS,avatarHead.z);
   capsule.end.set(avatarHead.x,avatarHead.y-.17,avatarHead.z);
   const before=capsule.clone();
+  // Comprobar la trayectoria antes de mover al jugador evita atravesar muros finos.
+  xz=sweepSolidWalls(avatarHead,xz,feet);
   // Subpasos evitan atravesar superficies delgadas a baja tasa de fotogramas.
   const substeps=Math.max(1,Math.ceil(xz.length()/.08));
   deltaMotion.copy(xz).divideScalar(substeps);
@@ -608,6 +631,8 @@ async function openModel(){
     // independientemente de sus materiales, nombres o tamaños.
     worldOctree=new Octree();
     worldOctree.fromGraphNode(model);
+    collisionTriangles=worldOctree.triangles?.length||0;
+    collisionStops=0;
     resetPhysics();
     if(renderer.xr.isPresenting){
       // Cambia el diseño y recoloca al visitante sin cerrar la sesión inmersiva.
@@ -616,7 +641,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'');
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos';
     vrButton.hidden=false;
     return true;
   }catch(error){
@@ -737,7 +762,7 @@ renderer.setAnimationLoop(time=>{
   if(windowMs>=1000){
     const fps=Math.round(meterFrames*1000/windowMs);
     const worst=Math.round(meterSlowest);
-    performanceLabel.textContent=(renderer.xr.isPresenting?'Quest/VR':'PC')+': '+fps+' FPS · peor fotograma '+worst+' ms · '+renderer.info.render.calls+' grupos de dibujo';
+    performanceLabel.textContent=(renderer.xr.isPresenting?'Quest/VR':'PC')+': '+fps+' FPS · peor fotograma '+worst+' ms · '+renderer.info.render.calls+' grupos de dibujo · '+collisionTriangles+' triángulos de colisión · '+collisionStops+' bloqueos';
     meterStart=time;meterFrames=0;meterSlowest=0;
   }
 });
