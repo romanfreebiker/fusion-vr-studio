@@ -1,4 +1,4 @@
-/* Fusion VR Studio - biblioteca de materiales PBR v12.
+/* Fusion VR Studio - biblioteca de materiales PBR v13.
    Materiales propios: identifica por nombre, aplica un único material por cuerpo.
    Los mapas se generan localmente en el navegador y se incrustan al exportar FBX->GLB.
 */
@@ -201,64 +201,55 @@ function canvasNative(image){
 // Reparar la franja completa, NO solamente su píxel central: interpolación
 // fotográfica desde los dos lados + una sombra de separación muy tenue.
 // Trabajar sobre tiras pequeñas para no duplicar 16 MB en Quest 2.
+// Revestimiento real 8 x 2 m: diez hiladas de 200 mm y juntas a 2 m.
+// La fotografía aprobada contiene unas líneas muy negras dibujadas al crear
+// el atlas. Se reconstruyen los bordes y se sustituyen por juntas de madera
+// CLARAS pero nítidas; cada tabla conserva sus propias vetas y nudos.
 function softenCladdingSeams(colorCanvas,normalCanvas){
- const ctx=colorCanvas.getContext('2d',{willReadFrequently:true});
  const w=colorCanvas.width,h=colorCanvas.height;
- const sample=ctx.getImageData(0,0,w,h).data;
- const avg=new Float32Array(h);
+ const ctx=colorCanvas.getContext('2d',{willReadFrequently:true});
+ const nm=normalCanvas.getContext('2d',{willReadFrequently:true});
+ const color=ctx.getImageData(0,0,w,h),normal=nm.getImageData(0,0,w,h);
+ const p=color.data,n=normal.data;
+ const rowHeight=h/10,boardWidth=w/4;
+ // Diferencias de tono discretas entre piezas, sin blanquear la fotografía.
+ const drift=new Float32Array(10*6);
+ for(let row=0;row<10;row++)for(let board=0;board<6;board++){
+   const t=Math.sin((row+1)*81.73+(board+3)*47.17)*43758.5453;
+   drift[row*6+board]=((t-Math.floor(t))-.5)*18;
+ }
  for(let y=0;y<h;y++){
-   let sum=0,count=0;
-   for(let x=4;x<w-4;x+=32){
-     const k=(y*w+x)*4;
-     sum+=.2126*sample[k]+.7152*sample[k+1]+.0722*sample[k+2];
-     count++;
-   }
-   avg[y]=sum/count;
- }
- // Las juntas nominales son cada 200 mm: diez filas en 2 metros.
- const candidates=[];
- for(let i=0;i<=10;i++)candidates.push(Math.round(i*h/10));
- // Identificar también sombras lineales heredadas de la fotografía,
- // independientemente de que coincidan o no con la junta de la fila.
- for(let y=7;y<h-7;y++){
-   const neighbors=(avg[y-6]+avg[y+6])*.5;
-   if(avg[y]<neighbors-19)candidates.push(y);
- }
- const flagged=new Uint8Array(h);
- for(const center of candidates){
-   for(let y=Math.max(0,center-3);y<=Math.min(h-1,center+3);y++)
-     flagged[y]=1;
- }
- // Reparar cada grupo contiguo usando píxeles intactos de ambos extremos.
- // No manipular áreas pequeñas (vetas o nudos): sólo filas extendidas.
- const contexts=[ctx,normalCanvas?.getContext('2d',{willReadFrequently:true})].filter(Boolean);
- for(let begin=0;begin<h;){
-   if(!flagged[begin]){begin++;continue}
-   let end=begin;
-   while(end+1<h&&flagged[end+1])end++;
-   const before=Math.max(0,begin-5),after=Math.min(h-1,end+5);
-   for(let layer=0;layer<contexts.length;layer++){
-     const context=contexts[layer];
-     const top=context.getImageData(0,before,w,1).data;
-     const bottom=context.getImageData(0,after,w,1).data;
-     const rect=context.getImageData(0,begin,w,end-begin+1);
-     const px=rect.data,rows=end-begin+1;
-     for(let j=0;j<rows;j++){
-       const t=(j+1)/(rows+1);
-       for(let x=0;x<w;x++){
-         const dest=(j*w+x)*4,src=x*4;
-         for(let c=0;c<3;c++){
-           const base=top[src+c]*(1-t)+bottom[src+c]*t;
-           // Junta visible, pero nunca una raya negra.
-           const shade=layer===0?Math.max(0,1-Math.abs(t-.5)*2)*5:0;
-           px[dest+c]=Math.max(0,Math.min(255,base-shade));
-         }
-       }
+   const row=Math.min(9,Math.floor(y/rowHeight));
+   const localY=y-row*rowHeight;
+   const edgeY=Math.min(localY,rowHeight-localY);
+   const shift=row%2?boardWidth*.5:0;
+   for(let x=0;x<w;x++){
+     const u=x+shift;
+     const col=Math.floor(u/boardWidth);
+     const localX=u-col*boardWidth;
+     const edgeX=Math.min(localX,boardWidth-localX);
+     const i=(y*w+x)*4;
+     // Juntas pintadas originalmente: hasta 2 px, demasiado oscuras.
+     // Reconstruir una banda de ~4 px usando el interior limpio de la tabla.
+     const seamY=edgeY<5, seamX=edgeX<4;
+     const near=seamY||seamX;
+     if(near){
+       let sx=x,sy=y;
+       if(seamX)sx=Math.max(0,Math.min(w-1,Math.round(x+(localX<boardWidth/2?9:-9))));
+       if(seamY)sy=Math.max(0,Math.min(h-1,Math.round(y+(localY<rowHeight/2?10:-10))));
+       const k=(sy*w+sx)*4;
+       const shadow=(edgeY<1.6||edgeX<1.6)?19:edgeY<3||edgeX<3?8:0;
+       for(let c=0;c<3;c++)p[i+c]=Math.max(0,p[k+c]-shadow);
+       // El relieve de la antigua línea negra no debe conservarse.
+       n[i]=128;n[i+1]=128;n[i+2]=255;
+     }else{
+       const variation=drift[row*6+Math.min(5,Math.max(0,col))];
+       for(let c=0;c<3;c++)p[i+c]=Math.max(0,Math.min(255,p[i+c]+variation));
      }
-     context.putImageData(rect,0,begin);
    }
-   begin=end+1;
  }
+ ctx.putImageData(color,0,0);
+ nm.putImageData(normal,0,0);
 }
 async function prepareLocalPBR(kind){
  if(prepared.has(kind))return prepared.get(kind);
@@ -605,5 +596,5 @@ function getMaps(kind){
  const data={kind,color,normal,roughness:rough,metalness:spec.metalness,roughnessFactor:spec.roughness,tileMeters:kind==='concrete'?1.10:kind==='pine'?.55:kind==='oak'?.70:kind==='wood'?.85:1,label:spec.label,source:'Procedural'};
  cache.set(kind,data);return data;
 }
-root.FusionMaterialLib={version:12,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded},getSource(kind){return getMaps(kind)?.source||'Desconocida'}};
+root.FusionMaterialLib={version:13,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded},getSource(kind){return getMaps(kind)?.source||'Desconocida'}};
 })(globalThis);
