@@ -1,7 +1,17 @@
 {
   "version": 1,
-  "actualizado": "2026-11-22T19:23:06.347Z",
+  "actualizado": "2026-11-22T19:23:25.732Z",
   "modelos": [
+    {
+      "id": "escalera-antracita-prova-mws85q1l",
+      "nombre": "escalera antracita prova",
+      "categoria": "Viviendas",
+      "descripcion": "",
+      "archivo": "modelos/escalera-antracita-prova-mws85q1l.glb",
+      "miniatura": "miniaturas/escalera-antracita-prova-mws85q1l.jpg",
+      "bytes": 470768,
+      "fecha": "2026-11-22T19:23:25.732Z"
+    },
     {
       "id": "escalera-madera-prova-mws83g4g",
       "nombre": "escalera madera prova",
