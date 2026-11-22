@@ -3970,7 +3970,7 @@ three/examples/jsm/libs/fflate.module.js:
           <label class="field"><span>Categoría</span><select class="input" id="modelCategory"><option>Viviendas</option><option>Garajes</option><option>Cocinas</option><option>Estructuras</option><option>Taller</option><option>Mobiliario</option><option>Otros</option></select></label>
           <label class="field"><span>Descripción (opcional)</span><textarea class="textarea" id="modelDescription" rows="3" maxlength="500" placeholder="Detalles que quieras recordar del proyecto"></textarea></label>
           <div class="field"><span>Archivo 3D FBX o GLB *</span><div class="drop" id="modelDrop"><div class="symbol">⬡</div><strong>Arrastra aquí tu archivo .fbx o .glb</strong><input id="modelFile" type="file" aria-label="Seleccionar archivo FBX o GLB" aria-describedby="modelInfo" accept=".fbx,.glb,model/gltf-binary" required></div><div id="modelInfo" class="file-info" role="status">Ningún modelo seleccionado</div></div>
-          <div class="field"><span>Miniatura JPG, PNG o WebP (opcional)</span><input class="input" id="thumbFile" type="file" accept="image/jpeg,image/png,image/webp"><div class="hint">Recomendado: imagen horizontal de 1200 × 675 px; hasta 5 MB.</div></div>
+          <div class="field"><span>Portada opcional (si no añades una, se genera automáticamente)</span><input class="input" id="thumbFile" type="file" accept="image/jpeg,image/png,image/webp"><div class="hint">Si la dejas vacía, Fusion VR Studio creará una miniatura del GLB.</div></div>
           <button id="uploadBtn" class="button" type="submit">↥ Guardar diseño en GitHub</button>
           <div class="progress" id="uploadProgress" style="display:none"><i id="uploadBar"></i></div>
           <div class="status" id="uploadStatus" role="status" aria-live="polite"></div>
@@ -4299,6 +4299,46 @@ async function deleteDesign(model){
 }
 async function attachImage(img,path){if(!state.repoPrivate){img.src=rawUrl(path);return}if(state.thumbUrls.has(path)){img.src=state.thumbUrls.get(path);return}if(!state.token)return;try{const blob=await request('GET',path,null,false,true);const url=URL.createObjectURL(blob);state.thumbUrls.set(path,url);img.src=url}catch{}}
 async function downloadModel(m){try{toast('Preparando descarga de '+m.nombre+'...');const blob=await request('GET',m.archivo,null,false,true);const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=(m.nombre||'diseno').replace(/[\\/:*?"<>|]/g,'_')+'.glb';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000)}catch(e){toast('No se pudo descargar: '+e.message,true)}}
+// Herramienta para los diseños históricos que todavía no tienen portada.
+const thumbnailsButton=document.createElement('button');
+thumbnailsButton.type='button';thumbnailsButton.className='button secondary small';
+thumbnailsButton.textContent='▣ Generar miniaturas pendientes';
+$('refreshBtn').parentElement.append(thumbnailsButton);
+thumbnailsButton.addEventListener('click',async()=>{
+  if(state.busy)return;
+  if(!state.token){postAuthView='biblioteca';nav('configuracion');status('settingsStatus','Conecta GitHub para guardar las miniaturas.');return}
+  state.busy=true;thumbnailsButton.disabled=true;
+  let done=0,failed=0;
+  try{
+    const {createModelThumbnail}=await import('./thumbnail-generator.js');
+    const catalog=await loadCatalog();
+    const models=Array.isArray(catalog.modelos)?catalog.modelos:[];
+    const missing=models.filter(item=>!item.miniatura&&/^(modelos\\/)[a-zA-Z0-9_-]+\\.glb$/.test(item.archivo||''));
+    if(!missing.length){toast('Todos los diseños tienen miniatura.');return}
+    for(const item of missing){
+      try{
+        thumbnailsButton.textContent='Miniaturas '+done+'/'+missing.length+' · '+item.nombre;
+        const blob=await request('GET',item.archivo,null,false,true);
+        const image=await createModelThumbnail(blob);
+        const path='miniaturas/'+item.id+'.jpg';
+        await request('PUT',path,{message:'Generar miniatura de '+item.nombre,content:image,branch:state.branch});
+        item.miniatura=path;done++;
+      }catch(error){failed++;toast('Miniatura de '+item.nombre+': '+error.message,true)}
+    }
+    const fresh=await loadCatalog();
+    const catalogModels=Array.isArray(fresh.modelos)?fresh.modelos:[];
+    for(const updated of models){
+      const item=catalogModels.find(x=>x.id===updated.id);
+      if(item&&updated.miniatura)item.miniatura=updated.miniatura;
+    }
+    const payload={message:'Registrar miniaturas automáticas de modelos',content:jsonToB64({...fresh,actualizado:new Date().toISOString(),modelos:catalogModels}),branch:state.branch};
+    if(state.catalogSha)payload.sha=state.catalogSha;
+    await request('PUT','catalogo.json',payload);
+    await refresh();
+    toast('Miniaturas creadas: '+done+(failed?' · errores: '+failed:''));
+  }catch(error){toast('No se pudieron completar las miniaturas: '+error.message,true)}
+  finally{state.busy=false;thumbnailsButton.disabled=false;thumbnailsButton.textContent='▣ Generar miniaturas pendientes';}
+});
 $('searchInput').addEventListener('input',render);$('categoryFilter').addEventListener('change',render);$('refreshBtn').addEventListener('click',refresh);
 async function inspectGlb(file){
   if(!file||(file.name&&!/\.glb$/i.test(file.name)))return null;
@@ -4354,7 +4394,25 @@ $('uploadForm').addEventListener('submit',async e=>{
    if(!check.nimg)status('uploadStatus','Aviso: el GLB no contiene imágenes de textura. Se conservarán sus colores, pero no aparecerán vetas ni superficies fotográficas.');
    const b64=await fileToB64(model);
    progress(25,'Subiendo modelo a GitHub. No cierres esta pestaña...');await request('PUT',modelPath,{message:'Añadir diseño 3D: '+name,content:b64,branch:state.branch});
-   if(img){const ext=img.type==='image/png'?'png':img.type==='image/webp'?'webp':'jpg';imagePath=`miniaturas/${id}.${ext}`;progress(55,'Subiendo miniatura...');await request('PUT',imagePath,{message:'Añadir portada: '+name,content:await fileToB64(img),branch:state.branch})}
+   try{
+     let coverContent=null,coverExtension='jpg';
+     if(img){
+       coverContent=await fileToB64(img);
+       coverExtension=img.type==='image/png'?'png':img.type==='image/webp'?'webp':'jpg';
+     }else{
+       progress(52,'Generando miniatura 3D automáticamente...');
+       const {createModelThumbnail}=await import('./thumbnail-generator.js');
+       coverContent=await createModelThumbnail(model);
+     }
+     if(coverContent){
+       imagePath=`miniaturas/${id}.${coverExtension}`;
+       progress(57,'Subiendo miniatura...');
+       await request('PUT',imagePath,{message:'Añadir portada: '+name,content:coverContent,branch:state.branch});
+     }
+   }catch(coverError){
+     imagePath='';
+     status('uploadStatus','Aviso: no se pudo generar la portada ('+coverError.message+'). El modelo se guardará igualmente.');
+   }
    progress(75,'Actualizando catálogo de proyectos...');
    // Refrescar el SHA evita sobrescribir accidentalmente el catálogo al usar varios ordenadores.
    const fresh=await loadCatalog();const items=Array.isArray(fresh.modelos)?fresh.modelos:[];
