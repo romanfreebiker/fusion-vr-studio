@@ -87,6 +87,19 @@ async function openModel(){
     if(url.origin!==location.origin||!url.pathname.startsWith(new URL('modelos/',location.href).pathname)||!url.pathname.endsWith('.glb'))throw Error('Ruta de modelo no válida.');
     const {scene:next}=await loader.loadAsync(url.href);
     if(load!==generation){dispose(next);return}
+    // This Fusion export kept its original Z-up coordinates and near-black materials.
+    if(url.pathname.endsWith('/barbacoa-mwrl3t31.glb')){
+      next.rotateX(-Math.PI/2);
+      const materials=new Set();
+      next.traverse(object=>{
+        if(object.isMesh) for(const material of [object.material].flat()) materials.add(material);
+      });
+      for(const material of materials){
+        if(!material.map&&material.color&&Math.max(material.color.r,material.color.g,material.color.b)<.04){
+          material.color.setHex(0x9a9186);
+        }
+      }
+    }
     const bounds=new THREE.Box3().setFromObject(next,true);
     if(bounds.isEmpty()){dispose(next);throw Error('El archivo está vacío.')}
     const center=bounds.getCenter(new THREE.Vector3()), size=bounds.getSize(new THREE.Vector3());
