@@ -246,33 +246,15 @@ function isCladdingPanel(mesh){
   if(materials.length!==1||!mesh.geometry?.attributes?.position)return false;
   const kind=globalThis.FusionMaterialLib?.identify(materials[0]?.name);
   if(!['cladding','pine','wood','oak'].includes(kind))return false;
-  // Nunca aplicar la foto de revestimiento (con sus juntas) a escaleras:
-  // el atlas de tablas en un peldaño dibuja una falsa raya negra.
-  // El nombre del objeto o de su ensamblaje suele conservarse desde Fusion.
-  for(let node=mesh;node;node=node.parent){
-    if(/(escalera|staircase|stairs?|pelda[ñn]o|tread|zanca|barandilla|handrail|riser)/i.test(node.name||''))return false;
-  }
+  // Sólo dimensiones de la pieza, no nombre del ensamblaje.
   const box=new THREE.Box3().setFromObject(mesh);
   const size=box.getSize(new THREE.Vector3());
-  if(!(size.y>=.65&&Math.max(size.x,size.z)>=1.4&&Math.min(size.x,size.z)<=.38))return false;
-  // No confundir un tramo inclinado o peldaño con una pared de panelado:
-  // las dos caras grandes deben ser esencialmente verticales.
-  const g=mesh.geometry,p=g.attributes.position,idx=g.index;
-  const total=idx?idx.count:p.count;
-  if(total>18000*3)return false;
-  let verticalArea=0,horizontalArea=0;
-  const a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3();
-  const ab=new THREE.Vector3(),ac=new THREE.Vector3(),n=new THREE.Vector3();
-  for(let i=0;i+2<total;i+=3){
-    a.fromBufferAttribute(p,idx?idx.getX(i):i);
-    b.fromBufferAttribute(p,idx?idx.getX(i+1):i+1);
-    c.fromBufferAttribute(p,idx?idx.getX(i+2):i+2);
-    ab.subVectors(b,a);ac.subVectors(c,a);n.crossVectors(ab,ac);
-    const area=n.length();
-    if(Math.abs(n.y)<area*.45)verticalArea+=area;
-    else horizontalArea+=area;
-  }
-  return verticalArea>horizontalArea*3;
+  return size.y>=.65&&Math.max(size.x,size.z)>=1.4&&Math.min(size.x,size.z)<=.38;
+}
+function isIndividualStairPiece(mesh){
+  // Peldaño o zanca individual, nunca el ensamblaje entero.
+  return /(peldano|stair.?tread|tread|riser|contrahuella|zanca)/
+    .test((mesh.name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase());
 }
 function materialFromLibrary(material,forcedKind=null,uvScale='standard'){
   const lib=globalThis.FusionMaterialLib,kind=forcedKind||lib?.identify(material?.name);
@@ -333,12 +315,16 @@ function applyLibrary(root){
   root.updateMatrixWorld(true);
   root.traverse(mesh=>{
     if(!mesh.isMesh)return;
-    const cladding=isCladdingPanel(mesh)&&projectCladdingUV(mesh);
+    const stairPiece=isIndividualStairPiece(mesh);
+    const cladding=!stairPiece&&isCladdingPanel(mesh)&&projectCladdingUV(mesh);
     if(cladding)panels++;
     const change=original=>{
       if(!original)return original;
       const originalKind=globalThis.FusionMaterialLib?.identify(original.name);
-      const kind=cladding?'cladding':originalKind==='cladding'?'pine':originalKind;
+      // Peldaños sin juntas de fachada, los paneles mantienen el atlas aprobado.
+      const kind=cladding?'cladding':
+        stairPiece&&['pine','wood','cladding'].includes(originalKind)?'pineBoard':
+        originalKind==='cladding'?'pine':originalKind;
       let uvScale='standard';
       if(kind==='anthracite'){
         anthraciteMeshes++;
@@ -614,7 +600,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.40 · madera sin rayas en escaleras';
+versionLabel.textContent='Visor VR 0.41 · panelado restaurado y peldaños separados';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1019,7 +1005,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.40';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.41';
     vrButton.hidden=false;
     return true;
   }catch(error){
