@@ -12,7 +12,7 @@ p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-va
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=5"></script>
+<script src="./materiales.js?v=6"></script>
 <header>
 <h1>Fusion VR Studio · Visor</h1>
 <label for="models">Diseño</label><select id="models" disabled></select>
@@ -196,45 +196,92 @@ scene.add(sun);
 const loader=new GLTFLoader();
 // Biblioteca propia de materiales, sin adivinar materiales según la posición de la pieza.
 const surfaceTextures=new Map();
-function libraryTexture(canvas,isColor,tileMeters=1){
+
+function libraryTexture(canvas,isColor,tileMeters=1,tileMetersX=null,tileMetersY=null){
   const texture=new THREE.CanvasTexture(canvas);
   texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
-  texture.repeat.set(1/tileMeters,1/tileMeters);
-  texture.flipY=false; // Los GLB guardan UV con el convenio glTF.
+  const tx=tileMetersX??tileMeters,ty=tileMetersY??tileMeters;
+  texture.repeat.set(1/tx,1/ty);
+  texture.flipY=false;
   texture.colorSpace=isColor?THREE.SRGBColorSpace:THREE.NoColorSpace;
   texture.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),4);
   texture.needsUpdate=true;
   return texture;
 }
-function materialFromLibrary(material){
-  const lib=globalThis.FusionMaterialLib,kind=lib?.identify(material?.name);
+// Para revestimientos grandes, proyectar las UV con metros reales: 8 x 2 m por atlas.
+// Sólo se remapean caras de panelado; no se toca la geometría ni la física de otras piezas.
+function projectCladdingUV(mesh){
+  const source=mesh.geometry;
+  if(!source?.attributes?.position)return false;
+  const triangles=(source.index?source.index.count:source.attributes.position.count)/3;
+  if(triangles>18000)return false; // Límite de seguridad para Quest 2.
+  const geo=source.index?source.toNonIndexed():source.clone();
+  const pos=geo.getAttribute('position'),uv=new Float32Array(pos.count*2);
+  const a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3();
+  const ab=new THREE.Vector3(),ac=new THREE.Vector3(),normal=new THREE.Vector3();
+  const world=new THREE.Vector3();
+  mesh.updateMatrixWorld(true);
+  for(let i=0;i<pos.count;i+=3){
+    a.fromBufferAttribute(pos,i).applyMatrix4(mesh.matrixWorld);
+    b.fromBufferAttribute(pos,i+1).applyMatrix4(mesh.matrixWorld);
+    c.fromBufferAttribute(pos,i+2).applyMatrix4(mesh.matrixWorld);
+    ab.subVectors(b,a);ac.subVectors(c,a);
+    normal.crossVectors(ab,ac);
+    // En paredes, U es horizontal y V es altura; las caras superiores
+    // mantienen proyección plana. Las juntas nunca dependen del UV de Fusion.
+    const axis=Math.abs(normal.z)>=Math.abs(normal.x)?'x':'z';
+    const top=Math.abs(normal.y)>Math.max(Math.abs(normal.x),Math.abs(normal.z));
+    for(let j=0;j<3;j++){
+      world.fromBufferAttribute(pos,i+j).applyMatrix4(mesh.matrixWorld);
+      uv[2*(i+j)]=(top?world.x:axis==='x'?world.x:world.z)/8;
+      uv[2*(i+j)+1]=(top?world.z:world.y)/2;
+    }
+  }
+  geo.setAttribute('uv',new THREE.BufferAttribute(uv,2));
+  mesh.geometry=geo;
+  return true;
+}
+function isCladdingPanel(mesh){
+  const materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];
+  if(materials.length!==1||!mesh.geometry?.attributes?.position)return false;
+  const kind=globalThis.FusionMaterialLib?.identify(materials[0]?.name);
+  if(!['cladding','pine','wood','oak'].includes(kind))return false;
+  // Panelado vertical, no vigas o tablas individuales que ya tienen juntas.
+  const box=new THREE.Box3().setFromObject(mesh);
+  const size=box.getSize(new THREE.Vector3());
+  return size.y>=.65&&Math.max(size.x,size.z)>=1.4&&Math.min(size.x,size.z)<=.38;
+}
+function materialFromLibrary(material,forcedKind=null){
+  const lib=globalThis.FusionMaterialLib,kind=forcedKind||lib?.identify(material?.name);
   if(!kind)return null;
   let maps=surfaceTextures.get(kind);
   if(!maps){
     const images=lib.getMaps(kind);
     if(!images)return null;
+    const cladding=kind==='cladding';
+    const tex=(canvas,isColor)=>cladding
+      ?libraryTexture(canvas,isColor,1)
+      :libraryTexture(canvas,isColor,images.tileMeters||1,images.tileMetersX,images.tileMetersY);
     maps={
-      diffuse:libraryTexture(images.color,true,images.tileMeters||1),
-      normal:libraryTexture(images.normal,false,images.tileMeters||1),
-      rough:libraryTexture(images.roughness,false,images.tileMeters||1),
+      diffuse:tex(images.color,true),
+      normal:tex(images.normal,false),
+      rough:tex(images.roughness,false),
       config:images
     };
     surfaceTextures.set(kind,maps);
   }
   const p=maps.config;
   const color=(kind==='paint'||kind==='plastic')&&material?.color?material.color.clone():new THREE.Color(0xffffff);
+  const strength=kind==='cladding'?.92:kind==='concrete'?1.0:
+    ['pine','oak','wood'].includes(kind)?1.12:
+    ['stainless','steel','blacksteel'].includes(kind)?.42:.6;
   const replacement=new THREE.MeshStandardMaterial({
     name:material.name,
     color,
     map:maps.diffuse,
     normalMap:maps.normal,
-    // Normal OpenGL en espacio tangente: simula vetas y poros con luz y sombra,
-    // sin deformar cuerpos ni afectar a las colisiones del visor.
     normalMapType:THREE.TangentSpaceNormalMap,
-    normalScale:new THREE.Vector2(
-      ['pine','oak','wood'].includes(kind)?1.35:kind==='concrete'?1.55:['stainless','steel','blacksteel'].includes(kind)?.42:.6,
-      ['pine','oak','wood'].includes(kind)?1.35:kind==='concrete'?1.55:['stainless','steel','blacksteel'].includes(kind)?.42:.6
-    ),
+    normalScale:new THREE.Vector2(strength,strength),
     roughnessMap:maps.rough,
     metalness:p.metalness,
     roughness:1,
@@ -247,19 +294,26 @@ function materialFromLibrary(material){
 }
 function applyLibrary(root){
   const substitutions=new Map();
-  let applied=0;
-  root.traverse(object=>{
-    if(!object.isMesh)return;
-    const replace=original=>{
+  let applied=0,panels=0;
+  root.updateMatrixWorld(true);
+  root.traverse(mesh=>{
+    if(!mesh.isMesh)return;
+    const cladding=isCladdingPanel(mesh)&&projectCladdingUV(mesh);
+    if(cladding)panels++;
+    const change=original=>{
       if(!original)return original;
-      if(substitutions.has(original))return substitutions.get(original);
-      const next=materialFromLibrary(original);
-      substitutions.set(original,next||original);
+      const originalKind=globalThis.FusionMaterialLib?.identify(original.name);
+      const kind=cladding?'cladding':originalKind==='cladding'?'pine':originalKind;
+      const key=(kind||'unknown')+':'+original.uuid;
+      if(substitutions.has(key))return substitutions.get(key);
+      const next=materialFromLibrary(original,kind);
+      substitutions.set(key,next||original);
       if(next)applied++;
       return next||original;
     };
-    object.material=Array.isArray(object.material)?object.material.map(replace):replace(object.material);
+    mesh.material=Array.isArray(mesh.material)?mesh.material.map(change):change(mesh.material);
   });
+  root.userData.fusionVrCladdingPanels=panels;
   return applied;
 }
 // Fusion exporta algunos diseños con Z vertical; glTF convencional usa Y vertical.
@@ -504,7 +558,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.31 · veta fina y relieve PBR';
+versionLabel.textContent='Visor VR 0.32 · hormigón limpio y tablones 200×2000';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -887,7 +941,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/4 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.31';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.32';
     vrButton.hidden=false;
     return true;
   }catch(error){
