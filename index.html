@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Fusion VR Studio · Biblioteca 3D</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0b101b;--panel:#151d2d;--panel2:#1b2536;--line:#2b3950;--ink:#f4f7ff;--muted:#a0aec5;--accent:#62b7ff;--accent2:#4fe0b1;--red:#fa7884;--r:16px}
+    *{box-sizing:border-box}body{background:var(--bg);color:var(--ink);font:15px/1.5 'Segoe UI',system-ui,sans-serif;margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.45}a{color:#85c9ff}p{margin:.25rem 0 1rem}.muted{color:var(--muted)}.tiny{font-size:12px}.app{display:grid;grid-template-columns:255px minmax(0,1fr);min-height:100vh}.sidebar{background:#101827;border-right:1px solid var(--line);padding:28px 18px;display:flex;flex-direction:column;gap:25px}.brand{display:flex;gap:12px;align-items:center;padding:4px 10px}.brand-mark{width:43px;height:43px;border:1px solid #4d9be1;background:linear-gradient(135deg,#15548a,#303a7a);border-radius:12px;display:grid;place-items:center;font-size:23px;box-shadow:0 0 22px #357abb25}.brand strong{font-size:17px;letter-spacing:.2px;display:block;line-height:1.2}.brand small{color:#91a4c1;font-size:11px;letter-spacing:1.2px}.nav{display:grid;gap:6px}.nav button{border:0;border-radius:11px;text-align:left;background:none;padding:13px 16px;color:var(--muted);font-weight:600}.nav button.active{background:#20334b;color:#a9d7ff}.nav button:hover{background:#223047;color:white}.nav button span{margin-right:11px}.side-note{margin-top:auto;background:#172336;border:1px solid #2b435e;padding:16px;border-radius:14px}.side-note b{display:block;margin-bottom:5px}.side-note p{font-size:12px;color:#9daec5;margin:0}.main{min-width:0;padding:35px clamp(20px,5vw,70px) 70px;max-width:1500px;width:100%;margin:auto}.top{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:32px;flex-wrap:wrap}.kicker{font-size:12px;letter-spacing:1.8px;text-transform:uppercase;color:var(--accent2);font-weight:700}h1{font-size:clamp(27px,3vw,39px);letter-spacing:-1.2px;line-height:1.16;margin:8px 0}h2{font-size:21px;margin:0 0 9px}h3{margin:0 0 6px;font-size:16px}.top-right{display:flex;gap:10px;align-items:center}.pill{padding:7px 11px;border:1px solid var(--line);border-radius:30px;color:var(--muted);background:#172232;font-size:12px}.pill.ok{color:#9bf0c4;border-color:#31694d}.button{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #3c86c5;background:#2784d0;color:white;border-radius:10px;padding:11px 16px;font-weight:700;text-decoration:none}.button:hover:not(:disabled){filter:brightness(1.15)}.button.secondary{background:#1b2940;border-color:#344e70;color:#e0efff}.button.ghost{background:none;border-color:var(--line);color:var(--muted)}.button.danger{background:#4f2230;border-color:#884151;color:#ffb1b8}.button.small{padding:8px 11px;font-size:13px}.hero{position:relative;overflow:hidden;background:radial-gradient(ellipse at 90% 0%,#23588c 0,transparent 45%),linear-gradient(115deg,#182c46,#142139 54%,#101c2c);border:1px solid #355271;border-radius:20px;padding:30px 32px;display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:25px}.hero p{color:#b7c7da;max-width:600px;margin-bottom:0}.hero-art{width:126px;height:126px;border:1px solid #507fb0;border-radius:24px;transform:rotate(-12deg);display:grid;place-items:center;font-size:58px;color:#b8e0ff;background:linear-gradient(145deg,#37649777,#16273b)}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:30px}.stat{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:18px 22px}.stat .number{font-size:30px;font-weight:750;line-height:1.25}.stat .muted{font-size:13px}.toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:19px}.toolbar .filters{display:flex;gap:9px;flex:1;min-width:250px}.input,.select,.textarea{background:#0f1826;color:var(--ink);border:1px solid #374861;border-radius:9px;padding:12px;outline:0;width:100%}.input:focus,.select:focus,.textarea:focus{border-color:#55b0ed;box-shadow:0 0 0 3px #4d96d927}.select{width:auto;min-width:140px}.search{max-width:400px}.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:18px}.tile{border:1px solid var(--line);background:var(--panel);border-radius:17px;overflow:hidden;min-width:0;transition:transform .2s,border-color .2s}.tile:hover{border-color:#4775a4;transform:translateY(-2px)}.cover{height:172px;position:relative;display:grid;place-items:center;background:linear-gradient(135deg,#263954,#101c2d)}.cover img{display:block;width:100%;height:100%;object-fit:cover}.cover .fallback{font-size:52px;opacity:.55}.type-chip{position:absolute;top:10px;right:10px;background:#071422dd;border:1px solid #546981;padding:4px 8px;border-radius:7px;font-size:11px;color:#d9efff}.tile-body{padding:16px}.tile-body h3{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tile-desc{color:var(--muted);font-size:12px;min-height:36px;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}.tile-foot{display:flex;align-items:center;gap:8px;margin-top:15px}.tile-foot .button{flex:1}.empty{border:1px dashed #40516b;border-radius:18px;text-align:center;background:#151d2ca6;padding:55px 22px;color:var(--muted)}.empty .symbol{font-size:43px;margin-bottom:12px}.empty strong{display:block;font-size:19px;color:#d9e7f9;margin-bottom:7px}.panel{border:1px solid var(--line);border-radius:17px;background:var(--panel);padding:25px}.panel + .panel{margin-top:18px}.panel-head{margin-bottom:22px}.panel-head p{color:var(--muted);margin:0}.two{display:grid;grid-template-columns:1.1fr .9fr;gap:20px}.field{display:block;margin-bottom:18px}.field > span{display:block;font-weight:600;margin-bottom:7px;font-size:13px}.hint{font-size:12px;color:var(--muted);margin-top:6px}.drop{border:2px dashed #3b658a;border-radius:14px;background:#13263b;padding:24px;text-align:center;transition:.2s}.drop.over{background:#23405e;border-color:#62b7ff}.drop .symbol{font-size:32px}.drop strong{display:block}.drop input{display:none}.drop label{color:#89caff;text-decoration:underline;cursor:pointer}.preview{height:205px;border:1px solid #354962;border-radius:12px;background:linear-gradient(135deg,#233c57,#121e31);display:grid;place-items:center;overflow:hidden}.preview img{height:100%;width:100%;object-fit:cover}.file-info{color:var(--accent2);font-size:12px;margin-top:8px;word-break:break-word}.status{padding:13px 16px;border:1px solid #425472;border-radius:12px;background:#172638;font-size:13px;margin:15px 0;display:none;white-space:pre-wrap}.status.show{display:block}.status.good{border-color:#2b7654;color:#a6e7c5}.status.bad{border-color:#92505a;color:#ffaeb5}.settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.code{background:#0c1421;border:1px solid var(--line);border-radius:10px;padding:12px;font:12px/1.6 Consolas,monospace;overflow:auto;word-break:break-all}.steps{display:grid;gap:10px}.step{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid #28364b}.step b{color:var(--accent2)}.hidden{display:none!important}.muted-link{font-size:12px;color:#97b7d2}.footer{margin-top:35px;color:#65788e;font-size:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.label{font-size:13px;font-weight:600;margin-bottom:8px}.toast{position:fixed;right:24px;bottom:24px;max-width:min(460px,calc(100vw - 30px));background:#22354e;border:1px solid #5373a0;border-radius:12px;padding:14px 17px;box-shadow:0 20px 60px #0009;z-index:10}.toast.bad{background:#452638;border-color:#a45b62}.progress{height:5px;background:#29435b;border-radius:8px;overflow:hidden;margin-top:15px}.progress > i{display:block;width:0;height:100%;background:#50d5ac;transition:width .4s}.badge-inline{border:1px solid #43607c;border-radius:6px;padding:2px 7px;font-size:11px;color:#b4d3f0}.linklike{background:none;border:0;color:#80c8ff;padding:0;text-align:left}.alert{padding:14px 16px;border-left:3px solid #f0ba6b;background:#3c302242;border-radius:7px;font-size:13px;color:#f4d5a1;margin-bottom:16px}
+    @media(max-width:920px){.app{grid-template-columns:1fr}.sidebar{padding:12px 18px;gap:14px}.brand{display:none}.nav{display:flex;overflow:auto}.nav button{white-space:nowrap;padding:10px 13px}.side-note{display:none}.main{padding:22px 18px 45px}.two{grid-template-columns:1fr}.hero-art{display:none}}@media(max-width:520px){.stats{grid-template-columns:1fr 1fr}.stats .stat:last-child{grid-column:span 2}.hero{padding:21px}.settings-grid{grid-template-columns:1fr}.toolbar .filters{min-width:0;flex-direction:column}.select{width:100%}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">◈</div><div><strong>FUSION VR</strong><small>STUDIO · WEB</small></div></div>
+    <nav class="nav" aria-label="Secciones">
+      <button class="active" data-view="biblioteca"><span>▦</span> Mis diseños</button>
+      <button data-view="subir"><span>↥</span> Subir diseño</button>
+      <button data-view="configuracion"><span>⚙</span> Conexión GitHub</button>
+    </nav>
+    <div class="side-note"><b>◉ Preparado para Meta Quest 2</b><p>Esta web organiza los archivos GLB. El visor de las gafas leerá el catálogo compartido desde GitHub.</p></div>
+  </aside>
+  <main class="main">
+    <div class="top"><div><div class="kicker">Tu espacio de proyectos 3D</div><h1 id="pageTitle">Biblioteca de diseños</h1><div class="muted" id="pageSubtitle">Un lugar para todos tus proyectos de Fusion 360</div></div><div class="top-right"><span class="pill" id="connectionPill">○ Sin conectar</span><button class="button secondary small" id="refreshBtn" type="button">↻ Actualizar</button></div></div>
+    <section id="view-biblioteca">
+      <div class="hero"><div><div class="kicker">FUSION VR · HOME + WORK</div><h2>Diseña donde quieras.<br>Visítalo en realidad virtual.</h2><p>Guarda tus diseños en una biblioteca común y accede desde cualquier ordenador mediante el mismo enlace.</p><button class="button" type="button" data-goto="subir" style="margin-top:14px">＋ Añadir diseño</button></div><div class="hero-art" aria-hidden="true">◈</div></div>
+      <div class="stats"><div class="stat"><div class="number" id="statCount">0</div><div class="muted">Diseños guardados</div></div><div class="stat"><div class="number" id="statCategories">0</div><div class="muted">Categorías</div></div><div class="stat"><div class="number" id="statSize">0 MB</div><div class="muted">Tamaño de modelos</div></div></div>
+      <div class="toolbar"><div><h2 style="margin:0">Todos los proyectos</h2><div class="muted tiny" id="repoLabel">Configura tu repositorio para ver la biblioteca</div></div><div class="filters"><input class="input search" id="searchInput" placeholder="Buscar por nombre..." aria-label="Buscar diseños"><select class="select" id="categoryFilter" aria-label="Filtrar categoría"><option value="">Todas las categorías</option></select></div></div>
+      <div id="gallery" class="gallery"></div>
+      <div id="emptyLibrary" class="empty"><div class="symbol">⬡</div><strong>Tu biblioteca está lista para empezar</strong><p>Conecta GitHub y sube tu primer diseño GLB.</p><button class="button secondary" data-goto="configuracion" type="button">Configurar GitHub</button></div>
+    </section>
+    <section id="view-subir" class="hidden">
+      <div class="alert">Primera versión: sube modelos <b>.glb</b> preparados. Los archivos OBJ/FBX de Fusion 360 necesitan convertirse antes; este HTML aún no hace esa conversión.</div>
+      <div class="two"><div class="panel"><div class="panel-head"><h2>Nuevo diseño</h2><p>Completa los datos y súbelos directamente al repositorio.</p></div>
+        <form id="uploadForm">
+          <label class="field"><span>Nombre del diseño *</span><input class="input" name="title" id="modelTitle" maxlength="90" placeholder="Ej. Cocina western" required></label>
+          <label class="field"><span>Categoría</span><select class="input" id="modelCategory"><option>Viviendas</option><option>Garajes</option><option>Cocinas</option><option>Estructuras</option><option>Taller</option><option>Mobiliario</option><option>Otros</option></select></label>
+          <label class="field"><span>Descripción (opcional)</span><textarea class="textarea" id="modelDescription" rows="3" maxlength="500" placeholder="Detalles que quieras recordar del proyecto"></textarea></label>
+          <div class="field"><span>Archivo 3D GLB *</span><div class="drop" id="modelDrop"><div class="symbol">⬡</div><strong>Arrastra aquí tu archivo .glb</strong><div class="tiny muted">o <label for="modelFile">selecciona un archivo</label></div><input id="modelFile" type="file" accept=".glb,model/gltf-binary" required></div><div id="modelInfo" class="file-info">Ningún modelo seleccionado</div></div>
+          <div class="field"><span>Miniatura JPG, PNG o WebP (opcional)</span><input class="input" id="thumbFile" type="file" accept="image/jpeg,image/png,image/webp"><div class="hint">Recomendado: imagen horizontal de 1200 × 675 px; hasta 5 MB.</div></div>
+          <button id="uploadBtn" class="button" type="submit">↥ Guardar diseño en GitHub</button>
+          <div class="progress" id="uploadProgress" style="display:none"><i id="uploadBar"></i></div>
+          <div class="status" id="uploadStatus" role="status" aria-live="polite"></div>
+        </form></div>
+        <div class="panel"><h2>Vista de portada</h2><div class="preview" id="thumbPreview"><span style="font-size:54px;opacity:.65">◈</span></div><p class="muted tiny" style="margin-top:13px">La miniatura será visible tanto en esta web como en el futuro menú de las Quest 2.</p><div class="steps"><div class="step"><b>01</b><div>Prepara el GLB con sus materiales.</div></div><div class="step"><b>02</b><div>Añade un nombre y, si quieres, una foto.</div></div><div class="step"><b>03</b><div>El HTML publica archivos y actualiza <code>catalogo.json</code> en GitHub.</div></div><div class="step"><b>04</b><div>Al abrir la biblioteca desde otro ordenador, verás los mismos modelos.</div></div></div></div></div>
+    </section>
+    <section id="view-configuracion" class="hidden">
+      <div class="two"><div class="panel"><div class="panel-head"><h2>Conectar tu repositorio</h2><p>Este HTML lee y escribe archivos mediante la API oficial de GitHub.</p></div>
+        <form id="settingsForm"><div class="settings-grid"><label class="field"><span>Usuario de GitHub *</span><input class="input" id="owner" autocomplete="off" placeholder="miusuario" required></label><label class="field"><span>Repositorio *</span><input class="input" id="repo" autocomplete="off" placeholder="fusion-vr-biblioteca" required></label></div><label class="field"><span>Rama</span><input class="input" id="branch" value="main" required></label>
+        <label class="field"><span>Token personal de GitHub (para subir o leer repositorios privados)</span><input class="input" id="token" type="password" autocomplete="off" placeholder="github_pat_..."><div class="hint">Debe tener permiso <b>Contents: Read and write</b> solamente en este repositorio. Se mantiene en memoria durante esta sesión; nunca se guarda en el HTML ni en el navegador.</div></label>
+        <div style="display:flex;gap:9px;flex-wrap:wrap"><button type="submit" class="button">Conectar y cargar</button><button class="button ghost" id="clearToken" type="button">Olvidar token de esta sesión</button></div><div class="status" id="settingsStatus" role="status"></div></form></div>
+        <div><div class="panel"><h2>Publicar esta web</h2><p class="muted">Una vez subida a GitHub Pages, podrás abrirla desde cualquier PC mediante una URL única. Detectará automáticamente el usuario y repositorio si se aloja en el mismo repositorio.</p><div class="code">https://TU-USUARIO.github.io/fusion-vr-biblioteca/</div><p class="hint">El enlace será real cuando publiques los archivos y actives Pages en GitHub.</p></div><div class="panel"><h2>Privacidad</h2><p class="muted">Un repositorio <b>público</b> hace accesibles sus modelos. Para modelos privados, utiliza un repositorio <b>privado</b> y autenticación. La futura aplicación Quest necesitará su propio método seguro de acceso.</p><p class="muted tiny">Importante: GitHub Pages es una web públicamente accesible incluso en algunas configuraciones de repositorio privado. No introduzcas tokens en los archivos publicados.</p></div></div></div>
+    </section>
+    <footer class="footer"><span>Fusion VR Studio · Versión 0.1</span><span>Gestor web de modelos · Sin servidor propio</span></footer>
+  </main>
+</div>
+<div class="toast hidden" id="toast" role="status"></div>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id);
+const views={biblioteca:['Biblioteca de diseños','Un lugar para todos tus proyectos de Fusion 360'],subir:['Añadir nuevo diseño','Sube un GLB y su miniatura a GitHub'],configuracion:['Conexión con GitHub','Gestiona el repositorio y los permisos de escritura']};
+const state={owner:'',repo:'',branch:'main',token:'',models:[],repoPrivate:false,activeView:'biblioteca',catalogSha:null,thumbUrls:new Map(),busy:false};
+let thumbPreviewUrl=null,toastTimeout=null;
+const encPath=p=>p.split('/').map(encodeURIComponent).join('/');
+const humanSize=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/1024)+' KB':n+' B';
+const safeName=s=>String(s||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,50)||'diseno';
+const textNode=(tag,text,cls)=>{const el=document.createElement(tag);el.textContent=text;if(cls)el.className=cls;return el};
+function toast(message,bad=false){const t=$('toast');t.textContent=message;t.className='toast'+(bad?' bad':'');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>t.classList.add('hidden'),5000)}
+function status(id,message,type){const e=$(id);e.textContent=message;e.className='status show'+(type?' '+type:'')}
+function nav(view){state.activeView=view;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));Object.keys(views).forEach(v=>$('view-'+v).classList.toggle('hidden',v!==view));$('pageTitle').textContent=views[view][0];$('pageSubtitle').textContent=views[view][1];window.scrollTo({top:0,behavior:'smooth'})}
+document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>nav(b.dataset.view)));
+document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>nav(b.dataset.goto)));
+function inferRepo(){const h=location.hostname;if(h.endsWith('.github.io')){const o=h.split('.')[0];const r=location.pathname.split('/').filter(Boolean)[0];return {owner:o,repo:r||o+'.github.io'}}return null}
+const persisted=(()=>{try{return JSON.parse(localStorage.getItem('fusionvr-repo')||'{}')}catch{return {}}})();
+const inferred=inferRepo();state.owner=inferred?.owner||persisted.owner||'';state.repo=inferred?.repo||persisted.repo||'';state.branch=persisted.branch||'main';
+$('owner').value=state.owner;$('repo').value=state.repo;$('branch').value=state.branch;
+function setConnection(text,ok=false){const p=$('connectionPill');p.textContent=(ok?'● ':'○ ')+text;p.classList.toggle('ok',ok)}
+function reqUrl(p){return `https://api.github.com/repos/${encodeURIComponent(state.owner)}/${encodeURIComponent(state.repo)}/contents/${encPath(p)}`}
+async function request(method,path,payload=null,missingOk=false,asBlob=false){
+  if(!state.owner||!state.repo)throw Error('Primero configura un usuario y repositorio.');
+  const url=reqUrl(path)+(method==='GET'?'?ref='+encodeURIComponent(state.branch):'');
+  const headers={'Accept':asBlob?'application/vnd.github.raw':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
+  if(state.token)headers.Authorization='Bearer '+state.token;
+  if(payload)headers['Content-Type']='application/json';
+  const res=await fetch(url,{method,headers,body:payload?JSON.stringify(payload):undefined,cache:'no-store'});
+  if(res.status===404&&missingOk)return null;
+  if(!res.ok){let detail='';try{const j=await res.json();detail=j.message||''}catch{};throw Error('GitHub '+res.status+(detail?' · '+detail:''))}
+  return asBlob?res.blob():res.json();
+}
+function jsonToB64(o){const bytes=new TextEncoder().encode(JSON.stringify(o,null,2)+'\n');let str='';for(let i=0;i<bytes.length;i+=8192)str+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(str)}
+function b64ToJson(b){const bin=atob((b||'').replace(/\s/g,''));const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return JSON.parse(new TextDecoder().decode(a))}
+function rawUrl(p){return `https://raw.githubusercontent.com/${encodeURIComponent(state.owner)}/${encodeURIComponent(state.repo)}/${encPath(state.branch)}/${encPath(p)}`}
+async function loadCatalog(){
+  const result=await request('GET','catalogo.json',null,true);
+  if(!result){state.catalogSha=null;return {version:1,modelos:[]}}
+  state.catalogSha=result.sha;
+  if(result.content&&result.encoding==='base64')return b64ToJson(result.content);
+  throw Error('El catálogo no tiene el formato esperado.');
+}
+async function refresh(){
+  if(!state.owner||!state.repo){setConnection('Sin conectar');render();return}
+  setConnection('Consultando...');$('refreshBtn').disabled=true;
+  try{const result=await loadCatalog();state.models=Array.isArray(result.modelos)?result.modelos:[];setConnection('GitHub conectado',true);$('repoLabel').textContent=state.owner+'/'+state.repo+' · '+state.branch;render();}
+  catch(e){setConnection('Error de conexión');toast(e.message,true);render()}
+  finally{$('refreshBtn').disabled=false}
+}
+function render(){
+  $('statCount').textContent=state.models.length;
+  $('statCategories').textContent=new Set(state.models.map(x=>x.categoria).filter(Boolean)).size;
+  $('statSize').textContent=((state.models.reduce((n,m)=>n+(Number(m.bytes)||0),0)/1048576)||0).toFixed(1)+' MB';
+  const cats=Array.from(new Set(state.models.map(m=>m.categoria).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'es'));
+  const selected=$('categoryFilter').value;$('categoryFilter').replaceChildren(new Option('Todas las categorías',''));cats.forEach(c=>$('categoryFilter').add(new Option(c,c)));if(cats.includes(selected))$('categoryFilter').value=selected;
+  const q=$('searchInput').value.trim().toLocaleLowerCase('es');const category=$('categoryFilter').value;
+  const shown=state.models.filter(m=>(!q||(m.nombre||'').toLocaleLowerCase('es').includes(q))&&(!category||m.categoria===category));
+  $('gallery').replaceChildren();$('emptyLibrary').classList.toggle('hidden',shown.length>0);
+  if(!shown.length){$('emptyLibrary').querySelector('strong').textContent=state.models.length?'No hay diseños con ese filtro':'Todavía no hay diseños publicados';$('emptyLibrary').querySelector('p').textContent=state.models.length?'Prueba otra búsqueda o categoría.':'Conecta tu repositorio y sube un archivo GLB.';return}
+  for(const m of shown){
+    const tile=document.createElement('article');tile.className='tile';
+    const cover=document.createElement('div');cover.className='cover';
+    if(m.miniatura){const img=document.createElement('img');img.alt='Miniatura de '+m.nombre;img.loading='lazy';cover.append(img);attachImage(img,m.miniatura)}else{cover.append(textNode('span','◈','fallback'))}
+    cover.append(textNode('span','GLB · 3D','type-chip'));tile.append(cover);
+    const body=document.createElement('div');body.className='tile-body';body.append(textNode('h3',m.nombre||'Diseño sin nombre'));
+    body.append(textNode('div',(m.categoria||'Sin categoría')+' · '+humanSize(Number(m.bytes)||0),'muted tiny'));
+    body.append(textNode('p',m.descripcion||'Listo para explorar en realidad virtual.','tile-desc'));
+    const foot=document.createElement('div');foot.className='tile-foot';
+    const dl=document.createElement('button');dl.className='button secondary small';dl.textContent='↓ Descargar GLB';dl.addEventListener('click',()=>downloadModel(m));foot.append(dl);
+    body.append(foot);tile.append(body);$('gallery').append(tile);
+  }
+}
+async function attachImage(img,path){if(!state.repoPrivate){img.src=rawUrl(path);return}if(state.thumbUrls.has(path)){img.src=state.thumbUrls.get(path);return}if(!state.token)return;try{const blob=await request('GET',path,null,false,true);const url=URL.createObjectURL(blob);state.thumbUrls.set(path,url);img.src=url}catch{}}
+async function downloadModel(m){try{toast('Preparando descarga de '+m.nombre+'...');const blob=await request('GET',m.archivo,null,false,true);const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=(m.nombre||'diseno').replace(/[\\/:*?"<>|]/g,'_')+'.glb';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000)}catch(e){toast('No se pudo descargar: '+e.message,true)}}
+$('searchInput').addEventListener('input',render);$('categoryFilter').addEventListener('change',render);$('refreshBtn').addEventListener('click',refresh);
+$('settingsForm').addEventListener('submit',async e=>{
+  e.preventDefault();const owner=$('owner').value.trim(),repo=$('repo').value.trim(),branch=$('branch').value.trim();
+  if(!/^[a-zA-Z0-9-]{1,39}$/.test(owner)||!/^[a-zA-Z0-9._-]{1,100}$/.test(repo)||!/^[a-zA-Z0-9._/-]+$/.test(branch)){status('settingsStatus','Revisa usuario, repositorio y rama.','bad');return}
+  state.owner=owner;state.repo=repo;state.branch=branch;state.token=$('token').value.trim();
+  try{localStorage.setItem('fusionvr-repo',JSON.stringify({owner,repo,branch}))}catch{}
+  try{const headers={'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};if(state.token)headers.Authorization='Bearer '+state.token;const r=await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,{headers});const data=await r.json();if(!r.ok)throw Error('GitHub '+r.status+' · '+(data.message||'No se pudo acceder'));
+    state.repoPrivate=Boolean(data.private);status('settingsStatus','Conexión correcta · Repositorio '+(state.repoPrivate?'privado':'público')+'. El token no se guarda.','good');await refresh();toast('GitHub conectado');
+  }catch(err){status('settingsStatus',err.message,'bad');setConnection('Error de conexión')}
+});
+$('clearToken').addEventListener('click',()=>{state.token='';$('token').value='';toast('Token eliminado de esta sesión');});
+function fileSelected(){const f=$('modelFile').files?.[0];$('modelInfo').textContent=f?f.name+' · '+humanSize(f.size):'Ningún modelo seleccionado';if(f&&!$('modelTitle').value)$('modelTitle').value=f.name.replace(/\.glb$/i,'').replace(/[-_]/g,' ')}
+$('modelFile').addEventListener('change',fileSelected);
+const drop=$('modelDrop');drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over')});drop.addEventListener('dragleave',()=>drop.classList.remove('over'));drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');const f=e.dataTransfer.files[0];if(f){try{const dt=new DataTransfer();dt.items.add(f);$('modelFile').files=dt.files;fileSelected()}catch{toast('Selecciona el archivo con el botón de búsqueda',true)}}});
+$('thumbFile').addEventListener('change',()=>{if(thumbPreviewUrl)URL.revokeObjectURL(thumbPreviewUrl);const file=$('thumbFile').files?.[0];$('thumbPreview').replaceChildren();if(file){thumbPreviewUrl=URL.createObjectURL(file);const img=document.createElement('img');img.src=thumbPreviewUrl;img.alt='Portada provisional';$('thumbPreview').append(img)}else $('thumbPreview').append(textNode('span','◈','fallback'))});
+function fileToB64(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(Error('No se pudo leer el archivo.'));reader.readAsDataURL(file)})}
+function progress(n,msg){$('uploadProgress').style.display='block';$('uploadBar').style.width=n+'%';status('uploadStatus',msg)}
+$('uploadForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(state.busy)return;
+ const f=$('modelFile').files?.[0],img=$('thumbFile').files?.[0],name=$('modelTitle').value.trim();
+ if(!state.owner||!state.repo||!state.token){status('uploadStatus','Para subir archivos, conecta GitHub con un token autorizado en la pestaña Conexión GitHub.','bad');nav('configuracion');return}
+ if(!f||!name){status('uploadStatus','Faltan el nombre o el archivo GLB.','bad');return}
+ if(!/\.glb$/i.test(f.name)){status('uploadStatus','El archivo debe ser .glb.','bad');return}
+ if(f.size>75*1048576){status('uploadStatus','El archivo supera 75 MB. Optimízalo antes de subirlo a esta versión.','bad');return}
+ if(img&&(img.size>5*1048576||!['image/jpeg','image/png','image/webp'].includes(img.type))){status('uploadStatus','La miniatura debe ser JPG, PNG o WebP y tener 5 MB o menos.','bad');return}
+ state.busy=true;$('uploadBtn').disabled=true;
+ const id=safeName(name)+'-'+Date.now().toString(36);const modelPath=`modelos/${id}.glb`;let imagePath='';
+ try{
+   progress(10,'Leyendo el modelo...');const b64=await fileToB64(f);
+   progress(25,'Subiendo modelo a GitHub. No cierres esta pestaña...');await request('PUT',modelPath,{message:'Añadir diseño 3D: '+name,content:b64,branch:state.branch});
+   if(img){const ext=img.type==='image/png'?'png':img.type==='image/webp'?'webp':'jpg';imagePath=`miniaturas/${id}.${ext}`;progress(55,'Subiendo miniatura...');await request('PUT',imagePath,{message:'Añadir portada: '+name,content:await fileToB64(img),branch:state.branch})}
+   progress(75,'Actualizando catálogo de proyectos...');
+   // Refrescar el SHA evita sobrescribir accidentalmente el catálogo al usar varios ordenadores.
+   const fresh=await loadCatalog();const items=Array.isArray(fresh.modelos)?fresh.modelos:[];
+   const item={id,nombre:name,categoria:$('modelCategory').value,descripcion:$('modelDescription').value.trim(),archivo:modelPath,miniatura:imagePath,bytes:f.size,fecha:new Date().toISOString()};
+   items.unshift(item);const payload={message:'Actualizar catálogo VR: '+name,content:jsonToB64({version:1,actualizado:new Date().toISOString(),modelos:items}),branch:state.branch};if(state.catalogSha)payload.sha=state.catalogSha;
+   await request('PUT','catalogo.json',payload);progress(100,'¡Diseño publicado correctamente en GitHub!');$('uploadStatus').classList.add('good');$('uploadForm').reset();fileSelected();if(thumbPreviewUrl)URL.revokeObjectURL(thumbPreviewUrl);$('thumbPreview').replaceChildren(textNode('span','◈','fallback'));await refresh();toast('Diseño guardado: '+name);
+ }catch(err){status('uploadStatus','No se completó la publicación: '+err.message+'\nSi el modelo se subió pero falló el catálogo, puede haber un archivo pendiente en GitHub.','bad');toast('Error al subir el diseño',true)}
+ finally{state.busy=false;$('uploadBtn').disabled=false;setTimeout(()=>{$('uploadProgress').style.display='none';$('uploadBar').style.width='0%'},1200)}
+});
+window.addEventListener('beforeunload',()=>{for(const u of state.thumbUrls.values())URL.revokeObjectURL(u);if(thumbPreviewUrl)URL.revokeObjectURL(thumbPreviewUrl)});
+render();if(state.owner&&state.repo){$('repoLabel').textContent=state.owner+'/'+state.repo+' · '+state.branch;refresh()}
+})();
+</script>
+</body>
+</html>
