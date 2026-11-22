@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fusion VR Studio · Visor</title>
+<style>
+body{margin:0;background:#142034;color:#f4f7fd;font:16px system-ui}canvas{display:block}[hidden]{display:none!important}
+header{position:absolute;z-index:1;top:16px;left:16px;max-width:min(440px,calc(100vw - 72px));padding:14px 18px;background:#131e30ee;border:1px solid #42536f;border-radius:12px}
+h1{font-size:19px;margin:0 0 10px}label{display:block;margin-bottom:5px}select{font:inherit;color:inherit;background:#243652;border:1px solid #637a9d;border-radius:6px;padding:7px;max-width:100%}
+p{margin:9px 0}a{color:#90caff}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
+</script>
+<header>
+<h1>Fusion VR Studio · Visor</h1>
+<label for="models">Diseño</label><select id="models" disabled></select>
+<p id="status" role="status">Cargando el visor…</p>
+<p>En VR, usa el mando izquierdo para caminar y el derecho para girar.</p>
+<a href="./">Volver a la biblioteca</a>
+</header>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {VRButton} from 'three/addons/webxr/VRButton.js';
+
+const status=document.querySelector('#status'), models=document.querySelector('#models');
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x71839c);
+const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.03,500);
+const rig=new THREE.Group();
+rig.add(camera);
+scene.add(rig);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+renderer.xr.enabled=true;
+renderer.xr.setReferenceSpaceType('local-floor');
+document.body.append(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.MeshLambertMaterial({color:0x526479}));
+ground.rotation.x=-Math.PI/2;
+ground.position.y=-.012;
+scene.add(ground,new THREE.GridHelper(400,400,0x8495a8,0x697b91));
+scene.add(new THREE.HemisphereLight(0xffffff,0x8b95a3,2.1));
+const sun=new THREE.DirectionalLight(0xfff3de,2);
+sun.position.set(4,8,6);
+scene.add(sun);
+const loader=new GLTFLoader();
+const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']});
+vrButton.hidden=true;
+document.body.append(vrButton);
+let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true;
+function desktopView(){
+  rig.position.set(0,0,0);
+  rig.rotation.set(0,0,0);
+  camera.position.set(distance*.65,height*.85+1,distance);
+  controls.target.set(0,height*.45,0);
+  controls.update();
+}
+function dispose(root){
+  const textures=new Set();
+  root.traverse(o=>{
+    o.geometry?.dispose();
+    const materials=Array.isArray(o.material)?o.material:[o.material];
+    for(const m of materials){
+      if(!m)continue;
+      for(const value of Object.values(m))if(value?.isTexture)textures.add(value);
+      m.dispose();
+    }
+  });
+  for(const texture of textures)texture.dispose();
+}
+async function openModel(){
+  const load=++generation;
+  vrButton.hidden=true;
+  status.textContent='Cargando diseño…';
+  try{
+    const url=new URL(models.value,location.href);
+    if(url.origin!==location.origin||!url.pathname.startsWith(new URL('modelos/',location.href).pathname)||!url.pathname.endsWith('.glb'))throw Error('Ruta de modelo no válida.');
+    const {scene:next}=await loader.loadAsync(url.href);
+    if(load!==generation){dispose(next);return}
+    const bounds=new THREE.Box3().setFromObject(next,true);
+    if(bounds.isEmpty()){dispose(next);throw Error('El archivo está vacío.')}
+    const center=bounds.getCenter(new THREE.Vector3()), size=bounds.getSize(new THREE.Vector3());
+    if(model){scene.remove(model);dispose(model)}
+    model=next;
+    model.position.x-=center.x;
+    model.position.y-=bounds.min.y;
+    model.position.z-=center.z;
+    distance=Math.max(3,size.z/2+Math.max(size.x,size.y,2));
+    height=size.y;
+    scene.add(model);
+    desktopView();
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto)';
+    vrButton.hidden=false;
+  }catch(error){if(load===generation)status.textContent='No se pudo abrir el diseño. '+error.message}
+}
+renderer.xr.addEventListener('sessionstart',()=>{
+  controls.enabled=false;
+  rig.position.set(0,0,distance);
+  rig.rotation.set(0,0,0);
+  lastTime=0;
+  canTurn=true;
+});
+renderer.xr.addEventListener('sessionend',()=>{controls.enabled=true;desktopView()});
+const forward=new THREE.Vector3(), right=new THREE.Vector3(), pivot=new THREE.Vector3(), turned=new THREE.Vector3();
+function stick(source){
+  const axes=source?.gamepad?.axes;
+  return axes?.length>=4?[axes[2],axes[3]]:[axes?.[0]??0,axes?.[1]??0];
+}
+const dead=n=>Math.abs(n)<.18?0:n;
+renderer.setAnimationLoop(time=>{
+  const dt=lastTime?Math.min(.05,(time-lastTime)/1000):0;
+  lastTime=time;
+  if(renderer.xr.isPresenting){
+    const headset=renderer.xr.getCamera();
+    const inputs=Array.from(renderer.xr.getSession().inputSources);
+    const [x,y]=stick(inputs.find(s=>s.handedness==='left'));
+    const [turn]=stick(inputs.find(s=>s.handedness==='right'));
+    forward.set(0,0,-1).transformDirection(headset.matrixWorld);
+    forward.y=0;
+    forward.normalize();
+    right.crossVectors(forward,THREE.Object3D.DEFAULT_UP);
+    rig.position.addScaledVector(forward,-dead(y)*1.35*dt).addScaledVector(right,dead(x)*1.35*dt);
+    if(Math.abs(turn)<.25)canTurn=true;
+    if(canTurn&&Math.abs(turn)>.65){
+      canTurn=false;
+      const angle=-Math.sign(turn)*Math.PI/6;
+      pivot.setFromMatrixPosition(headset.matrixWorld).sub(rig.position);
+      pivot.y=0;
+      turned.copy(pivot).applyAxisAngle(THREE.Object3D.DEFAULT_UP,angle);
+      rig.position.add(pivot).sub(turned);
+      rig.rotation.y+=angle;
+    }
+  }
+  renderer.render(scene,camera);
+});
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+models.addEventListener('change',openModel);
+try{
+  const response=await fetch('catalogo.json',{cache:'no-cache'});
+  if(!response.ok)throw Error('No se pudo leer el catálogo.');
+  const {modelos=[]}=await response.json();
+  for(const item of modelos)models.add(new Option(item.nombre,item.archivo));
+  if(!models.length)throw Error('Todavía no hay diseños publicados.');
+  models.disabled=false;
+  await openModel();
+}catch(error){status.textContent=error.message}
+</script>
+</html>
