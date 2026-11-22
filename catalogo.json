@@ -1,7 +1,17 @@
 {
   "version": 1,
-  "actualizado": "2026-11-22T14:35:09.957Z",
+  "actualizado": "2026-11-22T17:17:34.798Z",
   "modelos": [
+    {
+      "id": "garaje2-mws3nfb6",
+      "nombre": "garaje2",
+      "categoria": "Viviendas",
+      "descripcion": "",
+      "archivo": "modelos/garaje2-mws3nfb6.glb",
+      "miniatura": "miniaturas/garaje2-mws3nfb6.jpg",
+      "bytes": 15663528,
+      "fecha": "2026-11-22T17:17:34.798Z"
+    },
     {
       "id": "cocina2-mwrxuhz5",
       "nombre": "cocina2",
