@@ -349,7 +349,7 @@ function drawVRMenu(){
   ctx.textBaseline='middle';
   ctx.font='bold 57px system-ui';ctx.fillStyle='#ffffff';
   ctx.fillText('BIBLIOTECA VR',75,82);
-  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.18',760,83);
+  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.19',760,83);
   ctx.font='25px system-ui';ctx.fillStyle='#a7d6f5';
   ctx.fillText('Apunta al diseño y pulsa el gatillo',75,137);
   const start=menuPage*MENU_PAGE_SIZE;
@@ -414,6 +414,27 @@ function closeVRMenu(){
   menuPointer.visible=false;
   for(const {laser} of menuControllerObjects)laser.visible=false;
 }
+async function refreshVRLibrary(){
+  try{
+    const catalogURL=new URL('catalogo.json',location.href);
+    catalogURL.searchParams.set('refresh',String(Date.now()));
+    const response=await fetch(catalogURL.href,{cache:'no-store'});
+    if(!response.ok)throw Error('HTTP '+response.status);
+    const json=await response.json();
+    const items=Array.isArray(json.modelos)?json.modelos.filter(item=>item.id&&item.archivo):[];
+    if(!items.length)throw Error('Catálogo vacío');
+    const selected=models.value;
+    models.replaceChildren();
+    for(const item of items)models.add(new Option(item.nombre||item.id,item.archivo));
+    if([...models.options].some(option=>option.value===selected))models.value=selected;
+    menuPage=Math.min(menuPage,Math.max(0,Math.ceil(models.options.length/MENU_PAGE_SIZE)-1));
+    menuNote='Biblioteca actualizada: '+items.length+' diseños';
+    if(menuGroup.visible)drawVRMenu();
+  }catch(error){
+    menuNote='No se pudo actualizar: '+error.message;
+    if(menuGroup.visible)drawVRMenu();
+  }
+}
 function showVRMenu(){
   if(!renderer.xr.isPresenting||!models.options.length)return;
   const index=Array.from(models.options).findIndex(o=>o.value===models.value);
@@ -423,6 +444,7 @@ function showVRMenu(){
   menuGroup.visible=true;
   for(const {laser} of menuControllerObjects)laser.visible=true;
   drawVRMenu();
+  void refreshVRLibrary();
 }
 async function activateMenuHit(hit){
   if(menuBusy)return;
@@ -457,7 +479,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.18 · subida suave de escalones';
+versionLabel.textContent='Visor VR 0.19 · biblioteca actualizable';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -807,7 +829,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.18';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.19';
     vrButton.hidden=false;
     return true;
   }catch(error){
@@ -941,7 +963,9 @@ addEventListener('resize',()=>{
 });
 for(const control of [models,orientation,appearance])control.addEventListener('change',openModel);
 try{
-  const response=await fetch('catalogo.json',{cache:'no-cache'});
+  const catalogURL=new URL('catalogo.json',location.href);
+  catalogURL.searchParams.set('refresh',String(Date.now()));
+  const response=await fetch(catalogURL.href,{cache:'no-store'});
   if(!response.ok)throw Error('No se pudo leer el catálogo.');
   const {modelos=[]}=await response.json();
   orientation.value='z';
