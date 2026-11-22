@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101a2b">
+<title>Fusion VR Viewer · Meta Quest 2</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101a2b;color:#eff5ff;font:18px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1100px;margin:auto;padding:30px 20px 60px}
+header{margin-bottom:30px}
+header h1{font-size:clamp(26px,5vw,45px);margin:4px 0}
+header p{color:#aebdd2;margin:8px 0}
+strong{color:#d3e7ff}
+#list{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
+.item{background:#1b2b42;border:1px solid #415674;border-radius:16px;overflow:hidden;text-decoration:none;color:#fff;display:block;min-height:230px}
+.item:focus,.item:hover{outline:3px solid #71c8ff;outline-offset:2px}
+.thumb{height:180px;background:linear-gradient(135deg,#304767,#14253b);display:grid;place-items:center;color:#90caff;font-size:60px}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.caption{padding:20px 17px;display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:22px;font-weight:700}
+.arrow{color:#82e1ba}
+.notice{padding:18px;border:1px solid #3a597c;background:#17283f;border-radius:14px;margin-bottom:25px}
+.small{color:#aac0d9;font-size:15px}
+a.back{color:#82cfff}
+</style>
+</head>
+<body>
+<main>
+<header><div class="small">META QUEST 2 · FUSION VR</div><h1>Elige un diseño</h1><p>Biblioteca conectada a GitHub. Selecciona el modelo que quieras visitar.</p></header>
+<div class="notice"><strong>Cómo entrar en realidad virtual:</strong> abre esta página desde el navegador de las Quest 2, pulsa un diseño y después el botón <strong>ENTER VR</strong> del visor. Al terminar, sal del modo VR para elegir otro.</div>
+<section id="list" aria-label="Biblioteca de diseños"><p id="state">Cargando diseños de GitHub…</p></section>
+<p style="margin-top:28px" class="small"><a class="back" href="./">Volver al gestor de diseños para PC</a></p>
+</main>
+<script>
+(async()=>{
+const list=document.querySelector('#list'),state=document.querySelector('#state');
+try{
+ const response=await fetch('./catalogo.json',{cache:'no-store'});
+ if(!response.ok)throw Error('No se pudo consultar GitHub ('+response.status+').');
+ const json=await response.json(),models=Array.isArray(json.modelos)?json.modelos:[];
+ if(!models.length){state.textContent='No hay diseños en la biblioteca.';return}
+ list.replaceChildren();
+ for(const m of models){
+  if(!m.id||!m.archivo)continue;
+  const card=document.createElement('a'),thumb=document.createElement('div'),name=document.createElement('div');
+  card.className='item';
+  thumb.className='thumb';
+  name.className='caption';
+  const viewer=new URL('./visor.html',location.href);
+  viewer.searchParams.set('diseno',m.id);
+  card.href=viewer.href;
+  if(m.miniatura&&/^miniaturas\/[a-zA-Z0-9_-]+\.(jpg|jpeg|png|webp)$/.test(m.miniatura)){
+   const img=document.createElement('img');img.src=new URL(m.miniatura,location.href).href;
+   img.alt='Miniatura de '+(m.nombre||'Diseño');
+   thumb.append(img);
+  }else thumb.textContent='⬡';
+  const title=document.createElement('span');title.textContent=m.nombre||'Diseño sin nombre';
+  const arrow=document.createElement('span');arrow.className='arrow';arrow.textContent='→';
+  name.append(title,arrow);
+  card.append(thumb,name);list.append(card);
+ }
+}catch(e){state.textContent='No se pudo cargar la biblioteca: '+e.message}
+})();
+</script>
+</body>
+</html>
