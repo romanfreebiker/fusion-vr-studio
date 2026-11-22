@@ -1,10 +1,11 @@
-/* Fusion VR Studio - biblioteca de materiales PBR v5.
+/* Fusion VR Studio - biblioteca de materiales PBR v6.
    Materiales propios: identifica por nombre, aplica un único material por cuerpo.
    Los mapas se generan localmente en el navegador y se incrustan al exportar FBX->GLB.
 */
 (function(root){
 'use strict';
 const specs={
+ cladding:{label:'Revestimiento pino claro 200 × 2000 mm',metalness:0,roughness:.78,size:1024},
  pine:{label:'Pino natural',metalness:0,roughness:.80,size:768},
  oak:{label:'Roble',metalness:0,roughness:.70,size:768},
  wood:{label:'Madera',metalness:0,roughness:.75,size:768},
@@ -18,6 +19,8 @@ const specs={
 function normalize(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
 // Reglas de nombres COMPARTIDAS por todos los modelos y todas las conversiones.
 const aliases=Object.freeze({
+ 'revestimiento':'cladding','revestimiento de madera':'cladding','revestimiento de pino':'cladding',
+ 'friso':'cladding','friso madera':'cladding','panelado madera':'cladding','tablones horizontales':'cladding',
  'pine':'pine','pino':'pine','pino natural':'pine','pino silvestre':'pine',
  'oak':'oak','roble':'oak','roble natural':'oak',
  'wood':'wood','madera':'wood','madera natural':'wood',
@@ -31,6 +34,7 @@ const aliases=Object.freeze({
  'abs':'plastic','plastic':'plastic','plastico':'plastic'
 });
 const rules=[
+ {kind:'cladding',test:/\b(revestimiento|friso|panelado|cladding|siding|entablado|lambriz|tablones?)\b/},
  {kind:'concrete',test:/\b(concrete|hormigon|cemento?|mortero|microcemento|cementitious)\b/},
  {kind:'stainless',test:/\b(inox|inoxidable|stainless|ss\s?(304|316)|aisi\s?(304|316)|304l|316l)\b|acero[\s_-]*inoxidable/},
  {kind:'blacksteel',test:/\b(steel|acero|metal|metallic|hierro)\b.*\b(black|negro|negra|antracita)\b|\b(black|negro)\b.*\b(steel|acero|metal|metallic|hierro)\b/},
@@ -98,13 +102,13 @@ function calibrate(canvas,kind){
  // La fotografía original es madera oscura: se ajusta a pino claro
  // conservando la veta, los nudos y las variaciones fotográficas.
  if(kind!=='concrete'){
-  const color=kind==='pine'?[200,159,103]:kind==='oak'?[155,117,79]:[170,131,91];
+  const color=kind==='pine'?[220,194,158]:kind==='oak'?[186,157,119]:[199,172,135];
   for(let i=0;i<px.length;i+=4){
    const l=.2126*px[i]+.7152*px[i+1]+.0722*px[i+2];
-   const variation=(l-82)*.87;
-   px[i]=clamp(color[0]+variation+(px[i]-l)*.13);
-   px[i+1]=clamp(color[1]+variation*.80+(px[i+1]-l)*.13);
-   px[i+2]=clamp(color[2]+variation*.60+(px[i+2]-l)*.13);
+   const variation=(l-112)*.45;
+   px[i]=clamp(color[0]+variation);
+   px[i+1]=clamp(color[1]+variation*.92);
+   px[i+2]=clamp(color[2]+variation*.80);
   }
  }else{
   for(let i=0;i<px.length;i+=4){
@@ -148,14 +152,16 @@ async function remotePBR(kind){
  const paths=[pick(['Diffuse','diffuse']),pick(['nor_gl']),pick(['Rough','rough'])];
  if(paths.some(x=>!x))throw Error('Mapas PBR incompletos');
  const [albedo,normal,roughness]=await limited(Promise.all(paths.map(fetchPhoto)),9000);
- const spec=specs[kind];
- return {kind,color:photoCanvas(albedo),normal:photoCanvas(normal),
+ const spec=specs[kind],col=photoCanvas(albedo);
+ // Color constante y claro; conservar la información de veta, eliminar el tinte rojizo.
+ if(kind==='pine'||kind==='wood'||kind==='oak')calibrate(col,kind);
+ return {kind,color:col,normal:photoCanvas(normal),
    roughness:photoCanvas(roughness),metalness:spec.metalness,
    roughnessFactor:spec.roughness,tileMeters:info.meters,
    label:spec.label,photographic:true,source:'Poly Haven · '+info.slug};
 }
 async function prepare(){
- await Promise.all(['pine','oak','wood','concrete'].map(async kind=>{
+ await Promise.all(['pine','oak','wood'].map(async kind=>{
   if(prepared.has(kind))return;
   if(pending.has(kind))return pending.get(kind);
   const promise=(async()=>{
@@ -170,7 +176,7 @@ async function prepare(){
       // No bloquear ningún modelo si no hay internet o falla un servidor.
       console.info('PBR remoto no disponible para '+kind+', se usa respaldo local:',error.message);
     }
-    const set=photos[kind==='concrete'?'concrete':'pine'];
+    const set=photos.pine;
     try{
       const [color,normal,rough]=await Promise.all([set.color,set.normal,set.rough].map(fetchPhoto));
       const col=photoCanvas(color);calibrate(col,kind);
@@ -193,9 +199,94 @@ async function prepare(){
  }));
 }
 
+
+/*
+ * Dos materiales PBR sin descarga externa:
+ *  - Cladding: atlas 8 x 2 m, 10 hiladas de 200 mm y juntas a 2 m
+ *    alternadas. 40 tramos diferentes, vetas horizontales finas.
+ *  - Concrete: gris arquitectónico de poro fino (sin manchas de tierra).
+ * Un solo material por cuerpo, como en los modelos originales.
+ */
+const generatedMaps=new Map();
+function mapsFromHeight(kind,w,h,paint,normalPower,tileX,tileY){
+ const color=document.createElement('canvas'),normal=document.createElement('canvas'),
+       rough=document.createElement('canvas');
+ for(const c of [color,normal,rough]){c.width=w;c.height=h}
+ const col=color.getContext('2d'),norm=normal.getContext('2d'),rg=rough.getContext('2d');
+ const cd=col.createImageData(w,h),nd=norm.createImageData(w,h),rd=rg.createImageData(w,h);
+ const heights=new Float32Array(w*h);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+   const i=y*w+x,p=i*4,entry=paint(x,y,w,h);
+   cd.data[p]=clamp(entry.r);cd.data[p+1]=clamp(entry.g);cd.data[p+2]=clamp(entry.b);cd.data[p+3]=255;
+   const v=clamp(entry.rough*255);
+   rd.data[p]=v;rd.data[p+1]=v;rd.data[p+2]=v;rd.data[p+3]=255;
+   heights[i]=entry.height;
+ }
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+   const i=y*w+x,p=i*4;
+   const left=heights[y*w+(x+w-1)%w],right=heights[y*w+(x+1)%w];
+   const up=heights[((y+h-1)%h)*w+x],down=heights[((y+1)%h)*w+x];
+   let nx=(left-right)*normalPower,ny=(up-down)*normalPower,nz=1;
+   const l=Math.hypot(nx,ny,nz);nx/=l;ny/=l;nz/=l;
+   nd.data[p]=clamp(127.5*(nx+1));nd.data[p+1]=clamp(127.5*(ny+1));
+   nd.data[p+2]=clamp(127.5*(nz+1));nd.data[p+3]=255;
+ }
+ col.putImageData(cd,0,0);norm.putImageData(nd,0,0);rg.putImageData(rd,0,0);
+ return {kind,color,normal,roughness:rough,metalness:0,
+   roughnessFactor:specs[kind].roughness,tileMetersX:tileX,tileMetersY:tileY,
+   tileMeters:1,label:specs[kind].label,source:'Fusion VR · atlas PBR local'};
+}
+function makeCladding(){
+ if(generatedMaps.has('cladding'))return generatedMaps.get('cladding');
+ const w=2048,h=512,rows=10;
+ const data=mapsFromHeight('cladding',w,h,(x,y)=>{
+   const row=Math.min(rows-1,Math.floor(y*rows/h));
+   // 4 tablones de 2 m por hilada; las juntas alternan 1 m en filas impares.
+   const shift=(row%2)*w/8,board=Math.floor((x+shift)/(w/4));
+   const key=row*13+board,within=((x+shift)%(w/4)+w/4)%(w/4);
+   const inRow=(y*rows/h)%1;
+   const jointY=Math.min(inRow,1-inRow)*h/rows; // distancia en píxeles
+   const jointX=Math.min(within,w/4-within);
+   const seam=jointY<1.5||jointX<2.0;
+   const fine=noise(x/w,y/h,120,31)-.5;
+   const large=noise((x+key*117)/w,y/h,24,11)-.5;
+   const localX=within/(w/4);
+   const knotX=.20+.57*hash(key,0,25),knotY=.26+.51*hash(key,1,27);
+   // Pocos nudos, pequeños y con influencia sobre la veta adyacente.
+   const knot=hash(key,2,19)>.77 ?
+     Math.exp(-Math.pow((localX-knotX)/.025,2)-Math.pow((inRow-knotY)/.15,2)):0;
+   const waves=Math.sin(2*Math.PI*(inRow*7+large*.22+localX*.10+knot*.30));
+   const fibres=Math.sin(2*Math.PI*(inRow*22+large*.30));
+   const boardTone=(hash(key,4,62)-.5)*17;
+   const grain=waves*5+fibres*2.5+fine*7+large*11-knot*15;
+   const shade=boardTone+grain;
+   return seam?{r:112,g:98,b:80,rough:.95,height:.22}:{
+     r:220+shade,g:197+shade*.94,b:162+shade*.84,
+     rough:.73+fine*.06+Math.abs(waves)*.018,
+     height:.53+waves*.035+fibres*.017+fine*.040-knot*.060
+   };
+ },4.0,8,2);
+ generatedMaps.set('cladding',data);return data;
+}
+function makeArchitecturalConcrete(){
+ if(generatedMaps.has('concrete'))return generatedMaps.get('concrete');
+ const data=mapsFromHeight('concrete',768,768,(x,y,w,h)=>{
+   const u=x/w,v=y/h;
+   const fine=noise(u,v,150,12)-.5,medium=noise(u,v,38,32)-.5;
+   const soft=noise(u,v,6,71)-.5;
+   const pores=hash(x,y,81)<.014?-1:0;
+   const shade=medium*9+soft*6+fine*10+pores*12;
+   return {r:184+shade,g:187+shade,b:189+shade,
+     rough:.88+fine*.06,height:.51+medium*.018+fine*.024+pores*.055};
+ },3.1,1.15,1.15);
+ generatedMaps.set('concrete',data);return data;
+}
+
 const cache=new Map();
 function getMaps(kind){
  if(prepared.has(kind))return prepared.get(kind);
+ if(kind==='cladding')return makeCladding();
+ if(kind==='concrete')return makeArchitecturalConcrete();
  if(cache.has(kind))return cache.get(kind);
  const spec=specs[kind];if(!spec)return null;
  if(typeof document==='undefined')return null;
@@ -258,5 +349,5 @@ function getMaps(kind){
  const data={kind,color,normal,roughness:rough,metalness:spec.metalness,roughnessFactor:spec.roughness,tileMeters:kind==='concrete'?1.10:kind==='pine'?.55:kind==='oak'?.70:kind==='wood'?.85:1,label:spec.label,source:'Procedural'};
  cache.set(kind,data);return data;
 }
-root.FusionMaterialLib={version:5,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded}};
+root.FusionMaterialLib={version:6,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded}};
 })(globalThis);
