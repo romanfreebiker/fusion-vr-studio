@@ -44,7 +44,7 @@ p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-va
 <option value="65" selected>Normal · 65°/s</option>
 <option value="100">Rápida · 100°/s</option>
 </select>
-<p>En VR, usa el mando izquierdo para caminar y la palanca derecha para girar. <strong>Pulsa X en el mando izquierdo para abrir la biblioteca dentro de VR.</strong> Apunta a un diseño y selecciónalo con el gatillo. Si notas mareo, cambia a giro por pasos.</p>
+<p>En VR, usa el mando izquierdo para caminar y la palanca derecha para girar. <strong>Pulsa X para salir a la biblioteca y cambiar de diseño; pulsa Y para ajustar el suelo dentro de VR.</strong> Apunta al ajuste y pulsa el gatillo. Si notas mareo, cambia a giro por pasos.</p>
 <a href="./quest.html">Volver a la biblioteca</a>
 </header>
 <script>
@@ -303,8 +303,8 @@ function materialStats(root){
  return {materials:materials.size,textured:textured.size};
 }
 // Biblioteca tridimensional dentro del modo inmersivo: no hace falta salir de VR.
-const MENU_W=1024,MENU_H=768,MENU_PAGE_SIZE=6;
-const LIBRARY_START=new URLSearchParams(location.search).get('biblioteca')==='1';
+const MENU_W=1024,MENU_H=320,MENU_PAGE_SIZE=6;
+const LIBRARY_START=false; // La biblioteca de diseños se muestra en quest.html.
 let showLibraryOnEntry=LIBRARY_START,libraryEntries=[];
 const thumbnailCache=new Map();
 const menuCanvas=document.createElement('canvas');
@@ -313,8 +313,8 @@ const menuCtx=menuCanvas.getContext('2d');
 const menuTexture=new THREE.CanvasTexture(menuCanvas);
 menuTexture.colorSpace=THREE.SRGBColorSpace;
 const menuBoard=new THREE.Mesh(
-  new THREE.PlaneGeometry(1.8,1.35),
-  new THREE.MeshBasicMaterial({map:menuTexture,side:THREE.DoubleSide,depthTest:false,depthWrite:false})
+  new THREE.PlaneGeometry(1.24,.39),
+  new THREE.MeshBasicMaterial({map:menuTexture,transparent:true,side:THREE.DoubleSide,depthTest:false,depthWrite:false})
 );
 menuBoard.renderOrder=999;
 const menuGroup=new THREE.Group();
@@ -388,59 +388,24 @@ for(let i=0;i<2;i++){
 }
 function drawVRMenu(){
   const ctx=menuCtx;
-  ctx.fillStyle='#0c1b2e';ctx.fillRect(0,0,MENU_W,MENU_H);
-  ctx.strokeStyle='#6bb6e8';ctx.lineWidth=6;ctx.strokeRect(8,8,MENU_W-16,MENU_H-16);
-  ctx.textBaseline='middle';ctx.textAlign='left';
-  ctx.fillStyle='#fff';ctx.font='bold 51px system-ui';
-  ctx.fillText('MIS DISEÑOS',55,71);
-  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.27',786,71);
-  ctx.font='23px system-ui';ctx.fillStyle='#adcce6';
-  ctx.fillText('Apunta a una tarjeta y pulsa el gatillo',55,119);
-  const start=menuPage*MENU_PAGE_SIZE;
-  for(let i=0;i<MENU_PAGE_SIZE;i++){
-    const option=models.options[start+i];
-    if(!option)continue;
-    const col=i%3,row=Math.floor(i/3),x=47+col*320,y=154+row*213,w=293,h=194;
-    const focused=menuHovered==='model:'+i;
-    ctx.fillStyle=focused?'#2e7992':'#213750';
-    ctx.fillRect(x,y,w,h);
-    ctx.strokeStyle=focused?'#a9f2ff':'#507190';
-    ctx.lineWidth=focused?5:2;ctx.strokeRect(x,y,w,h);
-    const item=libraryEntries.find(entry=>entry.archivo===option.value);
-    const image=item?thumbnailCache.get(item.miniatura):null;
-    if(image && image.complete&&image.naturalWidth){
-      const ratio=Math.max((w-14)/image.naturalWidth,126/image.naturalHeight);
-      const tw=image.naturalWidth*ratio,th=image.naturalHeight*ratio;
-      ctx.save();ctx.beginPath();ctx.rect(x+7,y+7,w-14,126);ctx.clip();
-      ctx.drawImage(image,x+(w-tw)/2,y+7+(126-th)/2,tw,th);
-      ctx.restore();
-    }else{
-      ctx.fillStyle='#304a69';ctx.fillRect(x+7,y+7,w-14,126);
-      ctx.font='bold 52px system-ui';ctx.fillStyle='#85b8e7';ctx.textAlign='center';
-      ctx.fillText('3D',x+w/2,y+70);ctx.textAlign='left';
-    }
-    ctx.fillStyle='#fff';ctx.font='bold 27px system-ui';
-    ctx.fillText((option.textContent||'Diseño').slice(0,19),x+16,y+158,w-32);
-    if(model&&option.value===models.value){
-      ctx.fillStyle='#a0ffd5';ctx.font='17px system-ui';
-      ctx.fillText('ABIERTO',x+16,y+183);
-    }
-  }
-  const footer=(key,label,x,w)=>{
-    ctx.fillStyle=menuHovered===key?'#32718a':'#254663';
-    ctx.fillRect(x,612,w,86);
-    ctx.font='bold 26px system-ui';ctx.fillStyle='#fff';ctx.textAlign='center';
-    ctx.fillText(label,x+w/2,654);ctx.textAlign='left';
+  ctx.clearRect(0,0,MENU_W,MENU_H);
+  ctx.fillStyle='rgba(15,30,45,.95)';
+  ctx.beginPath();ctx.roundRect(8,8,MENU_W-16,MENU_H-16,32);ctx.fill();
+  ctx.strokeStyle='#5a9dc6';ctx.lineWidth=4;ctx.stroke();
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='#f1f7ff';ctx.font='bold 42px system-ui';
+  ctx.fillText('ALTURA DEL SUELO',MENU_W/2,66);
+  const button=(key,label,x,w)=>{
+    ctx.fillStyle=menuHovered===key?'#357c96':'#244862';
+    ctx.beginPath();ctx.roundRect(x,125,w,110,18);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='bold 37px system-ui';
+    ctx.fillText(label,x+w/2,181);
   };
-  footer('prev','◀ Pág.',45,150);
-  footer('floorDown','Suelo −10cm',202,175);
-  footer('close',model?'Cerrar':'Biblioteca',384,250);
-  footer('floorUp','Suelo +10cm',641,175);
-  footer('next','Pág. ▶',823,151);
-  ctx.font='19px system-ui';ctx.fillStyle='#b6d9f5';ctx.textAlign='center';
-  ctx.fillText(menuNote||('Diseños '+models.options.length+' · Pulsa X para volver aquí'),MENU_W/2,577);
-  ctx.fillText('Página '+(menuPage+1)+' / '+Math.max(1,Math.ceil(models.options.length/MENU_PAGE_SIZE)),MENU_W/2,735);
-  ctx.textAlign='left';
+  button('floorDown','−10 cm',42,283);
+  button('close','Cerrar',355,314);
+  button('floorUp','+10 cm',699,283);
+  ctx.font='29px system-ui';ctx.fillStyle='#a9e9d2';
+  ctx.fillText('Ajuste actual: '+(floorOffsetCm>0?'+':'')+floorOffsetCm+' cm',MENU_W/2,276);
   menuTexture.needsUpdate=true;
 }
 function menuHit(controller){
@@ -450,18 +415,10 @@ function menuHit(controller){
   const intersection=menuRaycaster.intersectObject(menuBoard,false)[0];
   if(!intersection?.uv)return null;
   const px=intersection.uv.x*MENU_W,py=(1-intersection.uv.y)*MENU_H;
-  for(let i=0;i<MENU_PAGE_SIZE;i++){
-    const option=models.options[menuPage*MENU_PAGE_SIZE+i];
-    if(!option)continue;
-    const x=47+(i%3)*320,y=154+Math.floor(i/3)*213;
-    if(px>=x&&px<=x+293&&py>=y&&py<=y+194)return {type:'model',i};
-  }
-  if(py>=612&&py<=698){
-    if(px>=45&&px<=195)return {type:'prev'};
-    if(px>=202&&px<=377)return {type:'floorDown'};
-    if(px>=384&&px<=634)return {type:'close'};
-    if(px>=641&&px<=816)return {type:'floorUp'};
-    if(px>=823&&px<=974)return {type:'next'};
+  if(py>=125&&py<=235){
+    if(px>=42&&px<=325)return {type:'floorDown'};
+    if(px>=355&&px<=669)return {type:'close'};
+    if(px>=699&&px<=982)return {type:'floorUp'};
   }
   return null;
 }
@@ -502,52 +459,24 @@ async function refreshVRLibrary(){
   }
 }
 function showVRMenu(){
-  if(!renderer.xr.isPresenting||!models.options.length)return;
-  const index=Array.from(models.options).findIndex(o=>o.value===models.value);
-  menuPage=Math.floor(Math.max(0,index)/MENU_PAGE_SIZE);
-  menuBusy=false;menuNote='Suelo: '+(floorOffsetCm>0?'+':'')+floorOffsetCm+' cm · usa los botones inferiores';menuHovered='';
+  if(!renderer.xr.isPresenting||!model)return;
+  menuBusy=false;menuNote='';menuHovered='';
   updateMenuPlacement(renderer.xr.getCamera(),0);
   menuGroup.visible=true;
   for(const {laser} of menuControllerObjects)laser.visible=true;
   drawVRMenu();
-  void refreshVRLibrary();
 }
 async function activateMenuHit(hit){
   if(menuBusy)return;
-  if(hit.type==='close'){if(model)closeVRMenu();return}
+  if(hit.type==='close'){closeVRMenu();return}
   if(hit.type==='floorUp'){setFloorOffset(10);return}
   if(hit.type==='floorDown'){setFloorOffset(-10);return}
-  if(hit.type==='prev'){
-    if(menuPage>0){menuPage--;menuHovered='';drawVRMenu()}
-    return;
-  }
-  if(hit.type==='next'){
-    const max=Math.max(0,Math.ceil(models.options.length/MENU_PAGE_SIZE)-1);
-    if(menuPage<max){menuPage++;menuHovered='';drawVRMenu()}
-    return;
-  }
-  if(hit.type==='model'){
-    const selected=models.options[menuPage*MENU_PAGE_SIZE+hit.i];
-    if(!selected)return;
-    if(model&&models.value===selected.value){closeVRMenu();return}
-    menuBusy=true;menuNote='Cargando '+selected.textContent+'…';drawVRMenu();
-    const previous=models.value;
-    models.value=selected.value;
-    const success=await openModel();
-    menuBusy=false;
-    if(success){closeVRMenu()}
-    else{
-      models.value=previous;
-      menuNote='Error al cargar. Prueba con otro diseño.';
-      drawVRMenu();
-    }
-  }
 }
 const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']});
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.27 · luz y altura ajustable';
+versionLabel.textContent='Visor VR 0.28 · menú mínimo';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -570,7 +499,7 @@ let floorBaseSpace=null,appliedFloorOffsetCm=null;
 function setFloorOffset(delta){
   floorOffsetCm=THREE.MathUtils.clamp(floorOffsetCm+delta,-50,80);
   try{localStorage.setItem('fusionvr-floor-offset-cm',String(floorOffsetCm))}catch{}
-  menuNote='Suelo '+(floorOffsetCm>0?'+':'')+floorOffsetCm+' cm · se aplica al salir del menú';
+  menuNote='Suelo '+(floorOffsetCm>0?'+':'')+floorOffsetCm+' cm';
   drawVRMenu();
 }
 function calibrateVirtualFloor(){
@@ -947,20 +876,33 @@ renderer.xr.addEventListener('sessionstart',()=>{
   rig.rotation.set(0,0,0);
   lastTime=0;
   menuButtonHeld=false;
+  floorButtonHeld=false;
+  returnToLibrary=false;
   canTurn=true;
   smoothTurnAxis=0;
   resetPhysics();
   floorBaseSpace=null;
   appliedFloorOffsetCm=null;
   closeVRMenu();
-  showLibraryOnEntry=LIBRARY_START;
+  showLibraryOnEntry=false;
 });
+let returnToLibrary=false;
+function leaveDesign(){
+  if(returnToLibrary)return;
+  returnToLibrary=true;
+  closeVRMenu();
+  const session=renderer.xr.getSession();
+  if(session){
+    session.end().catch(()=>{location.assign(new URL('./quest.html',location.href).href)});
+  }else location.assign(new URL('./quest.html',location.href).href);
+}
 renderer.xr.addEventListener('sessionend',()=>{
   menuButtonHeld=false;
   controls.enabled=true;
   smoothTurnAxis=0;
   closeVRMenu();
   desktopView();
+  if(returnToLibrary)location.assign(new URL('./quest.html',location.href).href);
 });
 const forward=new THREE.Vector3(), right=new THREE.Vector3(), pivot=new THREE.Vector3(), turned=new THREE.Vector3();
 function stick(source){
@@ -983,7 +925,7 @@ function rotateAroundHeadset(headset,angle){
  rig.position.add(pivot).sub(turned);
  rig.rotation.y+=angle;
 }
-let menuButtonHeld=false,menuRedrawAt=0;
+let menuButtonHeld=false,floorButtonHeld=false,menuRedrawAt=0;
 let meterStart=0,meterFrames=0,meterSlowest=0,meterLast=0;
 renderer.setAnimationLoop(time=>{
   const dt=lastTime?Math.min(.05,(time-lastTime)/1000):0;
@@ -1000,16 +942,15 @@ renderer.setAnimationLoop(time=>{
     const left=inputs.find(s=>s.handedness==='left');
     // WebXR Quest Touch: face button 4 = X, 5 = Y (también permite Y).
     // Solo alterna al pulsar, no vuelve a alternar por mantenerlo presionado.
-    const menuPressed=Boolean(left?.gamepad?.buttons?.[4]?.pressed||left?.gamepad?.buttons?.[5]?.pressed);
-    if(showLibraryOnEntry&&models.options.length&&!heightChanged){
-      showLibraryOnEntry=false;
-      showVRMenu();
-    }
-    if(menuPressed&&!menuButtonHeld){
-      if(menuGroup.visible){if(!menuBusy&&model)closeVRMenu()}
+    const exitPressed=Boolean(left?.gamepad?.buttons?.[4]?.pressed);
+    const adjustPressed=Boolean(left?.gamepad?.buttons?.[5]?.pressed);
+    if(exitPressed&&!menuButtonHeld)leaveDesign();
+    if(adjustPressed&&!floorButtonHeld&&!returnToLibrary){
+      if(menuGroup.visible)closeVRMenu();
       else showVRMenu();
     }
-    menuButtonHeld=menuPressed;
+    menuButtonHeld=exitPressed;
+    floorButtonHeld=adjustPressed;
     if(menuGroup.visible){
       updateMenuPlacement(headset,dt);
       updateMenuRays();
@@ -1032,7 +973,7 @@ renderer.setAnimationLoop(time=>{
     const magnitude=Math.max(1,Math.hypot(strafe,stride));
     const move=new THREE.Vector3().addScaledVector(forward,stride/magnitude*2.1*dt)
       .addScaledVector(right,strafe/magnitude*2.1*dt);
-    if(!heightChanged)solveMovement(headset,menuGroup.visible?new THREE.Vector3():move,dt);
+    if(!heightChanged&&!returnToLibrary)solveMovement(headset,menuGroup.visible?new THREE.Vector3():move,dt);
     if(turnMode.value==='snap'){
       smoothTurnAxis=0;
       if(Math.abs(turn)<.25)canTurn=true;
@@ -1089,10 +1030,7 @@ try{
   if(requested)models.value=requested.archivo;
   for(const control of [models,orientation,appearance])control.disabled=false;
   appearance.value='library';
-  if(LIBRARY_START){
-    status.textContent='Biblioteca VR lista · Pulsa ENTER VR para escoger un diseño.';
-    vrButton.hidden=false;
-  }else await openModel();
+  await openModel();
 }catch(error){status.textContent=error.message}
 </script>
 </html>
