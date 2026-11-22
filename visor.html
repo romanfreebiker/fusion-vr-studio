@@ -54,6 +54,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRButton} from 'three/addons/webxr/VRButton.js';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import {Octree} from 'three/addons/math/Octree.js';
+import {Capsule} from 'three/addons/math/Capsule.js';
 
 const status=document.querySelector('#status'), models=document.querySelector('#models');
 const orientation=document.querySelector('#orientation'), appearance=document.querySelector('#appearance');
@@ -348,6 +349,7 @@ function drawVRMenu(){
   ctx.textBaseline='middle';
   ctx.font='bold 57px system-ui';ctx.fillStyle='#ffffff';
   ctx.fillText('BIBLIOTECA VR',75,82);
+  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.13',760,83);
   ctx.font='25px system-ui';ctx.fillStyle='#a7d6f5';
   ctx.fillText('Apunta al diseño y pulsa el gatillo',75,137);
   const start=menuPage*MENU_PAGE_SIZE;
@@ -451,6 +453,10 @@ async function activateMenuHit(hit){
 const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']});
 vrButton.hidden=true;
 document.body.append(vrButton);
+const versionLabel=document.createElement('div');
+versionLabel.textContent='Visor VR 0.13 · colisión por cápsula';
+versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
+document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
 let worldOctree=null,verticalVelocity=0,isGrounded=false,collisionTriangles=0,collisionStops=0;
 const BODY_RADIUS=.22,GRAVITY=9.81;
@@ -458,6 +464,7 @@ const BODY_RADIUS=.22,GRAVITY=9.81;
 // El suelo real es la superficie caminable del GLB bajo los pies, no el límite
 // inferior del modelo ni una corrección de paredes sobre la altura del rig.
 const avatarHead=new THREE.Vector3();
+const capsuleDebugVersion='VR 0.13 · física por cápsula';
 const vrRaycaster=new THREE.Raycaster();
 vrRaycaster.far=2.5;
 const rayOrigin=new THREE.Vector3(),rayVector=new THREE.Vector3();
@@ -476,86 +483,88 @@ function rayHits(origin,direction,length){
   vrRaycaster.far=length;
   return vrRaycaster.intersectObjects(colliderMeshes,false);
 }
-function floorUnder(x,z,currentFeet,maxUp=MAX_STEP){
-  const upper=currentFeet+maxUp+.06;
-  rayOrigin.set(x,upper,z);
-  const hits=rayHits(rayOrigin,new THREE.Vector3(0,-1,0),2.35);
+function floorUnder(x,z,feet,maxUp=MAX_STEP){
+  // Rayos desde encima del paso; la primera superficie horizontal caminable.
+  rayOrigin.set(x,feet+maxUp+.06,z);
+  const hits=rayHits(rayOrigin,new THREE.Vector3(0,-1,0),2.4);
   for(const h of hits){
     if(normalOf(h,floorNormal).y<WALKABLE_SLOPE)continue;
-    if(h.point.y<=currentFeet+maxUp+.02)return h.point.y;
+    if(h.point.y<=feet+maxUp+.025)return h.point.y;
   }
-  // El plano auxiliar del visor existe a altura cero.
   return 0;
 }
-function wallDistance(origin,dir,length,feet){
-  let allowed=length;
-  const crossX=-dir.z,crossZ=dir.x;
-  for(const side of probeOffsets){
-    for(const y of [.43,.95,1.42]){
-      rayOrigin.set(origin.x+crossX*side,feet+y,origin.z+crossZ*side);
-      const hits=rayHits(rayOrigin,dir,Math.min(length+BODY_RADIUS+.12,2));
-      for(const h of hits){
-        if(Math.abs(normalOf(h,floorNormal).y)>.62)continue;
-        // Los rayos chocan con AMBAS caras. Ignorar impactos que ya
-        // quedan detrás del centro; nunca generan un desplazamiento inverso.
-        allowed=Math.min(allowed,Math.max(0,h.distance-BODY_RADIUS-SKIN));
-        break;
-      }
-    }
-  }
-  return allowed;
+function playerCapsule(x,z,feet,eyeHeight){
+  return new Capsule(
+    new THREE.Vector3(x,feet+BODY_RADIUS,z),
+    new THREE.Vector3(x,feet+Math.max(BODY_RADIUS,eyeHeight-.18),z),
+    BODY_RADIUS
+  );
+}
+function collisionDepth(candidate){
+  const hit=worldOctree?.capsuleIntersect(candidate);
+  // Contacto superficial aceptable. Solamente bloquear penetración real.
+  if(!hit)return 0;
+  return hit.depth>.006?hit.depth:0;
 }
 function solveMovement(headset,desired,dt){
   headset.updateMatrixWorld(true);
   headset.getWorldPosition(avatarHead);
-  // La altura del usuario procede del espacio local-floor de WebXR.
   const eyeHeight=THREE.MathUtils.clamp(avatarHead.y-rig.position.y,1.05,2.25);
-  let feet=rig.position.y;
-  if(feet<0){rig.position.y=0;feet=0}
-  const initial=rig.position.clone();
-  const movement=desired.clone();
-  const travel=movement.length();
-  if(travel>.000001){
-    // Resolver los ejes por separado permite deslizarse por las paredes.
-    for(const axis of ['x','z']){
-      const amount=movement[axis];
-      if(Math.abs(amount)<1e-8)continue;
-      rayVector.set(axis==='x'?Math.sign(amount):0,0,axis==='z'?Math.sign(amount):0);
-      const currentHead=new THREE.Vector3(avatarHead.x+rig.position.x-initial.x,
-        avatarHead.y,avatarHead.z+rig.position.z-initial.z);
-      const available=wallDistance(currentHead,rayVector,Math.abs(amount),feet);
-      const displacement=Math.sign(amount)*available;
-      // El movimiento solicitado nunca se invierte por una colisión.
-      rig.position[axis]+=displacement;
-      if(available<Math.abs(amount)-.0001)collisionStops++;
+  const startRig=rig.position.clone();
+  const feet=startRig.y;
+  let px=avatarHead.x,pz=avatarHead.z,py=feet;
+  // El volumen de colisión acompaña la cabeza real, no un punto en el suelo.
+  // Los pasos de 2cm impiden saltar a través de paredes finas.
+  const total=desired.length();
+  const count=Math.max(1,Math.ceil(total/.02));
+  const step=desired.clone().divideScalar(count);
+  for(let i=0;i<count;i++){
+    const base=playerCapsule(px,pz,py,eyeHeight);
+    const baseDepth=collisionDepth(base);
+    const target=playerCapsule(px+step.x,pz+step.z,py,eyeHeight);
+    const targetDepth=collisionDepth(target);
+    if(targetDepth<=.006||targetDepth<baseDepth-.0001){
+      px+=step.x;pz+=step.z;continue;
     }
+    // Permitir subir un escalón si hay apoyo encima, no escalar muros.
+    const stairFloor=floorUnder(px+step.x,pz+step.z,py,MAX_STEP);
+    const rise=stairFloor-py;
+    if(isGrounded&&rise>.012&&rise<=MAX_STEP&&
+       collisionDepth(playerCapsule(px+step.x,pz+step.z,stairFloor,eyeHeight))<=.006){
+      px+=step.x;pz+=step.z;py=stairFloor;verticalVelocity=0;
+      continue;
+    }
+    // Deslizar a lo largo de la pared, sin aplicar fuerza de rechazo.
+    let slid=false;
+    for(const axis of ['x','z']){
+      const dx=axis==='x'?step.x:0,dz=axis==='z'?step.z:0;
+      if(Math.abs(dx)+Math.abs(dz)<1e-9)continue;
+      const depth=collisionDepth(playerCapsule(px+dx,pz+dz,py,eyeHeight));
+      if(depth<=.006||depth<baseDepth-.0001){px+=dx;pz+=dz;slid=true}
+    }
+    if(!slid)collisionStops++;
   }
-  // La altura del suelo se mide en la nueva posición, no en las paredes.
-  const footX=avatarHead.x+rig.position.x-initial.x;
-  const footZ=avatarHead.z+rig.position.z-initial.z;
-  const centerFloor=floorUnder(footX,footZ,feet);
-  // Las escaleras se suben a partir de la altura real del peldaño.
-  const canStep=centerFloor>feet+.005&&centerFloor-feet<=MAX_STEP+.02;
-  if(canStep&&travel>.000001){
-    rig.position.y=centerFloor;
-    verticalVelocity=0;
-    isGrounded=true;
+  rig.position.x+=px-avatarHead.x;
+  rig.position.z+=pz-avatarHead.z;
+  // La física del suelo sólo modifica el eje vertical.
+  const surface=floorUnder(px,pz,py,MAX_STEP);
+  const climb=surface-py;
+  if(climb>.01&&climb<=MAX_STEP&&total>.00001&&
+      collisionDepth(playerCapsule(px,pz,surface,eyeHeight))<=.006){
+    py=surface;verticalVelocity=0;isGrounded=true;
   }else{
-    verticalVelocity=Math.max(-7,verticalVelocity-GRAVITY*dt);
-    const candidate=feet+verticalVelocity*dt;
-    // Sólo un suelo por debajo puede detener la caída.
-    if(candidate<=centerFloor+.025&&centerFloor<=feet+.065){
-      rig.position.y=Math.max(0,centerFloor);
-      verticalVelocity=0;
-      isGrounded=true;
+    verticalVelocity=Math.max(-8,verticalVelocity-GRAVITY*dt);
+    const nextY=py+verticalVelocity*dt;
+    if(nextY<=surface+.02 && surface<=py+.04){
+      py=surface;verticalVelocity=0;isGrounded=true;
     }else{
-      rig.position.y=Math.max(0,candidate);
-      isGrounded=rig.position.y===0;
+      py=Math.max(0,nextY);isGrounded=py<=.001;
       if(isGrounded)verticalVelocity=0;
     }
   }
-  lastFloorY=centerFloor;
-  vrDiagnostics='Suelo '+lastFloorY.toFixed(2)+' m · Altura visor '+eyeHeight.toFixed(2)+' m';
+  rig.position.y=py;
+  lastFloorY=surface;
+  vrDiagnostics='Suelo '+lastFloorY.toFixed(2)+' m · Posición '+py.toFixed(2)+' m · Bloqueos '+collisionStops;
 }
 function resetPhysics(){
   verticalVelocity=0;
@@ -667,7 +676,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos · versión 0.13';
     vrButton.hidden=false;
     return true;
   }catch(error){
