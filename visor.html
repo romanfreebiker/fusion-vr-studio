@@ -228,7 +228,7 @@ function materialFromLibrary(material){
     color,
     map:maps.diffuse,
     normalMap:maps.normal,
-    normalScale:new THREE.Vector2(.6,.6),
+    normalScale:new THREE.Vector2(['stainless','steel','blacksteel'].includes(kind)?.24:.6,['stainless','steel','blacksteel'].includes(kind)?.24:.6),
     roughnessMap:maps.rough,
     metalness:p.metalness,
     roughness:1,
@@ -498,7 +498,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.29 · calidad XR real';
+versionLabel.textContent='Visor VR 0.30 · PBR CC0';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -818,7 +818,7 @@ async function openModel(){
     detectedMaterials.textContent=sourceMaterials.lines.join('\n')||'No hay materiales reconocibles.';
     if(appearance.value==='library'){
       if(!globalThis.FusionMaterialLib)throw Error('No se pudo cargar nuestra biblioteca de materiales.');
-      status.textContent='Cargando fotografías PBR de madera y hormigón…';
+      status.textContent='Cargando materiales PBR CC0 (si no hay conexión, uso los locales)…';
       await globalThis.FusionMaterialLib.prepare();
     }
     const applied=appearance.value==='library'?applyLibrary(next):0;
@@ -881,7 +881,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.24';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/4 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.30';
     vrButton.hidden=false;
     return true;
   }catch(error){
