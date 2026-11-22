@@ -1,4 +1,4 @@
-/* Fusion VR Studio - biblioteca de materiales PBR v14.
+/* Fusion VR Studio - biblioteca de materiales PBR v15.
    Materiales propios: identifica por nombre, aplica un único material por cuerpo.
    Los mapas se generan localmente en el navegador y se incrustan al exportar FBX->GLB.
 */
@@ -211,6 +211,44 @@ function softenCladdingSeams(colorCanvas,normalCanvas){
  const nm=normalCanvas.getContext('2d',{willReadFrequently:true});
  const color=ctx.getImageData(0,0,w,h),normal=nm.getImageData(0,0,w,h);
  const p=color.data,n=normal.data;
+ // Reparación fotográfica previa: el atlas original lleva bandas negras
+ // AL MARGEN de las juntas nominales, incluso en mitad de algunas tablas.
+ // Detectar bandas largas comparando luminancia de cada fila con sus
+ // vecinas a +/- 8 px. Los nudos individuales no oscurecen una fila entera.
+ const scan=new Float32Array(h);
+ for(let y=0;y<h;y++){
+   let sum=0,nSamples=0;
+   for(let x=0;x<w;x+=16){
+     const k=(y*w+x)*4;
+     sum+=p[k]*.2126+p[k+1]*.7152+p[k+2]*.0722;
+     nSamples++;
+   }
+   scan[y]=sum/nSamples;
+ }
+ const bad=new Uint8Array(h);
+ for(let y=9;y<h-9;y++){
+   const adjacent=(scan[y-8]+scan[y+8])/2;
+   if(adjacent-scan[y]>22 && scan[y]<175){
+     for(let q=Math.max(1,y-2);q<=Math.min(h-2,y+2);q++)bad[q]=1;
+   }
+ }
+ // Leer una sola copia intacta; la interpolación no vuelve a utilizar
+ // píxeles ya reparados. Se conserva el detalle longitudinal del pino.
+ const before=p.slice();
+ for(let y=1;y<h-1;){
+   if(!bad[y]){y++;continue}
+   const start=y;
+   while(y<h-1&&bad[y])y++;
+   const end=y-1,top=Math.max(0,start-9),bottom=Math.min(h-1,end+9);
+   for(let yy=start;yy<=end;yy++){
+     const t=(yy-top)/Math.max(1,bottom-top);
+     for(let x=0;x<w;x++){
+       const k=(yy*w+x)*4,a=(top*w+x)*4,b=(bottom*w+x)*4;
+       for(let c=0;c<3;c++)p[k+c]=Math.round(before[a+c]*(1-t)+before[b+c]*t);
+       n[k]=128;n[k+1]=128;n[k+2]=255;
+     }
+   }
+ }
  const rowHeight=h/10,boardWidth=w/4;
  // Diferencias de tono discretas entre piezas, sin blanquear la fotografía.
  const drift=new Float32Array(10*6);
@@ -608,5 +646,5 @@ function getMaps(kind){
  const data={kind,color,normal,roughness:rough,metalness:spec.metalness,roughnessFactor:spec.roughness,tileMeters:kind==='concrete'?1.10:kind==='pine'?.55:kind==='oak'?.70:kind==='wood'?.85:1,label:spec.label,source:'Procedural'};
  cache.set(kind,data);return data;
 }
-root.FusionMaterialLib={version:14,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded},getSource(kind){return getMaps(kind)?.source||'Desconocida'}};
+root.FusionMaterialLib={version:15,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded},getSource(kind){return getMaps(kind)?.source||'Desconocida'}};
 })(globalThis);
