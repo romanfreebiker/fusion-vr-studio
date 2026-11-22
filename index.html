@@ -3911,13 +3911,15 @@ three/examples/jsm/libs/fflate.module.js:
         <div class="panel"><h2>Vista de portada</h2><div class="preview" id="thumbPreview"><span style="font-size:54px;opacity:.65">◈</span></div><p class="muted tiny" style="margin-top:13px">La miniatura será visible tanto en esta web como en el futuro menú de las Quest 2.</p><div class="steps"><div class="step"><b>01</b><div>Selecciona el FBX exportado desde Fusion o un GLB.</div></div><div class="step"><b>02</b><div>Añade un nombre y, si quieres, una foto.</div></div><div class="step"><b>03</b><div>El HTML publica archivos y actualiza <code>catalogo.json</code> en GitHub.</div></div><div class="step"><b>04</b><div>Al abrir la biblioteca desde otro ordenador, verás los mismos modelos.</div></div></div></div></div>
     </section>
     <section id="view-configuracion" class="hidden">
-      <div class="two"><div class="panel"><div class="panel-head"><h2>Conectar tu repositorio</h2><p>Este HTML lee y escribe archivos mediante la API oficial de GitHub.</p></div>
-        <form id="settingsForm"><div class="settings-grid"><label class="field"><span>Usuario de GitHub *</span><input class="input" id="owner" autocomplete="off" placeholder="miusuario" required></label><label class="field"><span>Repositorio *</span><input class="input" id="repo" autocomplete="off" placeholder="fusion-vr-biblioteca" required></label></div><label class="field"><span>Rama</span><input class="input" id="branch" value="main" required></label>
-        <label class="field"><span>Token personal de GitHub (para subir o leer repositorios privados)</span><input class="input" id="token" type="password" autocomplete="off" placeholder="github_pat_..."><div class="hint">Debe tener permiso <b>Contents: Read and write</b> solamente en este repositorio. Se mantiene en memoria durante esta sesión; nunca se guarda en el HTML ni en el navegador.</div></label>
-        <div style="display:flex;gap:9px;flex-wrap:wrap"><button type="submit" class="button">Conectar y cargar</button><button class="button ghost" id="clearToken" type="button">Olvidar token de esta sesión</button></div><div class="status" id="settingsStatus" role="status"></div></form></div>
-        <div><div class="panel"><h2>Publicar esta web</h2><p class="muted">Una vez subida a GitHub Pages, podrás abrirla desde cualquier PC mediante una URL única. Detectará automáticamente el usuario y repositorio si se aloja en el mismo repositorio.</p><div class="code">https://TU-USUARIO.github.io/fusion-vr-biblioteca/</div><p class="hint">El enlace será real cuando publiques los archivos y actives Pages en GitHub.</p></div><div class="panel"><h2>Privacidad</h2><p class="muted">Un repositorio <b>público</b> hace accesibles sus modelos. Para modelos privados, utiliza un repositorio <b>privado</b> y autenticación. La futura aplicación Quest necesitará su propio método seguro de acceso.</p><p class="muted tiny">Importante: GitHub Pages es una web públicamente accesible incluso en algunas configuraciones de repositorio privado. No introduzcas tokens en los archivos publicados.</p></div></div></div>
+      <div class="panel">
+        <h2>Conectar con GitHub</h2>
+        <p>Conecta la cuenta romanfreebiker para subir diseños. La biblioteca se puede consultar sin iniciar sesión.</p>
+        <button class="button" id="connectGitHub" type="button">Conectar con GitHub</button>
+        <button class="button ghost" id="disconnectGitHub" type="button" hidden>Desconectar</button>
+        <div class="status" id="settingsStatus" role="status"></div>
+      </div>
     </section>
-    <footer class="footer"><span>Fusion VR Studio · Versión 0.1</span><span>Gestor web de modelos · Sin servidor propio</span></footer>
+    <footer class="footer"><span>Fusion VR Studio · Versión 0.1</span><span>Biblioteca pública de modelos</span></footer>
   </main>
 </div>
 <div class="toast hidden" id="toast" role="status"></div>
@@ -3936,10 +3938,37 @@ function status(id,message,type){const e=$(id);e.textContent=message;e.className
 function nav(view){state.activeView=view;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));Object.keys(views).forEach(v=>$('view-'+v).classList.toggle('hidden',v!==view));$('pageTitle').textContent=views[view][0];$('pageSubtitle').textContent=views[view][1];window.scrollTo({top:0,behavior:'smooth'})}
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>nav(b.dataset.view)));
 document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>nav(b.dataset.goto)));
-function inferRepo(){const h=location.hostname;if(h.endsWith('.github.io')){const o=h.split('.')[0];const r=location.pathname.split('/').filter(Boolean)[0];return {owner:o,repo:r||o+'.github.io'}}return null}
-const persisted=(()=>{try{return JSON.parse(localStorage.getItem('fusionvr-repo')||'{}')}catch{return {}}})();
-const inferred=inferRepo();state.owner=inferred?.owner||persisted.owner||'';state.repo=inferred?.repo||persisted.repo||'';state.branch=persisted.branch||'main';
-$('owner').value=state.owner;$('repo').value=state.repo;$('branch').value=state.branch;
+Object.assign(state,{owner:'romanfreebiker',repo:'fusion-vr-studio',branch:'main'});
+const authOrigin='https://fusion-vr-studio-roman-auth.independentoffer16.chatgpt.site';
+let authWindow=null, authState=null, sessionExpiry;
+function disconnectGitHub(){
+  clearTimeout(sessionExpiry);
+  state.token='';
+  $('connectGitHub').hidden=false;
+  $('disconnectGitHub').hidden=true;
+}
+$('connectGitHub').addEventListener('click',()=>{
+  if(authWindow&&!authWindow.closed){authWindow.focus();return}
+  authState=crypto.randomUUID();
+  authWindow=window.open(authOrigin+'/?state='+encodeURIComponent(authState),'fusionGitHub','popup,width=520,height=560');
+  status('settingsStatus',authWindow?'Completa la autorización en la ventana abierta.':'Permite las ventanas emergentes para conectar GitHub.',authWindow?'':'bad');
+});
+window.addEventListener('message',event=>{
+  const data=event.data;
+  if(!authWindow||event.source!==authWindow||event.origin!==authOrigin||data?.type!=='fusion-github-connected'||data.state!==authState||typeof data.token!=='string'||!data.token)return;
+  authWindow=null;
+  authState=null;
+  state.token=data.token;
+  $('connectGitHub').hidden=true;
+  $('disconnectGitHub').hidden=false;
+  status('settingsStatus','GitHub conectado. Ya puedes subir diseños.','good');
+  if(Number.isFinite(data.expiresIn)&&data.expiresIn>0){
+    sessionExpiry=setTimeout(()=>{disconnectGitHub();status('settingsStatus','La sesión ha caducado. Conecta con GitHub de nuevo.');},Math.min(data.expiresIn,86400)*1000);
+  }
+  nav('subir');
+  toast('GitHub conectado');
+});
+$('disconnectGitHub').addEventListener('click',()=>{disconnectGitHub();status('settingsStatus','Sesión de GitHub cerrada.');});
 function setConnection(text,ok=false){const p=$('connectionPill');p.textContent=(ok?'● ':'○ ')+text;p.classList.toggle('ok',ok)}
 function reqUrl(p){return `https://api.github.com/repos/${encodeURIComponent(state.owner)}/${encodeURIComponent(state.repo)}/contents/${encPath(p)}`}
 async function request(method,path,payload=null,missingOk=false,asBlob=false){
@@ -3996,16 +4025,6 @@ function render(){
 async function attachImage(img,path){if(!state.repoPrivate){img.src=rawUrl(path);return}if(state.thumbUrls.has(path)){img.src=state.thumbUrls.get(path);return}if(!state.token)return;try{const blob=await request('GET',path,null,false,true);const url=URL.createObjectURL(blob);state.thumbUrls.set(path,url);img.src=url}catch{}}
 async function downloadModel(m){try{toast('Preparando descarga de '+m.nombre+'...');const blob=await request('GET',m.archivo,null,false,true);const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=(m.nombre||'diseno').replace(/[\\/:*?"<>|]/g,'_')+'.glb';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000)}catch(e){toast('No se pudo descargar: '+e.message,true)}}
 $('searchInput').addEventListener('input',render);$('categoryFilter').addEventListener('change',render);$('refreshBtn').addEventListener('click',refresh);
-$('settingsForm').addEventListener('submit',async e=>{
-  e.preventDefault();const owner=$('owner').value.trim(),repo=$('repo').value.trim(),branch=$('branch').value.trim();
-  if(!/^[a-zA-Z0-9-]{1,39}$/.test(owner)||!/^[a-zA-Z0-9._-]{1,100}$/.test(repo)||!/^[a-zA-Z0-9._/-]+$/.test(branch)){status('settingsStatus','Revisa usuario, repositorio y rama.','bad');return}
-  state.owner=owner;state.repo=repo;state.branch=branch;state.token=$('token').value.trim();
-  try{localStorage.setItem('fusionvr-repo',JSON.stringify({owner,repo,branch}))}catch{}
-  try{const headers={'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};if(state.token)headers.Authorization='Bearer '+state.token;const r=await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,{headers});const data=await r.json();if(!r.ok)throw Error('GitHub '+r.status+' · '+(data.message||'No se pudo acceder'));
-    state.repoPrivate=Boolean(data.private);status('settingsStatus','Conexión correcta · Repositorio '+(state.repoPrivate?'privado':'público')+'. El token no se guarda.','good');await refresh();toast('GitHub conectado');
-  }catch(err){status('settingsStatus',err.message,'bad');setConnection('Error de conexión')}
-});
-$('clearToken').addEventListener('click',()=>{state.token='';$('token').value='';toast('Token eliminado de esta sesión');});
 function fileSelected(){const f=$('modelFile').files?.[0];$('modelInfo').textContent=f?'Archivo seleccionado: '+f.name+' · '+humanSize(f.size):'Ningún modelo seleccionado';if(f&&!$('modelTitle').value)$('modelTitle').value=f.name.replace(/\.(fbx|glb)$/i,'').replace(/[-_]/g,' ')}
 $('modelFile').addEventListener('change',fileSelected);
 const drop=$('modelDrop');drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over')});drop.addEventListener('dragleave',()=>drop.classList.remove('over'));drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');const f=e.dataTransfer.files[0];if(f){try{const dt=new DataTransfer();dt.items.add(f);$('modelFile').files=dt.files;fileSelected()}catch{toast('Selecciona el archivo con el botón de búsqueda',true)}}});
@@ -4015,7 +4034,7 @@ function progress(n,msg){$('uploadProgress').style.display='block';$('uploadBar'
 $('uploadForm').addEventListener('submit',async e=>{
  e.preventDefault();if(state.busy)return;
  const f=$('modelFile').files?.[0],img=$('thumbFile').files?.[0],name=$('modelTitle').value.trim();
- if(!state.owner||!state.repo||!state.token){status('uploadStatus','Para subir archivos, conecta GitHub con un token autorizado en la pestaña Conexión GitHub.','bad');nav('configuracion');return}
+ if(!state.owner||!state.repo||!state.token){nav('configuracion');status('settingsStatus','Conecta con GitHub para guardar el diseño seleccionado.');return}
  if(!f||!name){status('uploadStatus','Faltan el nombre o el archivo 3D.','bad');return}
  const isFbx=/\.fbx$/i.test(f.name);
  if(!isFbx&&!/\.glb$/i.test(f.name)){status('uploadStatus','El archivo debe ser .fbx o .glb.','bad');return}
