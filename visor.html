@@ -22,6 +22,7 @@ p{margin:9px 0}a{color:#90caff}
 <label for="appearance">Materiales</label>
 <select id="appearance" disabled><option value="original">Originales del GLB</option><option value="clear">Aclarar materiales oscuros</option></select>
 <p id="status" role="status">Cargando el visor…</p>
+<p>En el ordenador, arrastra para girar y usa la rueda para acercarte.</p>
 <p>En VR, usa el mando izquierdo para caminar y el derecho para girar.</p>
 <a href="./">Volver a la biblioteca</a>
 </header>
@@ -183,6 +184,9 @@ try{
   const {modelos=[]}=await response.json();
   for(const item of modelos)models.add(new Option(item.nombre,item.archivo));
   if(!models.length)throw Error('Todavía no hay diseños publicados.');
+  const requestedId=new URLSearchParams(location.search).get('diseno');
+  const requested=modelos.find(item=>item.id===requestedId);
+  if(requested)models.value=requested.archivo;
   for(const control of [models,orientation,appearance])control.disabled=false;
   if(models.value.endsWith('/barbacoa-mwrl3t31.glb'))appearance.value='clear';
   await openModel();
