@@ -15,6 +15,12 @@ p{margin:9px 0}a{color:#90caff}
 <header>
 <h1>Fusion VR Studio · Visor</h1>
 <label for="models">Diseño</label><select id="models" disabled></select>
+<label for="orientation">Orientación</label>
+<select id="orientation" disabled>
+<option value="auto">Automática</option><option value="y">Y arriba</option><option value="z">Z arriba</option><option value="-z">Z invertido</option><option value="x">X arriba</option><option value="-x">X invertido</option><option value="-y">Y invertido</option>
+</select>
+<label for="appearance">Materiales</label>
+<select id="appearance" disabled><option value="original">Originales del GLB</option><option value="clear">Aclarar materiales oscuros</option></select>
 <p id="status" role="status">Cargando el visor…</p>
 <p>En VR, usa el mando izquierdo para caminar y el derecho para girar.</p>
 <a href="./">Volver a la biblioteca</a>
@@ -26,6 +32,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRButton} from 'three/addons/webxr/VRButton.js';
 
 const status=document.querySelector('#status'), models=document.querySelector('#models');
+const orientation=document.querySelector('#orientation'), appearance=document.querySelector('#appearance');
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x71839c);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.03,500);
@@ -87,9 +94,17 @@ async function openModel(){
     if(url.origin!==location.origin||!url.pathname.startsWith(new URL('modelos/',location.href).pathname)||!url.pathname.endsWith('.glb'))throw Error('Ruta de modelo no válida.');
     const {scene:next}=await loader.loadAsync(url.href);
     if(load!==generation){dispose(next);return}
-    // This Fusion export kept its original Z-up coordinates and near-black materials.
-    if(url.pathname.endsWith('/barbacoa-mwrl3t31.glb')){
-      next.rotateX(-Math.PI/2);
+    const upAxis=orientation.value==='auto'
+      ? (url.pathname.endsWith('/barbacoa-mwrl3t31.glb')?'z':'y')
+      : orientation.value;
+    switch(upAxis){
+      case 'z': next.rotateX(-Math.PI/2); break;
+      case '-z': next.rotateX(Math.PI/2); break;
+      case 'x': next.rotateZ(Math.PI/2); break;
+      case '-x': next.rotateZ(-Math.PI/2); break;
+      case '-y': next.rotateX(Math.PI); break;
+    }
+    if(appearance.value==='clear'){
       const materials=new Set();
       next.traverse(object=>{
         if(object.isMesh) for(const material of [object.material].flat()) materials.add(material);
@@ -161,14 +176,15 @@ addEventListener('resize',()=>{
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight);
 });
-models.addEventListener('change',openModel);
+for(const control of [models,orientation,appearance])control.addEventListener('change',openModel);
 try{
   const response=await fetch('catalogo.json',{cache:'no-cache'});
   if(!response.ok)throw Error('No se pudo leer el catálogo.');
   const {modelos=[]}=await response.json();
   for(const item of modelos)models.add(new Option(item.nombre,item.archivo));
   if(!models.length)throw Error('Todavía no hay diseños publicados.');
-  models.disabled=false;
+  for(const control of [models,orientation,appearance])control.disabled=false;
+  if(models.value.endsWith('/barbacoa-mwrl3t31.glb'))appearance.value='clear';
   await openModel();
 }catch(error){status.textContent=error.message}
 </script>
