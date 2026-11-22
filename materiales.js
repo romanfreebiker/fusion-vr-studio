@@ -1,4 +1,4 @@
-/* Fusion VR Studio - biblioteca de materiales PBR v6.
+/* Fusion VR Studio - biblioteca de materiales PBR v7.
    Materiales propios: identifica por nombre, aplica un único material por cuerpo.
    Los mapas se generan localmente en el navegador y se incrustan al exportar FBX->GLB.
 */
@@ -197,6 +197,12 @@ async function prepare(){
   pending.set(kind,promise);
   try{await promise}finally{pending.delete(kind)}
  }));
+ // El atlas fotográfico del revestimiento se genera una sola vez a partir de
+ // las fotos PBR LOCALES, sin depender de servidores externos ni CORS.
+ if(!prepared.has('cladding')){
+  try{prepared.set('cladding',await createPhotoCladding())}
+  catch(error){console.warn('No se pudo crear el revestimiento fotográfico:',error.message)}
+ }
 }
 
 
@@ -236,37 +242,100 @@ function mapsFromHeight(kind,w,h,paint,normalPower,tileX,tileY){
    roughnessFactor:specs[kind].roughness,tileMetersX:tileX,tileMetersY:tileY,
    tileMeters:1,label:specs[kind].label,source:'Fusion VR · atlas PBR local'};
 }
+// Atlas fotográfico: 8 metros de ancho x 2 de alto, 10 hiladas de 200 mm
+// y cuatro tablones de 2 m por fila (40 piezas distintas).
+// Cada tablón usa una franja diferente de la fotografía REAL y su normal PBR,
+// sin la trama procedural de ladrillos de la versión anterior.
+async function createPhotoCladding(){
+ const [photo,photoNormal,photoRough]=await Promise.all(
+   [photos.pine.color,photos.pine.normal,photos.pine.rough].map(fetchPhoto));
+ const w=2048,h=512,rowH=h/10,plankW=w/4;
+ const sourceCanvases=[photo,photoNormal,photoRough].map(image=>{
+   const c=document.createElement('canvas');
+   c.width=1024;c.height=1024;
+   c.getContext('2d').drawImage(image,0,0,1024,1024);
+   return c;
+ });
+ // Detectar la dirección de veta más marcada para alinear su longitud
+ // horizontalmente, sin deformar nudos ni líneas de crecimiento.
+ const ref=sourceCanvases[0].getContext('2d').getImageData(0,0,1024,1024).data;
+ let gx=0,gy=0;
+ for(let y=12;y<1000;y+=12)for(let x=12;x<1000;x+=12){
+   const k=(y*1024+x)*4,dx=(((ref[k+4]-ref[k])+(ref[k+5]-ref[k+1])+(ref[k+6]-ref[k+2]))/3);
+   const dy=(((ref[k+4096]-ref[k])+(ref[k+4097]-ref[k+1])+(ref[k+4098]-ref[k+2]))/3);
+   gx+=Math.abs(dx);gy+=Math.abs(dy);
+ }
+ if(gx>gy*1.10){
+   for(let i=0;i<sourceCanvases.length;i++){
+     const rotated=document.createElement('canvas');rotated.width=1024;rotated.height=1024;
+     const rc=rotated.getContext('2d');rc.translate(1024,0);rc.rotate(Math.PI/2);
+     rc.drawImage(sourceCanvases[i],0,0);
+     sourceCanvases[i]=rotated;
+   }
+ }
+ const canvases=sourceCanvases.map(()=>{
+   const c=document.createElement('canvas');c.width=w;c.height=h;return c;
+ });
+ const contexts=canvases.map(c=>c.getContext('2d'));
+ // A 2 metros por tablón corresponden 512 px; usar el mismo factor de
+ // escala en ambos ejes evita ensanchar artificialmente los nudos.
+ const srcW=960,srcH=Math.round(srcW*rowH/plankW);
+ for(let row=0;row<10;row++){
+   const y=row*rowH;
+   const offset=(row%2)?plankW/2:0; // juntas a 1 m, 3 m, 5 m... en filas alternas
+   for(let column=-1;column<5;column++){
+     const key=row*19+column+3;
+     const x=column*plankW-offset;
+     const sourceX=Math.floor(hash(key,17,30)*(1024-srcW));
+     const sourceY=Math.floor(hash(key,11,63)*(1024-srcH));
+     for(let k=0;k<3;k++){
+       const ctx=contexts[k];
+       ctx.save();ctx.beginPath();ctx.rect(Math.max(0,x),y,Math.min(plankW,w-x),rowH);ctx.clip();
+       ctx.drawImage(sourceCanvases[k],sourceX,sourceY,srcW,srcH,x,y,plankW,rowH);
+       ctx.restore();
+     }
+     // Mínima variación del tono entre tablones; sin bloques uniformes.
+     const drift=(hash(key,28,92)-.5)*.10;
+     const ctx=contexts[0];
+     ctx.save();ctx.beginPath();ctx.rect(x,y,plankW,rowH);ctx.clip();
+     ctx.fillStyle=drift>=0?'rgba(255,240,211,'+drift.toFixed(3)+')':
+       'rgba(105,99,83,'+(-drift).toFixed(3)+')';
+     ctx.fillRect(x,y,plankW,rowH);ctx.restore();
+   }
+ }
+ // Cambiar el color del pino oscuro rojizo manteniendo intacta la fotografía:
+ // su luminancia produce las vetas y nudos reales, no ondas dibujadas.
+ calibrate(canvases[0],'pine');
+ const color=contexts[0],normal=contexts[1],roughness=contexts[2];
+ // Juntas de 2-3 mm muy discretas: separación de tablas de madera,
+ // no mortero ni líneas de ladrillo negras.
+ for(let row=0;row<10;row++){
+   const y=row*rowH;
+   color.fillStyle='rgba(84,76,63,.24)';
+   color.fillRect(0,y,2048,Math.max(.8,rowH*.010));
+   normal.fillStyle='rgb(128,128,245)';
+   normal.fillRect(0,y,2048,1);
+   const offset=(row%2)?plankW/2:0;
+   for(let col=-1;col<5;col++){
+     const x=col*plankW-offset;
+     color.fillStyle='rgba(85,78,66,.25)';
+     color.fillRect(x,y,1,Math.ceil(rowH));
+     normal.fillStyle='rgb(128,128,245)';
+     normal.fillRect(x,y,1,Math.ceil(rowH));
+   }
+ }
+ return {kind:'cladding',color:canvases[0],normal:canvases[1],roughness:canvases[2],
+  metalness:0,roughnessFactor:.78,tileMetersX:8,tileMetersY:2,tileMeters:1,
+  label:'Pino natural · tablas fotográficas de 200 × 2000 mm',
+  source:'Fotografía PBR local de pino · 40 piezas distintas'};
+}
 function makeCladding(){
+ // Sólo si falló la fotografía local: evitar volver al patrón de ladrillos.
+ // La madera continua se ve más natural que una cuadrícula sintética.
  if(generatedMaps.has('cladding'))return generatedMaps.get('cladding');
- const w=2048,h=512,rows=10;
- const data=mapsFromHeight('cladding',w,h,(x,y)=>{
-   const row=Math.min(rows-1,Math.floor(y*rows/h));
-   // 4 tablones de 2 m por hilada; las juntas alternan 1 m en filas impares.
-   const shift=(row%2)*w/8,board=Math.floor((x+shift)/(w/4));
-   const key=row*13+board,within=((x+shift)%(w/4)+w/4)%(w/4);
-   const inRow=(y*rows/h)%1;
-   const jointY=Math.min(inRow,1-inRow)*h/rows; // distancia en píxeles
-   const jointX=Math.min(within,w/4-within);
-   const seam=jointY<1.5||jointX<2.0;
-   const fine=noise(x/w,y/h,120,31)-.5;
-   const large=noise((x+key*117)/w,y/h,24,11)-.5;
-   const localX=within/(w/4);
-   const knotX=.20+.57*hash(key,0,25),knotY=.26+.51*hash(key,1,27);
-   // Pocos nudos, pequeños y con influencia sobre la veta adyacente.
-   const knot=hash(key,2,19)>.77 ?
-     Math.exp(-Math.pow((localX-knotX)/.025,2)-Math.pow((inRow-knotY)/.15,2)):0;
-   const waves=Math.sin(2*Math.PI*(inRow*7+large*.22+localX*.10+knot*.30));
-   const fibres=Math.sin(2*Math.PI*(inRow*22+large*.30));
-   const boardTone=(hash(key,4,62)-.5)*17;
-   const grain=waves*5+fibres*2.5+fine*7+large*11-knot*15;
-   const shade=boardTone+grain;
-   return seam?{r:112,g:98,b:80,rough:.95,height:.22}:{
-     r:220+shade,g:197+shade*.94,b:162+shade*.84,
-     rough:.73+fine*.06+Math.abs(waves)*.018,
-     height:.53+waves*.035+fibres*.017+fine*.040-knot*.060
-   };
- },4.0,8,2);
- generatedMaps.set('cladding',data);return data;
+ const base=getMaps('pine');
+ return {...base,kind:'cladding',tileMetersX:8,tileMetersY:2,
+   label:'Revestimiento de pino',source:'Madera PBR de respaldo'};
 }
 function makeArchitecturalConcrete(){
  if(generatedMaps.has('concrete'))return generatedMaps.get('concrete');
@@ -349,5 +418,5 @@ function getMaps(kind){
  const data={kind,color,normal,roughness:rough,metalness:spec.metalness,roughnessFactor:spec.roughness,tileMeters:kind==='concrete'?1.10:kind==='pine'?.55:kind==='oak'?.70:kind==='wood'?.85:1,label:spec.label,source:'Procedural'};
  cache.set(kind,data);return data;
 }
-root.FusionMaterialLib={version:6,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded}};
+root.FusionMaterialLib={version:7,specs,aliases,identify,describe,getMaps,prepare,get remoteLoaded(){return remoteLoaded}};
 })(globalThis);
