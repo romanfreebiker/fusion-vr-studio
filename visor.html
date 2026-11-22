@@ -53,6 +53,8 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRButton} from 'three/addons/webxr/VRButton.js';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {Octree} from 'three/addons/math/Octree.js';
+import {Capsule} from 'three/addons/math/Capsule.js';
 
 const status=document.querySelector('#status'), models=document.querySelector('#models');
 const orientation=document.querySelector('#orientation'), appearance=document.querySelector('#appearance');
@@ -278,13 +280,56 @@ scene.add(menuGroup);
 let menuPage=0,menuBusy=false,menuNote='',menuHovered='';
 const menuRaycaster=new THREE.Raycaster();
 const menuControllerObjects=[];
+const menuEye=new THREE.Vector3(),menuFacing=new THREE.Vector3(),menuTarget=new THREE.Vector3();
+const menuPointer=new THREE.Mesh(new THREE.SphereGeometry(.014,10,8),
+  new THREE.MeshBasicMaterial({color:0xffffff,depthTest:false,depthWrite:false}));
+menuPointer.visible=false;menuPointer.renderOrder=1001;scene.add(menuPointer);
+function updateMenuPlacement(headset,dt=0){
+  headset.updateMatrixWorld(true);
+  headset.getWorldPosition(menuEye);
+  headset.getWorldDirection(menuFacing);
+  menuFacing.y=0;
+  if(menuFacing.lengthSq()<.001)menuFacing.set(0,0,-1);
+  menuFacing.normalize();
+  menuTarget.copy(menuEye).addScaledVector(menuFacing,1.65);
+  const targetYaw=Math.atan2(-menuFacing.x,-menuFacing.z);
+  if(!dt){
+    menuGroup.position.copy(menuTarget);
+    menuGroup.rotation.y=targetYaw;
+  }else{
+    const blend=1-Math.exp(-15*dt);
+    menuGroup.position.lerp(menuTarget,blend);
+    const yawDelta=Math.atan2(Math.sin(targetYaw-menuGroup.rotation.y),
+      Math.cos(targetYaw-menuGroup.rotation.y));
+    menuGroup.rotation.y+=yawDelta*blend;
+  }
+  menuGroup.updateMatrixWorld(true);
+}
+function updateMenuRays(){
+  menuPointer.visible=false;
+  let nearest=Infinity;
+  for(const {controller,laser} of menuControllerObjects){
+    controller.updateMatrixWorld(true);
+    menuRaycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+    menuRaycaster.ray.direction.set(0,0,-1).transformDirection(controller.matrixWorld);
+    const hit=menuRaycaster.intersectObject(menuBoard,false)[0];
+    const distance=hit?Math.min(hit.distance,2.5):2.5;
+    laser.scale.z=distance/2.5;
+    laser.material.opacity=hit?.uv?1:.60;
+    if(hit&&hit.distance<nearest){
+      nearest=hit.distance;
+      menuPointer.position.copy(hit.point).addScaledVector(menuRaycaster.ray.direction,-.008);
+      menuPointer.visible=true;
+    }
+  }
+}
 for(let i=0;i<2;i++){
   const controller=renderer.xr.getController(i);
   const rayGeometry=new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(0,0,0),new THREE.Vector3(0,0,-2.5)
   ]);
   const laser=new THREE.Line(rayGeometry,new THREE.LineBasicMaterial({
-    color:0x79e9ff,transparent:true,opacity:.85,depthTest:false
+    color:i===0?0x60edff:0xffd07b,transparent:true,opacity:1,depthTest:false,depthWrite:false
   }));
   laser.visible=false;
   laser.renderOrder=1000;
@@ -362,6 +407,7 @@ function closeVRMenu(){
   menuGroup.visible=false;
   menuHovered='';
   menuNote='';
+  menuPointer.visible=false;
   for(const {laser} of menuControllerObjects)laser.visible=false;
 }
 function showVRMenu(){
@@ -369,16 +415,7 @@ function showVRMenu(){
   const index=Array.from(models.options).findIndex(o=>o.value===models.value);
   menuPage=Math.floor(Math.max(0,index)/MENU_PAGE_SIZE);
   menuBusy=false;menuNote='';menuHovered='';
-  const headset=renderer.xr.getCamera();
-  headset.updateMatrixWorld(true);
-  const eye=new THREE.Vector3(),direction=new THREE.Vector3();
-  headset.getWorldPosition(eye);
-  headset.getWorldDirection(direction);
-  direction.y=0;
-  if(direction.lengthSq()<.001)direction.set(0,0,-1);
-  direction.normalize();
-  menuGroup.position.copy(eye).addScaledVector(direction,1.65);
-  menuGroup.rotation.set(0,Math.atan2(-direction.x,-direction.z),0);
+  updateMenuPlacement(renderer.xr.getCamera(),0);
   menuGroup.visible=true;
   for(const {laser} of menuControllerObjects)laser.visible=true;
   drawVRMenu();
@@ -416,6 +453,72 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
+let worldOctree=null,verticalVelocity=0,isGrounded=false;
+const BODY_RADIUS=.24,STEP_HEIGHT=.28,GRAVITY=9.81;
+const capsule=new Capsule(new THREE.Vector3(),new THREE.Vector3(),BODY_RADIUS);
+const avatarHead=new THREE.Vector3(),deltaMotion=new THREE.Vector3();
+function collideCapsule(test){
+  if(!worldOctree)return {grounded:false};
+  let grounded=false;
+  for(let j=0;j<5;j++){
+    const hit=worldOctree.capsuleIntersect(test);
+    if(!hit)break;
+    if(hit.normal.y>.48)grounded=true;
+    test.translate(hit.normal.clone().multiplyScalar(hit.depth+0.0005));
+  }
+  return {grounded};
+}
+function solveMovement(headset,xz,dt){
+  headset.updateMatrixWorld(true);
+  headset.getWorldPosition(avatarHead);
+  // local-floor entrega la altura de la cabeza medida desde el suelo real.
+  const realHeight=THREE.MathUtils.clamp(avatarHead.y-rig.position.y,1.1,2.15);
+  const feet=avatarHead.y-realHeight;
+  capsule.start.set(avatarHead.x,feet+BODY_RADIUS,avatarHead.z);
+  capsule.end.set(avatarHead.x,avatarHead.y-.17,avatarHead.z);
+  const before=capsule.clone();
+  // Subpasos evitan atravesar superficies delgadas a baja tasa de fotogramas.
+  const substeps=Math.max(1,Math.ceil(xz.length()/.08));
+  deltaMotion.copy(xz).divideScalar(substeps);
+  let support=false;
+  for(let i=0;i<substeps;i++){
+    const previous=capsule.clone();
+    capsule.translate(deltaMotion);
+    const collision=collideCapsule(capsule);
+    support ||= collision.grounded;
+    const advanced=Math.hypot(capsule.start.x-previous.start.x,capsule.start.z-previous.start.z);
+    const requested=Math.hypot(deltaMotion.x,deltaMotion.z);
+    // Si hay un escalón y estamos apoyados, probar subir un máximo de 28 cm.
+    if(isGrounded&&requested>.0001&&advanced<requested*.55){
+      const raised=previous.clone();
+      raised.translate(new THREE.Vector3(0,STEP_HEIGHT,0));
+      if(!worldOctree?.capsuleIntersect(raised)){
+        raised.translate(deltaMotion);
+        if(!worldOctree?.capsuleIntersect(raised)){
+          capsule.copy(raised);
+          support=false;
+        }
+      }
+    }
+  }
+  verticalVelocity=Math.max(-12,verticalVelocity-GRAVITY*dt);
+  capsule.translate(new THREE.Vector3(0,verticalVelocity*dt,0));
+  const resolved=collideCapsule(capsule);
+  support ||=resolved.grounded;
+  // El terreno base del visor es sólido también cuando el modelo no tiene solera.
+  if(capsule.start.y-BODY_RADIUS<0){
+    capsule.translate(new THREE.Vector3(0,-(capsule.start.y-BODY_RADIUS),0));
+    support=true;
+  }
+  if(support&&verticalVelocity<0)verticalVelocity=0;
+  isGrounded=support;
+  rig.position.add(capsule.start.clone().sub(before.start));
+}
+function resetPhysics(){
+  verticalVelocity=0;
+  isGrounded=false;
+}
+
 function desktopView(){
   rig.position.set(0,0,0);
   rig.rotation.set(0,0,0);
@@ -500,11 +603,18 @@ async function openModel(){
     distance=Math.max(3,size.z/2+Math.max(size.x,size.y,2));
     height=size.y;
     scene.add(model);
+    model.updateMatrixWorld(true);
+    // Una estructura espacial creada desde TODAS las mallas del diseño,
+    // independientemente de sus materiales, nombres o tamaños.
+    worldOctree=new Octree();
+    worldOctree.fromGraphNode(model);
+    resetPhysics();
     if(renderer.xr.isPresenting){
       // Cambia el diseño y recoloca al visitante sin cerrar la sesión inmersiva.
       rig.position.set(0,0,distance);
       rig.rotation.set(0,0,0);
       smoothTurnAxis=0;
+      if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
     status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'');
     vrButton.hidden=false;
@@ -525,6 +635,7 @@ renderer.xr.addEventListener('sessionstart',()=>{
   menuButtonHeld=false;
   canTurn=true;
   smoothTurnAxis=0;
+  resetPhysics();
   closeVRMenu();
 });
 renderer.xr.addEventListener('sessionend',()=>{
@@ -574,6 +685,10 @@ renderer.setAnimationLoop(time=>{
       else showVRMenu();
     }
     menuButtonHeld=menuPressed;
+    if(menuGroup.visible){
+      updateMenuPlacement(headset,dt);
+      updateMenuRays();
+    }
     if(menuGroup.visible&&!menuBusy){
       let nextHover='';
       for(const {controller} of menuControllerObjects){
@@ -586,7 +701,11 @@ renderer.setAnimationLoop(time=>{
     forward.y=0;
     forward.normalize();
     right.crossVectors(forward,THREE.Object3D.DEFAULT_UP);
-    rig.position.addScaledVector(forward,-dead(y)*1.35*dt).addScaledVector(right,dead(x)*1.35*dt);
+    const strafe=dead(x),stride=-dead(y);
+    const magnitude=Math.max(1,Math.hypot(strafe,stride));
+    const move=new THREE.Vector3().addScaledVector(forward,stride/magnitude*1.35*dt)
+      .addScaledVector(right,strafe/magnitude*1.35*dt);
+    solveMovement(headset,menuGroup.visible?new THREE.Vector3():move,dt);
     if(turnMode.value==='snap'){
       smoothTurnAxis=0;
       if(Math.abs(turn)<.25)canTurn=true;
