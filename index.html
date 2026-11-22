@@ -4316,7 +4316,7 @@ thumbnailsButton.addEventListener('click',async()=>{
     const {createModelThumbnail}=await import('./thumbnail-generator.js');
     const catalog=await loadCatalog();
     const models=Array.isArray(catalog.modelos)?catalog.modelos:[];
-    const missing=models.filter(item=>!item.miniatura&&/^(modelos\\/)[a-zA-Z0-9_-]+\\.glb$/.test(item.archivo||''));
+    const missing=models.filter(item=>!item.miniatura&&/^modelos\/[a-zA-Z0-9_-]+\.glb$/.test(item.archivo||''));
     if(!missing.length){toast('Todos los diseños tienen miniatura.');return}
     for(const item of missing){
       try{
