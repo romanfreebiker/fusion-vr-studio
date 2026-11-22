@@ -12,6 +12,7 @@ p{margin:9px 0}a{color:#90caff}
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
+<script src="./materiales.js"></script>
 <header>
 <h1>Fusion VR Studio · Visor</h1>
 <label for="models">Diseño</label><select id="models" disabled></select>
@@ -20,7 +21,8 @@ p{margin:9px 0}a{color:#90caff}
 <option value="auto">Automática (detecta vertical)</option><option value="y">Y arriba</option><option value="z">Z arriba</option><option value="-z">Z invertido</option><option value="x">X arriba</option><option value="-x">X invertido</option><option value="-y">Y invertido</option>
 </select>
 <label for="appearance">Materiales</label>
-<select id="appearance" disabled><option value="original">Originales del GLB</option><option value="clear">Realzar zonas oscuras (mantiene texturas)</option></select>
+<select id="appearance" disabled><option value="library">Biblioteca realista automática</option><option value="original">Originales del GLB</option><option value="clear">Realzar zonas oscuras (originales)</option></select>
+<p style="font-size:12px;color:#a6bbd2">Acabados propios por nombre del material en Fusion: hormigón, madera, inox, acero y pintura.</p>
 <p id="status" role="status">Cargando el visor…</p>
 <p>En el ordenador, arrastra para girar y usa la rueda para acercarte.</p>
 <p>En VR, usa el mando izquierdo para caminar y el derecho para girar.</p>
@@ -65,6 +67,67 @@ const sun=new THREE.DirectionalLight(0xfff3de,2);
 sun.position.set(4,8,6);
 scene.add(sun);
 const loader=new GLTFLoader();
+// Biblioteca propia de materiales, sin adivinar materiales según la posición de la pieza.
+const surfaceTextures=new Map();
+function libraryTexture(canvas,isColor){
+  const texture=new THREE.CanvasTexture(canvas);
+  texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+  texture.flipY=false; // Los GLB guardan UV con el convenio glTF.
+  texture.colorSpace=isColor?THREE.SRGBColorSpace:THREE.NoColorSpace;
+  texture.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),4);
+  texture.needsUpdate=true;
+  return texture;
+}
+function materialFromLibrary(material){
+  const lib=globalThis.FusionMaterialLib,kind=lib?.identify(material?.name);
+  if(!kind)return null;
+  let maps=surfaceTextures.get(kind);
+  if(!maps){
+    const images=lib.getMaps(kind);
+    if(!images)return null;
+    maps={
+      diffuse:libraryTexture(images.color,true),
+      normal:libraryTexture(images.normal,false),
+      rough:libraryTexture(images.roughness,false),
+      config:images
+    };
+    surfaceTextures.set(kind,maps);
+  }
+  const p=maps.config;
+  const color=(kind==='paint'||kind==='plastic')&&material?.color?material.color.clone():new THREE.Color(0xffffff);
+  const replacement=new THREE.MeshStandardMaterial({
+    name:material.name,
+    color,
+    map:maps.diffuse,
+    normalMap:maps.normal,
+    normalScale:new THREE.Vector2(.6,.6),
+    roughnessMap:maps.rough,
+    metalness:p.metalness,
+    roughness:1,
+    side:THREE.DoubleSide,
+    transparent:material.transparent,
+    opacity:material.opacity??1
+  });
+  replacement.userData.fusionVrPreset=kind;
+  return replacement;
+}
+function applyLibrary(root){
+  const substitutions=new Map();
+  let applied=0;
+  root.traverse(object=>{
+    if(!object.isMesh)return;
+    const replace=original=>{
+      if(!original)return original;
+      if(substitutions.has(original))return substitutions.get(original);
+      const next=materialFromLibrary(original);
+      substitutions.set(original,next||original);
+      if(next)applied++;
+      return next||original;
+    };
+    object.material=Array.isArray(object.material)?object.material.map(replace):replace(object.material);
+  });
+  return applied;
+}
 // Fusion exporta algunos diseños con Z vertical; glTF convencional usa Y vertical.
 function inferUpAxis(root){
  const box=new THREE.Box3().setFromObject(root,true);
@@ -129,6 +192,7 @@ async function openModel(){
       case '-x': next.rotateZ(-Math.PI/2); break;
       case '-y': next.rotateX(Math.PI); break;
     }
+    const applied=appearance.value==='library'?applyLibrary(next):0;
     if(appearance.value==='clear'){
       const materials=new Set();
       next.traverse(object=>{
@@ -166,7 +230,7 @@ async function openModel(){
     height=size.y;
     scene.add(model);
     desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase();
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'');
     vrButton.hidden=false;
   }catch(error){if(load===generation)status.textContent='No se pudo abrir el diseño. '+error.message}
 }
@@ -226,7 +290,7 @@ try{
   const requested=modelos.find(item=>item.id===requestedId);
   if(requested)models.value=requested.archivo;
   for(const control of [models,orientation,appearance])control.disabled=false;
-  if(/barbacoa/i.test(models.options[models.selectedIndex]?.text||''))appearance.value='clear';
+  appearance.value='library';
   await openModel();
 }catch(error){status.textContent=error.message}
 </script>
