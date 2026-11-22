@@ -1,7 +1,17 @@
 {
   "version": 1,
-  "actualizado": "2026-11-22T10:54:37.272Z",
+  "actualizado": "2026-11-22T11:01:18.069Z",
   "modelos": [
+    {
+      "id": "barbacoa-mwrq7qbe",
+      "nombre": "barbacoa",
+      "categoria": "Viviendas",
+      "descripcion": "",
+      "archivo": "modelos/barbacoa-mwrq7qbe.glb",
+      "miniatura": "",
+      "bytes": 10885404,
+      "fecha": "2026-11-22T11:01:18.069Z"
+    },
     {
       "id": "garaje2-mwrpxn9m",
       "nombre": "garaje2",
