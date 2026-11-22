@@ -16,19 +16,47 @@ const specs={
  plastic:{label:'Plástico',metalness:0,roughness:.54,size:512}
 };
 function normalize(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
+// Reglas de nombres COMPARTIDAS por todos los modelos y todas las conversiones.
+const aliases=Object.freeze({
+ 'pine':'pine','pino':'pine','pino natural':'pine','pino silvestre':'pine',
+ 'oak':'oak','roble':'oak','roble natural':'oak',
+ 'wood':'wood','madera':'wood','madera natural':'wood',
+ 'concrete':'concrete','hormigon':'concrete','hormigon gris':'concrete',
+ 'cement':'concrete','cemento':'concrete',
+ 'stainless steel':'stainless','stainless steel satin':'stainless',
+ 'acero inoxidable':'stainless','acero inoxidable satinado':'stainless',
+ 'inox':'stainless','inoxidable':'stainless',
+ 'steel':'steel','acero':'steel','hierro':'steel',
+ 'paint':'paint','pintura':'paint','lacado':'paint',
+ 'abs':'plastic','plastic':'plastic','plastico':'plastic'
+});
+const rules=[
+ {kind:'concrete',test:/\b(concrete|hormigon|cemento?|mortero|microcemento|cementitious)\b/},
+ {kind:'stainless',test:/\b(inox|inoxidable|stainless|ss\s?(304|316)|aisi\s?(304|316)|304l|316l)\b|acero[\s_-]*inoxidable/},
+ {kind:'blacksteel',test:/\b(steel|acero|metal|metallic|hierro)\b.*\b(black|negro|negra|antracita)\b|\b(black|negro)\b.*\b(steel|acero|metal|metallic|hierro)\b/},
+ {kind:'pine',test:/\b(pino|pine|pinus)\b/},
+ {kind:'oak',test:/\b(roble|oak)\b/},
+ {kind:'wood',test:/\b(wood|madera|timber|caoba|cerezo|bambu|bamboo|nogal|walnut|cherry|mahogany|beech|haya|plywood|contrachapado|mdf|melamina|teca|teak|cedro|cedar|birch|abedul)\b/},
+ {kind:'paint',test:/\b(pintura|paint|lacado|lacquer|powder[\s_-]?coat|epoxy[\s_-]?coat|recubrimiento)\b/},
+ {kind:'steel',test:/\b(steel|acero|hierro|iron|metal|galvanizad[oa]?|aluminio|aluminium|aluminum)\b/},
+ {kind:'plastic',test:/\b(abs|plastic|plastico|polimero|polymer|pvc|acrilico|acrylic|polycarbonate|policarbonato)\b/}
+];
 function identify(name){
- const s=normalize(name);
- if(!s)return null;
- if(/concrete|hormigon|cement|cemento|mortero|microcemento/.test(s))return 'concrete';
- if(/inox|stainless|acier inox|316l|304 steel|acero inoxidable/.test(s))return 'stainless';
- if(/metallic.*black|metal.*negro|metalizado.*negro|black.*steel|steel.*black|acero.*negro|pintura.*negra.*metal/.test(s))return 'blacksteel';
- if(/pine|pino|pinus/.test(s))return 'pine';
- if(/oak|roble/.test(s))return 'oak';
- if(/wood|madera|timber|caoba|cerezo|bambu|bamboo|nogal|walnut|cherry|mahogany|beech|haya/.test(s))return 'wood';
- if(/steel|acero|hierro|iron|metal|galvanizad/.test(s))return 'steel';
- if(/paint|pintura|lacado|lacquer|powder coat|recubrimiento/.test(s))return 'paint';
- if(/abs|plastic|plastico|polimero|polymer|pvc/.test(s))return 'plastic';
+ const normalized=normalize(name)
+   .replace(/[_/()+.,;:\[\]{}-]+/g,' ').replace(/\s+/g,' ').trim();
+ if(!normalized)return null;
+ if(Object.prototype.hasOwnProperty.call(aliases,normalized))return aliases[normalized];
+ for(const rule of rules)if(rule.test.test(normalized))return rule.kind;
  return null;
+}
+function describe(names){
+ const found=[],unmatched=[];
+ for(const value of names){
+  const name=String(value||'').trim()||'(sin nombre)';
+  const kind=identify(name);
+  (kind?found:unmatched).push({name,kind});
+ }
+ return {found,unmatched};
 }
 function clamp(v){return Math.max(0,Math.min(255,Math.round(v)));}
 function hash(x,y,seed){let n=Math.imul(x+133,374761393)+Math.imul(y+17,668265263)+Math.imul(seed,1442695041);n=Math.imul(n^(n>>>13),1274126177);return ((n^(n>>>16))>>>0)/4294967295;}
@@ -170,5 +198,5 @@ function getMaps(kind){
  const data={kind,color,normal,roughness:rough,metalness:spec.metalness,roughnessFactor:spec.roughness,label:spec.label};
  cache.set(kind,data);return data;
 }
-root.FusionMaterialLib={version:2,specs,identify,getMaps,prepare};
+root.FusionMaterialLib={version:3,specs,aliases,identify,describe,getMaps,prepare};
 })(globalThis);
