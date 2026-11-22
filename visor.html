@@ -457,85 +457,109 @@ let worldOctree=null,verticalVelocity=0,isGrounded=false,collisionTriangles=0,co
 const BODY_RADIUS=.24,STEP_HEIGHT=.28,GRAVITY=9.81;
 const capsule=new Capsule(new THREE.Vector3(),new THREE.Vector3(),BODY_RADIUS);
 const avatarHead=new THREE.Vector3(),deltaMotion=new THREE.Vector3();
-const sweepRay=new THREE.Ray(),sweepOrigin=new THREE.Vector3(),sweepDir=new THREE.Vector3();
-function sweepSolidWalls(start,displacement,feet){
-  if(!worldOctree||displacement.lengthSq()<1e-12)return displacement;
-  // Bloqueo preventivo antes de que una cápsula llegue a penetrar una pared fina.
-  const length=displacement.length();
-  sweepDir.copy(displacement).divideScalar(length);
-  let limit=length;
-  for(const y of [.55,1.05,1.5]){
-    for(const side of [-BODY_RADIUS*.75,0,BODY_RADIUS*.75]){
-      sweepOrigin.set(start.x+sweepDir.z*side,feet+y,start.z-sweepDir.x*side);
-      sweepRay.set(sweepOrigin,sweepDir);
-      const hit=worldOctree.rayIntersect(sweepRay);
-      // Sólo las caras casi verticales deben bloquear avance horizontal.
-      if(hit&&Math.abs(hit.normal.y)<.55&&hit.distance<limit+BODY_RADIUS){
-        limit=Math.max(0,hit.distance-BODY_RADIUS-.015);
-      }
-    }
-  }
-  if(limit<length){collisionStops++;return displacement.clone().multiplyScalar(limit/length)}
-  return displacement;
+// Las paredes deben detener el avance, nunca impulsar el cuerpo hacia atrás.
+// La física solamente puede aplicar el desplazamiento solicitado por el joystick
+// y las correcciones verticales de gravedad/escalones.
+function wallBlocked(test){
+  if(!worldOctree)return false;
+  const hit=worldOctree.capsuleIntersect(test);
+  return !!hit&&Math.abs(hit.normal.y)<.55&&hit.depth>.007;
 }
-function collideCapsule(test){
-  if(!worldOctree)return {grounded:false};
-  let grounded=false;
-  for(let j=0;j<5;j++){
-    const hit=worldOctree.capsuleIntersect(test);
-    if(!hit)break;
-    if(hit.normal.y>.48)grounded=true;
-    test.translate(hit.normal.clone().multiplyScalar(hit.depth+0.0005));
+function horizontalMove(feet,head,xz){
+  if(!worldOctree||xz.lengthSq()<1e-12)return xz;
+  const origin=new Capsule(
+    new THREE.Vector3(head.x,feet+BODY_RADIUS,head.z),
+    new THREE.Vector3(head.x,Math.max(feet+BODY_RADIUS,head.y-.17),head.z),
+    BODY_RADIUS
+  );
+  // Si el jugador ya está rozando una superficie, permitir alejarse de ella.
+  // Nunca aplicar la normal de contacto como desplazamiento forzoso.
+  const baseline=worldOctree.capsuleIntersect(origin);
+  const baselineDepth=baseline&&Math.abs(baseline.normal.y)<.55?baseline.depth:0;
+  function allowed(delta){
+    const probe=origin.clone();
+    probe.translate(delta);
+    const hit=worldOctree.capsuleIntersect(probe);
+    if(!hit||Math.abs(hit.normal.y)>=.55)return true;
+    // Permitir salir de una penetración preexistente, no profundizarla.
+    return hit.depth<=Math.max(.008,baselineDepth-.0005);
   }
-  return {grounded};
+  const horizontal=new THREE.Vector3();
+  // Separar ejes permite deslizar a lo largo de la pared y evita rebotes.
+  for(const axis of ['x','z']){
+    const step=new THREE.Vector3();
+    step[axis]=xz[axis];
+    if(!step[axis])continue;
+    if(allowed(horizontal.clone().add(step))){horizontal.add(step);continue}
+    let lo=0,hi=1;
+    for(let n=0;n<7;n++){
+      const mid=(lo+hi)/2;
+      if(allowed(horizontal.clone().addScaledVector(step,mid)))lo=mid;
+      else hi=mid;
+    }
+    horizontal.addScaledVector(step,lo);
+    collisionStops++;
+  }
+  return horizontal;
 }
 function solveMovement(headset,xz,dt){
   headset.updateMatrixWorld(true);
   headset.getWorldPosition(avatarHead);
-  // local-floor entrega la altura de la cabeza medida desde el suelo real.
-  const realHeight=THREE.MathUtils.clamp(avatarHead.y-rig.position.y,1.1,2.15);
-  const feet=avatarHead.y-realHeight;
-  capsule.start.set(avatarHead.x,feet+BODY_RADIUS,avatarHead.z);
-  capsule.end.set(avatarHead.x,avatarHead.y-.17,avatarHead.z);
-  const before=capsule.clone();
-  // Comprobar la trayectoria antes de mover al jugador evita atravesar muros finos.
-  xz=sweepSolidWalls(avatarHead,xz,feet);
-  // Subpasos evitan atravesar superficies delgadas a baja tasa de fotogramas.
-  const substeps=Math.max(1,Math.ceil(xz.length()/.08));
-  deltaMotion.copy(xz).divideScalar(substeps);
-  let support=false;
-  for(let i=0;i<substeps;i++){
-    const previous=capsule.clone();
-    capsule.translate(deltaMotion);
-    const collision=collideCapsule(capsule);
-    support ||= collision.grounded;
-    const advanced=Math.hypot(capsule.start.x-previous.start.x,capsule.start.z-previous.start.z);
-    const requested=Math.hypot(deltaMotion.x,deltaMotion.z);
-    // Si hay un escalón y estamos apoyados, probar subir un máximo de 28 cm.
-    if(isGrounded&&requested>.0001&&advanced<requested*.55){
-      const raised=previous.clone();
-      raised.translate(new THREE.Vector3(0,STEP_HEIGHT,0));
-      if(!worldOctree?.capsuleIntersect(raised)){
-        raised.translate(deltaMotion);
-        if(!worldOctree?.capsuleIntersect(raised)){
-          capsule.copy(raised);
-          support=false;
-        }
+  const localEyeHeight=THREE.MathUtils.clamp(avatarHead.y-rig.position.y,1.1,2.15);
+  const feet=avatarHead.y-localEyeHeight;
+  const moved=horizontalMove(feet,avatarHead,xz);
+  const previousPosition=rig.position.clone();
+  rig.position.x+=moved.x;
+  rig.position.z+=moved.z;
+
+  // Escalones: cuando el avance está bloqueado cerca del suelo,
+  // probar una elevación pequeña, nunca una pared de altura completa.
+  if(isGrounded&&xz.lengthSq()>.0000001&&moved.lengthSq()<xz.lengthSq()*.4&&worldOctree){
+    const lifted=new Capsule(
+      new THREE.Vector3(avatarHead.x+xz.x,feet+STEP_HEIGHT+BODY_RADIUS,avatarHead.z+xz.z),
+      new THREE.Vector3(avatarHead.x+xz.x,Math.max(feet+STEP_HEIGHT+BODY_RADIUS,avatarHead.y+STEP_HEIGHT-.17),avatarHead.z+xz.z),
+      BODY_RADIUS
+    );
+    const hit=worldOctree.capsuleIntersect(lifted);
+    if(!hit||hit.normal.y>.55){
+      // Sólo subir si hay una superficie de apoyo por debajo.
+      const ray=new THREE.Ray(
+        new THREE.Vector3(lifted.start.x,feet+STEP_HEIGHT+.08,lifted.start.z),
+        new THREE.Vector3(0,-1,0)
+      );
+      const floor=worldOctree.rayIntersect(ray);
+      if(floor&&floor.normal.y>.5&&floor.distance<STEP_HEIGHT+.10){
+        rig.position.x=previousPosition.x+xz.x;
+        rig.position.z=previousPosition.z+xz.z;
+        rig.position.y+=Math.max(0,STEP_HEIGHT+.08-floor.distance);
+        verticalVelocity=0;
       }
     }
   }
-  verticalVelocity=Math.max(-12,verticalVelocity-GRAVITY*dt);
-  capsule.translate(new THREE.Vector3(0,verticalVelocity*dt,0));
-  const resolved=collideCapsule(capsule);
-  support ||=resolved.grounded;
-  // El terreno base del visor es sólido también cuando el modelo no tiene solera.
-  if(capsule.start.y-BODY_RADIUS<0){
-    capsule.translate(new THREE.Vector3(0,-(capsule.start.y-BODY_RADIUS),0));
-    support=true;
+
+  verticalVelocity=Math.max(-10,verticalVelocity-GRAVITY*dt);
+  rig.position.y+=verticalVelocity*dt;
+  // Suelo base y superficies del GLB: sólo se corrige la altura, no X/Z.
+  if(rig.position.y<0){
+    rig.position.y=0;
+    verticalVelocity=0;
+    isGrounded=true;
+  }else isGrounded=false;
+  if(worldOctree){
+    const headY=rig.position.y+localEyeHeight;
+    const footY=rig.position.y;
+    const capsuleAt=new Capsule(
+      new THREE.Vector3(avatarHead.x+rig.position.x-previousPosition.x,footY+BODY_RADIUS,avatarHead.z+rig.position.z-previousPosition.z),
+      new THREE.Vector3(avatarHead.x+rig.position.x-previousPosition.x,Math.max(footY+BODY_RADIUS,headY-.17),avatarHead.z+rig.position.z-previousPosition.z),
+      BODY_RADIUS
+    );
+    const floorHit=worldOctree.capsuleIntersect(capsuleAt);
+    if(floorHit&&floorHit.normal.y>.55&&verticalVelocity<=0){
+      rig.position.y+=Math.min(Math.max(floorHit.depth,0),STEP_HEIGHT+.15);
+      verticalVelocity=0;
+      isGrounded=true;
+    }
   }
-  if(support&&verticalVelocity<0)verticalVelocity=0;
-  isGrounded=support;
-  rig.position.add(capsule.start.clone().sub(before.start));
 }
 function resetPhysics(){
   verticalVelocity=0;
