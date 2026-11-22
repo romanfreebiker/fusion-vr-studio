@@ -349,7 +349,7 @@ function drawVRMenu(){
   ctx.textBaseline='middle';
   ctx.font='bold 57px system-ui';ctx.fillStyle='#ffffff';
   ctx.fillText('BIBLIOTECA VR',75,82);
-  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.19',760,83);
+  ctx.font='23px system-ui';ctx.fillStyle='#8bffcc';ctx.fillText('Versión 0.20',760,83);
   ctx.font='25px system-ui';ctx.fillStyle='#a7d6f5';
   ctx.fillText('Apunta al diseño y pulsa el gatillo',75,137);
   const start=menuPage*MENU_PAGE_SIZE;
@@ -379,8 +379,8 @@ function drawVRMenu(){
   ctx.fillStyle='#a8d5ee';ctx.font='22px system-ui';ctx.textAlign='center';
   ctx.fillText(menuNote||('Paredes '+wallCount+' · bloqueos '+collisionStops+' · joystick '+joystickMeters.toFixed(1)+'m'),MENU_W/2,582);
   ctx.font='19px system-ui';ctx.fillStyle='#d2f4ff';
-  ctx.fillText('HMD '+avatarHead.x.toFixed(2)+','+avatarHead.z.toFixed(2)+
-    ' · pared '+liveHeadWallDepth.toFixed(3)+'m · XR '+(xrPoseAvailable?'sí':'no'),MENU_W/2,611);
+  ctx.fillText('Altura virtual 1,65 m · ajuste '+virtualHeightCorrection.toFixed(2)+' m'+
+    (heightReferenceError?' · sin soporte XR':''),MENU_W/2,611);
   ctx.textAlign='left';
   ctx.fillStyle='#b2c9df';ctx.font='18px system-ui';ctx.textAlign='right';
   ctx.fillText('Página '+(menuPage+1)+' / '+Math.max(1,Math.ceil(models.options.length/MENU_PAGE_SIZE)),970,139);
@@ -479,7 +479,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.19 · biblioteca actualizable';
+versionLabel.textContent='Visor VR 0.20 · suelo virtual automático';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -492,6 +492,35 @@ const avatarHead=new THREE.Vector3();
 const xrLocalHead=new THREE.Vector3(),xrHeadOrientation=new THREE.Quaternion();
 const xrWorldForward=new THREE.Vector3(),xrHeadOffset=new THREE.Vector3();
 let xrPoseAvailable=false,liveHeadWallDepth=0,liveLocalHead='';
+// Altura de los ojos de referencia, medida sobre la cuadrícula Y=0.
+// La calibración afecta SOLO al espacio virtual, no al Guardian de Quest.
+const VIRTUAL_EYE_HEIGHT=1.65;
+let heightReferenceReady=false,virtualHeightCorrection=0,heightReferenceError='';
+function calibrateVirtualFloor(){
+  if(heightReferenceReady||!renderer.xr.isPresenting)return false;
+  const frame=renderer.xr.getFrame(),space=renderer.xr.getReferenceSpace();
+  const pose=frame&&space?frame.getViewerPose(space):null;
+  if(!pose||!Number.isFinite(pose.transform.position.y))return false;
+  const rawHeight=pose.transform.position.y;
+  // Para una referencia desplazada hacia arriba `rawHeight-target`,
+  // la posición de las gafas medida desde ella pasa a ser `target`.
+  const offset=rawHeight-VIRTUAL_EYE_HEIGHT;
+  try{
+    const correctedSpace=space.getOffsetReferenceSpace(
+      new XRRigidTransform({x:0,y:offset,z:0})
+    );
+    renderer.xr.setReferenceSpace(correctedSpace);
+    virtualHeightCorrection=offset;
+    heightReferenceReady=true;
+    heightReferenceError='';
+    return true;
+  }catch(error){
+    heightReferenceError=String(error?.message||error);
+    // Si el navegador no permite la operación, evitar repetirla en bucle.
+    heightReferenceReady=true;
+    return false;
+  }
+}
 function syncViewerPose(){
   const frame=renderer.xr.getFrame();
   const reference=renderer.xr.getReferenceSpace();
@@ -829,7 +858,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.19';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.20';
     vrButton.hidden=false;
     return true;
   }catch(error){
@@ -849,6 +878,9 @@ renderer.xr.addEventListener('sessionstart',()=>{
   canTurn=true;
   smoothTurnAxis=0;
   resetPhysics();
+  heightReferenceReady=false;
+  virtualHeightCorrection=0;
+  heightReferenceError='';
   closeVRMenu();
 });
 renderer.xr.addEventListener('sessionend',()=>{
@@ -885,6 +917,10 @@ renderer.setAnimationLoop(time=>{
   const dt=lastTime?Math.min(.05,(time-lastTime)/1000):0;
   lastTime=time;
   if(renderer.xr.isPresenting){
+    // Ajustar solo una vez por sesión; nunca recalibrar en cada peldaño.
+    // Tras cambiar la referencia, esperar al siguiente frame para que tanto
+    // el render de Three como la lógica usen las MISMAS coordenadas.
+    const heightChanged=calibrateVirtualFloor();
     const headset=renderer.xr.getCamera();
     const inputs=Array.from(renderer.xr.getSession().inputSources);
     const [x,y]=stick(inputs.find(s=>s.handedness==='left'));
@@ -920,7 +956,7 @@ renderer.setAnimationLoop(time=>{
     const magnitude=Math.max(1,Math.hypot(strafe,stride));
     const move=new THREE.Vector3().addScaledVector(forward,stride/magnitude*1.35*dt)
       .addScaledVector(right,strafe/magnitude*1.35*dt);
-    solveMovement(headset,menuGroup.visible?new THREE.Vector3():move,dt);
+    if(!heightChanged)solveMovement(headset,menuGroup.visible?new THREE.Vector3():move,dt);
     if(turnMode.value==='snap'){
       smoothTurnAxis=0;
       if(Math.abs(turn)<.25)canTurn=true;
