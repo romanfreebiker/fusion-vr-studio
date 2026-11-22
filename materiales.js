@@ -38,8 +38,76 @@ function noise(x,y,grid,seed){
  const n=(p,q)=>hash((p%grid+grid)%grid,(q%grid+grid)%grid,seed);
  return (n(ix,iy)*(1-sx)+n(ix+1,iy)*sx)*(1-sy)+(n(ix,iy+1)*(1-sx)+n(ix+1,iy+1)*sx)*sy;
 }
+// Materiales fotográficos CC0 guardados en este mismo repositorio.
+// Se cargan antes de usar el visor o exportar un nuevo GLB.
+const photos={
+  pine:{color:'assets/materiales/pino_color.jpg',normal:'assets/materiales/pino_normal.webp',rough:'assets/materiales/pino_rough.jpg'},
+  concrete:{color:'assets/materiales/hormigon_color.jpg',normal:'assets/materiales/hormigon_normal.jpg',rough:'assets/materiales/hormigon_rough.jpg'}
+};
+const prepared=new Map(),photoLoads=new Map(),pending=new Map();
+function fetchPhoto(path){
+ if(photoLoads.has(path))return photoLoads.get(path);
+ const work=new Promise((resolve,reject)=>{
+   if(typeof Image==='undefined')return reject(Error('Se necesita un navegador para cargar materiales.'));
+   const img=new Image();
+   img.onload=()=>resolve(img);
+   img.onerror=()=>reject(Error('No se pudo cargar textura: '+path));
+   img.src=new URL(path,document.baseURI).href;
+ });
+ photoLoads.set(path,work);return work;
+}
+function photoCanvas(img){
+ const canvas=document.createElement('canvas');
+ canvas.width=1024;canvas.height=1024;
+ const c=canvas.getContext('2d',{willReadFrequently:true});
+ c.drawImage(img,0,0,canvas.width,canvas.height);
+ return canvas;
+}
+function calibrate(canvas,kind){
+ const ctx=canvas.getContext('2d',{willReadFrequently:true});
+ const im=ctx.getImageData(0,0,canvas.width,canvas.height),px=im.data;
+ // La fotografía original es madera oscura: se ajusta a pino claro
+ // conservando la veta, los nudos y las variaciones fotográficas.
+ if(kind!=='concrete'){
+  const color=kind==='pine'?[200,159,103]:kind==='oak'?[155,117,79]:[170,131,91];
+  for(let i=0;i<px.length;i+=4){
+   const l=.2126*px[i]+.7152*px[i+1]+.0722*px[i+2];
+   const variation=(l-82)*.87;
+   px[i]=clamp(color[0]+variation+(px[i]-l)*.13);
+   px[i+1]=clamp(color[1]+variation*.80+(px[i+1]-l)*.13);
+   px[i+2]=clamp(color[2]+variation*.60+(px[i+2]-l)*.13);
+  }
+ }else{
+  for(let i=0;i<px.length;i+=4){
+   px[i]=clamp(px[i]*.89);
+   px[i+1]=clamp(px[i+1]*.90);
+   px[i+2]=clamp(px[i+2]*.92);
+  }
+ }
+ ctx.putImageData(im,0,0);
+}
+async function prepare(){
+ await Promise.all(['pine','oak','wood','concrete'].map(async kind=>{
+  if(prepared.has(kind))return;
+  if(pending.has(kind))return pending.get(kind);
+  const set=photos[kind==='concrete'?'concrete':'pine'];
+  const promise=(async()=>{
+   const [color,normal,rough]=await Promise.all([set.color,set.normal,set.rough].map(fetchPhoto));
+   const col=photoCanvas(color);calibrate(col,kind);
+   const spec=specs[kind],value={
+    kind,color:col,normal:photoCanvas(normal),roughness:photoCanvas(rough),
+    metalness:spec.metalness,roughnessFactor:spec.roughness,
+    tileMeters:kind==='concrete'?1.6:1.15,label:spec.label,photographic:true
+   };
+   prepared.set(kind,value);return value;
+  })();
+  pending.set(kind,promise);
+  try{await promise;}finally{pending.delete(kind);}
+ }));
+}
 const cache=new Map();
 function getMaps(kind){
+ if(prepared.has(kind))return prepared.get(kind);
  if(cache.has(kind))return cache.get(kind);
  const spec=specs[kind];if(!spec)return null;
  if(typeof document==='undefined')return null;
@@ -102,5 +170,5 @@ function getMaps(kind){
  const data={kind,color,normal,roughness:rough,metalness:spec.metalness,roughnessFactor:spec.roughness,label:spec.label};
  cache.set(kind,data);return data;
 }
-root.FusionMaterialLib={version:1,specs,identify,getMaps};
+root.FusionMaterialLib={version:2,specs,identify,getMaps,prepare};
 })(globalThis);
