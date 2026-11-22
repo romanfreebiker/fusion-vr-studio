@@ -250,7 +250,7 @@ function isCladdingPanel(mesh){
   // el atlas de tablas en un peldaño dibuja una falsa raya negra.
   // El nombre del objeto o de su ensamblaje suele conservarse desde Fusion.
   for(let node=mesh;node;node=node.parent){
-    if(/\b(escalera|staircase|stairs?|pelda[ñn]o|tread|zanca|barandilla|handrail|riser)\b/i.test(node.name||''))return false;
+    if(/(escalera|staircase|stairs?|pelda[ñn]o|tread|zanca|barandilla|handrail|riser)/i.test(node.name||''))return false;
   }
   const box=new THREE.Box3().setFromObject(mesh);
   const size=box.getSize(new THREE.Vector3());
