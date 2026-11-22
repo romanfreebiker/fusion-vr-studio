@@ -36,7 +36,9 @@ a.back{color:#82cfff}
 (async()=>{
 const list=document.querySelector('#list'),state=document.querySelector('#state');
 try{
- const response=await fetch('./catalogo.json',{cache:'no-store'});
+ const url=new URL('./catalogo.json',location.href);
+ url.searchParams.set('refresh',String(Date.now()));
+ const response=await fetch(url.href,{cache:'no-store'});
  if(!response.ok)throw Error('No se pudo consultar GitHub ('+response.status+').');
  const json=await response.json(),models=Array.isArray(json.modelos)?json.modelos:[];
  if(!models.length){state.textContent='No hay diseños en la biblioteca.';return}
@@ -49,7 +51,7 @@ try{
   name.className='caption';
   const viewer=new URL('./visor.html',location.href);
   viewer.searchParams.set('diseno',m.id);
-  viewer.searchParams.set('v','18'); // evita reutilizar la versión anterior del visor en Quest Browser
+  viewer.searchParams.set('v','19'); // evita reutilizar la versión anterior del visor en Quest Browser
   card.href=viewer.href;
   if(m.miniatura&&/^miniaturas\/[a-zA-Z0-9_-]+\.(jpg|jpeg|png|webp)$/.test(m.miniatura)){
    const img=document.createElement('img');img.src=new URL(m.miniatura,location.href).href;
