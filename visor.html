@@ -631,7 +631,8 @@ async function openModel(){
     // independientemente de sus materiales, nombres o tamaños.
     worldOctree=new Octree();
     worldOctree.fromGraphNode(model);
-    collisionTriangles=worldOctree.triangles?.length||0;
+    collisionTriangles=0;
+    model.traverse(o=>{if(o.isMesh&&o.geometry){collisionTriangles+=o.geometry.index?o.geometry.index.count/3:(o.geometry.attributes.position?.count||0)/3}});
     collisionStops=0;
     resetPhysics();
     if(renderer.xr.isPresenting){
