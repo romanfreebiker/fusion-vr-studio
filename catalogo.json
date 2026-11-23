@@ -1,7 +1,17 @@
 {
   "version": 1,
-  "actualizado": "2026-11-23T05:17:24.221Z",
+  "actualizado": "2026-11-23T05:17:39.402Z",
   "modelos": [
+    {
+      "id": "mesa-empaquetado-completa-mwstduga",
+      "nombre": "mesa empaquetado completa",
+      "categoria": "Viviendas",
+      "descripcion": "",
+      "archivo": "modelos/mesa-empaquetado-completa-mwstduga.glb",
+      "miniatura": "miniaturas/mesa-empaquetado-completa-mwstduga.jpg",
+      "bytes": 6791336,
+      "fecha": "2026-11-23T05:17:39.402Z"
+    },
     {
       "id": "escalera-bascula-mwstdiqv",
       "nombre": "escalera bascula",
