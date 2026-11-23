@@ -1,7 +1,17 @@
 {
   "version": 1,
-  "actualizado": "2026-11-23T05:59:17.559Z",
+  "actualizado": "2026-11-23T06:01:50.795Z",
   "modelos": [
+    {
+      "id": "escalera-butano-y-altillo-mwsuyq54",
+      "nombre": "escalera butano y altillo",
+      "categoria": "Viviendas",
+      "descripcion": "",
+      "archivo": "modelos/escalera-butano-y-altillo-mwsuyq54.glb",
+      "miniatura": "miniaturas/escalera-butano-y-altillo-mwsuyq54.jpg",
+      "bytes": 2088648,
+      "fecha": "2026-11-23T06:01:50.795Z"
+    },
     {
       "id": "puerta-valla-zona-parking-mwsuvekz",
       "nombre": "puerta valla zona parking",
