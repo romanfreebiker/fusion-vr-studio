@@ -1,7 +1,17 @@
 {
   "version": 1,
-  "actualizado": "2026-11-23T06:58:18.732Z",
+  "actualizado": "2026-11-23T06:58:40.852Z",
   "modelos": [
+    {
+      "id": "escalera-bascula-mwswzrjg",
+      "nombre": "escalera bascula",
+      "categoria": "Viviendas",
+      "descripcion": "",
+      "archivo": "modelos/escalera-bascula-mwswzrjg.glb",
+      "miniatura": "miniaturas/escalera-bascula-mwswzrjg.jpg",
+      "bytes": 4764848,
+      "fecha": "2026-11-23T06:58:40.852Z"
+    },
     {
       "id": "escalera-butano-y-altillo-mwsuyq54",
       "nombre": "escalera butano y altillo",
