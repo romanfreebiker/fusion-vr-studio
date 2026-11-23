@@ -1,7 +1,17 @@
 {
   "version": 1,
-  "actualizado": "2026-11-23T05:17:39.402Z",
+  "actualizado": "2026-11-23T05:59:17.559Z",
   "modelos": [
+    {
+      "id": "puerta-valla-zona-parking-mwsuvekz",
+      "nombre": "puerta valla zona parking",
+      "categoria": "Viviendas",
+      "descripcion": "",
+      "archivo": "modelos/puerta-valla-zona-parking-mwsuvekz.glb",
+      "miniatura": "miniaturas/puerta-valla-zona-parking-mwsuvekz.jpg",
+      "bytes": 5539464,
+      "fecha": "2026-11-23T05:59:17.559Z"
+    },
     {
       "id": "mesa-empaquetado-completa-mwstduga",
       "nombre": "mesa empaquetado completa",
