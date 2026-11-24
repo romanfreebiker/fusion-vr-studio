@@ -659,7 +659,10 @@ function createGhostHand(hand){
       new THREE.Matrix4().makeBasis(lateral,pointing,palmNormal));
     // Dedos hacia botones (+Y), palma alrededor del mango, no al aire.
     const up=V(0,1,-.11).normalize();
-    const across=V(side,0,0);
+    // El índice está hacia el interior, próximo al pulgar: para la mano
+    // derecha index-pinky mira a -X; para la izquierda, a +X.
+    // El signo anterior era el opuesto y giraba la palma al revés.
+    const across=V(-side,0,0);
     const back=new THREE.Vector3().crossVectors(across,up).normalize();
     const target=new THREE.Quaternion().setFromRotationMatrix(
       new THREE.Matrix4().makeBasis(across,up,back));
@@ -676,11 +679,24 @@ function createGhostHand(hand){
     for(const [name,b] of bones){
       b.quaternion.copy(rest.get(name));
       if(!/phalanx-(proximal|intermediate|distal)/.test(name))continue;
-      const amount=name.startsWith('thumb-')?thumb*.35:
-        name.startsWith('index-finger-')?index*.48:
-        /^(middle|ring|pinky)-finger-/.test(name)?grip*.68:0;
-      if(amount)b.quaternion.multiply(new THREE.Quaternion()
-        .setFromAxisAngle(V(.06*side,0,1).normalize(),amount));
+      if(name.startsWith('thumb-')){
+        // El pulgar requiere oposición + flexión, no la misma curvatura
+        // que los otros dedos. Sus tres falanges giran sobre ejes locales
+        // diferentes, con un arco visible desde reposo hasta el joystick.
+        const proximal=name.endsWith('phalanx-proximal');
+        const distal=name.endsWith('phalanx-distal');
+        const amount=thumb;
+        const x=proximal?.45:distal?.60:.22;
+        const y=proximal?.48:distal?.22:.12;
+        b.quaternion.multiply(new THREE.Quaternion().setFromEuler(
+          new THREE.Euler(amount*x,amount*side*y,amount*side*.18,'XYZ')
+        ));
+      }else{
+        const amount=name.startsWith('index-finger-')?index*.62:
+          /^(middle|ring|pinky)-finger-/.test(name)?grip*.80:0;
+        if(amount)b.quaternion.multiply(new THREE.Quaternion()
+          .setFromAxisAngle(V(.06*side,0,1).normalize(),amount));
+      }
     }
   }
   const applyModel=gltf=>{
@@ -729,10 +745,12 @@ function createGhostHand(hand){
     const b=source?.gamepad?.buttons||[];
     const touch=i=>Boolean(b[i]?.touched||b[i]?.pressed);
     const press=i=>Boolean(b[i]?.pressed);
-    const t=touch(3)||touch(4)||touch(5)?1:.15;
+    // El eje táctil del pulgar puede permanecer activo al apoyar el dedo.
+    // Pasar de gesto abierto a contacto claro sin depender de pulsar.
+    const t=touch(3)||touch(4)||touch(5)?1:0;
     const f=press(0)?1:touch(0)?.7:.28;
     const g=press(1)?1:.72;
-    thumb+=(t-thumb)*.22;
+    thumb+=(t-thumb)*.30;
     index+=(f-index)*.22;
     grip+=(g-grip)*.22;
     animate();
@@ -1028,7 +1046,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.72 · manos anatómicas y orientación revisada';
+versionLabel.textContent='Visor VR 0.73 · orientación de palmas y pulgar articulado';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1450,7 +1468,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.72';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.73';
     vrButton.hidden=false;
     return true;
   }catch(error){
