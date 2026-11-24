@@ -532,11 +532,12 @@ function makeJoystickArrow(kind){
 function addTinyMarks(grip,hand){
   const marks=new THREE.Group();
   // Las flechas van encima de la cabeza del joystick, separadas de los textos.
+  // La flecha no se posiciona con coordenadas fijas (que caían en el aro):
+  // se ancla en cada fotograma al elemento thumbstick del modelo real.
   const arrow=makeJoystickArrow(hand==='left'?'walk':'turn');
-  // La cabeza del joystick simplificado tiene cota superior Y=.0425.
-  // Se pega a su tapa, sin apuntar al aro externo.
-  arrow.position.set(-.019,.043,-.035);
+  arrow.position.set(-.019,.043,-.035); // solo para el modelo de emergencia
   marks.add(arrow);
+  marks.userData.joystickArrow=arrow;
   const items=hand==='left'
     ? [['X Catálogo','',.013,.047,-.012],
        ['Y Configuración','',.031,.047,-.032],
@@ -602,6 +603,52 @@ for(let i=0;i<2;i++){
   });
   controllerVisuals.push(entry);
 }
+// Buscar piezas separadas del aro; nunca ocultar el cuerpo ni el joystick.
+function trimTouchTrackingRing(entry){
+  if(entry.ringTrimmed||!entry.model.children.length)return;
+  entry.ringTrimmed=true;
+  entry.model.traverse(part=>{
+    if(!part.isMesh)return;
+    const name=(part.name||'').toLowerCase();
+    // Solo geometría identificada explícitamente como aro de seguimiento.
+    // No ocultar padres que puedan contener botones y palancas.
+    if(/(^|[_\\s.-])(tracking[_\\s.-]?ring|sensor[_\\s.-]?ring|controller[_\\s.-]?ring|ring|halo)([_\\s.-]|$)/i.test(name)){
+      part.visible=false;
+    }
+  });
+}
+const tempThumbBox=new THREE.Box3();
+const tempThumbCenter=new THREE.Vector3();
+function placeArrowOnRealStick(entry){
+  const marks=entry.handedness==='left'?entry.leftMarks:entry.rightMarks;
+  const arrow=marks.userData.joystickArrow;
+  if(!arrow||!entry.model.children.length)return;
+  const component=entry.model.motionController?.components?.['xr-standard-thumbstick'];
+  let thumb=null;
+  if(component){
+    for(const response of Object.values(component.visualResponses||{})){
+      if(response.valueNode&&response.valueNodeProperty==='transform'){
+        thumb=response.valueNode;break;
+      }
+    }
+  }
+  if(!thumb){
+    entry.model.traverse(obj=>{
+      const name=(obj.name||'').toLowerCase();
+      if(!thumb&&obj.isMesh&&/(thumbstick|joystick|thumb_stick)/.test(name)&&
+          !/(min|max|ring|base|socket)/.test(name))thumb=obj;
+    });
+  }
+  if(!thumb)return;
+  entry.grip.updateMatrixWorld(true);
+  tempThumbBox.setFromObject(thumb);
+  if(tempThumbBox.isEmpty())return;
+  tempThumbBox.getCenter(tempThumbCenter);
+  tempThumbCenter.y=tempThumbBox.max.y+.002;
+  entry.grip.worldToLocal(tempThumbCenter);
+  // La flecha es el único elemento que debe seguir la cabeza del stick.
+  arrow.position.copy(tempThumbCenter);
+}
 function updateControllerVisuals(frame,referenceSpace,session){
   for(const entry of controllerVisuals){
     const source=Array.from(session?.inputSources||[]).find(input=>
@@ -611,6 +658,10 @@ function updateControllerVisuals(frame,referenceSpace,session){
       frame.getPose(source.gripSpace,referenceSpace));
     entry.grip.visible=tracked;
     entry.fallback.visible=tracked&&entry.model.children.length===0;
+    if(tracked&&entry.model.children.length){
+      trimTouchTrackingRing(entry);
+      placeArrowOnRealStick(entry);
+    }
     entry.leftMarks.visible=tracked&&entry.handedness==='left';
     entry.rightMarks.visible=tracked&&entry.handedness==='right';
   }
@@ -767,7 +818,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.53 · mandos originales y pasos naturales';
+versionLabel.textContent='Visor VR 0.54 · aro independiente oculto y flechas ancladas';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1189,7 +1240,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.53';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.54';
     vrButton.hidden=false;
     return true;
   }catch(error){
