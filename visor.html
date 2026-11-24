@@ -569,13 +569,12 @@ function addTinyMarks(grip,hand){
   arrow.position.set(hand==='left'?.019:-.019,.049,-.035);
   marks.add(arrow);
   marks.userData.joystickArrow=arrow;
-  // Rótulos aprobados en la vista previa: en el extremo inferior de la
-  // empuñadura, a la altura de la muñeca, no por encima del mando.
-  // Plano aproximadamente tangente a la cara frontal de la empuñadura
-  // (el cuerpo de referencia tiene 0.3 rad de inclinación en X).
-  // Ambos comparten exactamente la misma posición Y/Z y rotación local:
-  // siguen fijamente al controlador al trasladarlo o girarlo.
-  const rowY=-.160,rowZ=.055,leftX=-.027,rightX=.027;
+  // Recuperar profundidad y orientación de la v0.62: fueron aprobadas
+  // por el usuario, salvo por quedar demasiado altas. Solo bajamos Y.
+  // No deducir tangencias de un modelo de emergencia: no son fiables
+  // para la geometría real del mando Touch de Quest 2.
+  // Ambos rótulos siguen coplanares, alineados y anclados al grip.
+  const rowY=-.160,rowZ=-.095,leftX=-.027,rightX=.027;
   const items=hand==='left'
     ? [['Configuración','Y',leftX,rowY,rowZ],
        ['Caminar','walk',rightX,rowY,rowZ]]
@@ -584,9 +583,9 @@ function addTinyMarks(grip,hand){
   for(const [text,icon,x,y,z] of items){
     const mark=makeTinyMark(text,icon);
     mark.position.set(x,y,z);
-    // Plano tangente a la empuñadura, no horizontal sobre los botones.
-    // Malla rígida hija del grip: no mirar automáticamente a la cámara.
-    mark.rotation.x=-.30;
+    // Orientación local de v0.62, que se veía correcta en el visor.
+    // Sigue siendo una malla rígida y gira con el grip.
+    mark.rotation.x=-Math.PI/2;
     marks.add(mark);
   }
   grip.add(marks);
@@ -890,7 +889,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.65 · carteles tangentes junto a muñecas';
+versionLabel.textContent='Visor VR 0.66 · orientación recuperada y muñecas';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1312,7 +1311,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.65';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.66';
     vrButton.hidden=false;
     return true;
   }catch(error){
