@@ -613,11 +613,96 @@ function makeTouchFallback(){
   }
   return group;
 }
+// Manos translúcidas ligeras, ancladas al grip (no al eje de la cámara).
+// Las articulaciones reaccionan a contactos capacitivos cuando WebXR los expone.
+function createGhostHand(hand){
+  const sign=hand==='left'?-1:1;
+  const root=new THREE.Group();
+  const material=new THREE.MeshStandardMaterial({
+    color:0x9bcce4,emissive:0x123044,emissiveIntensity:.28,
+    transparent:true,opacity:.36,roughness:.5,metalness:0,
+    depthWrite:false,side:THREE.DoubleSide
+  });
+  const ball=new THREE.SphereGeometry(1,10,8);
+  const bar=new THREE.CylinderGeometry(1,1,1,9,1);
+  const v=(x,y,z)=>new THREE.Vector3(x,y,z);
+  function blob(p,s){
+    const mesh=new THREE.Mesh(ball,material);
+    mesh.position.copy(p);mesh.scale.set(...s);
+    mesh.renderOrder=990;root.add(mesh);return mesh;
+  }
+  function segment(){
+    const mesh=new THREE.Mesh(bar,material);
+    mesh.renderOrder=990;root.add(mesh);return mesh;
+  }
+  const axis=new THREE.Vector3(0,1,0);
+  const temp=new THREE.Vector3(),delta=new THREE.Vector3();
+  function put(mesh,a,b,r){
+    delta.copy(b).sub(a);
+    mesh.position.copy(a).add(b).multiplyScalar(.5);
+    mesh.quaternion.setFromUnitVectors(axis,temp.copy(delta).normalize());
+    mesh.scale.set(r,delta.length(),r);
+  }
+  // La palma y la muñeca envuelven la empuñadura sin tapar la botonera.
+  blob(v(sign*.023,-.057,.029),[.029,.044,.018]);
+  blob(v(sign*.020,-.105,.033),[.023,.025,.019]);
+  const fingers=[];
+  for(let i=0;i<4;i++){
+    const a=segment(),b=segment();
+    const knuckle=blob(v(0,0,0),[.007,.007,.007]);
+    fingers.push({a,b,knuckle});
+  }
+  const thumbA=segment(),thumbB=segment();
+  const thumbJoint=blob(v(0,0,0),[.009,.009,.009]);
+  const thumbTip=blob(v(0,0,0),[.008,.008,.008]);
+  const lerp=(a,b,t)=>a.clone().lerp(b,t);
+  let thumbAmount=0,indexAmount=0,gripAmount=.65;
+  function update(source){
+    const buttons=source?.gamepad?.buttons||[];
+    const touch=(i)=>Boolean(buttons[i]?.touched||buttons[i]?.pressed);
+    const press=(i)=>Boolean(buttons[i]?.pressed);
+    // Botón 3 = joystick, 4 y 5 = botones superiores (Touch).
+    // También soportamos el gatillo 0 y el agarre 1.
+    const contact=touch(3)||touch(4)||touch(5);
+    const thumbTarget=contact?1:0;
+    const triggerTarget=touch(0)||press(0)?1:0;
+    const gripTarget=press(1)?1:.65;
+    thumbAmount+=(thumbTarget-thumbAmount)*.23;
+    indexAmount+=(triggerTarget-indexAmount)*.23;
+    gripAmount+=(gripTarget-gripAmount)*.23;
+    for(let i=0;i<4;i++){
+      const x=sign*(.009+i*.011);
+      const curl=i===0?indexAmount:gripAmount;
+      const base=v(x,-.014-i*.011,.024);
+      const middle=v(x*.88,-.015-i*.012,-.004+curl*.011);
+      const end=v(x*.80,-.032-i*.010,-.024+curl*.025);
+      const f=fingers[i];
+      put(f.a,base,middle,.0063-i*.0006);
+      put(f.b,middle,end,.0055-i*.0006);
+      f.knuckle.position.copy(middle);
+    }
+    const base=v(sign*.043,-.020,.034);
+    const freeMid=v(sign*.064,.004,.031);
+    const freeTip=v(sign*.068,.031,.028);
+    const contactMid=v(sign*.046,.020,-.004);
+    const contactTip=v(sign*.022,.044,-.030);
+    const mid=lerp(freeMid,contactMid,thumbAmount);
+    const tip=lerp(freeTip,contactTip,thumbAmount);
+    put(thumbA,base,mid,.009);
+    put(thumbB,mid,tip,.007);
+    thumbJoint.position.copy(mid);
+    thumbTip.position.copy(tip);
+  }
+  update(null);
+  return {root,update};
+}
 for(let i=0;i<2;i++){
   const grip=renderer.xr.getControllerGrip(i);
   const model=controllerModelFactory.createControllerModel(grip);
   const fallback=makeTouchFallback();
-  grip.add(model,fallback);
+  const leftHand=createGhostHand('left');
+  const rightHand=createGhostHand('right');
+  grip.add(model,fallback,leftHand.root,rightHand.root);
   // Cámara, colisiones y mandos comparten el mismo sistema local del rig.
   // Si los grips cuelgan directamente de scene aparecen lejos de las manos
   // cuando se desplaza el jugador.
@@ -626,11 +711,13 @@ for(let i=0;i<2;i++){
   const rightMarks=addTinyMarks(grip,'right');
   // Recuperar el modelo Touch detallado de la v0.51. La carcasa simple
   // únicamente se mostrará si la biblioteca WebXR no carga el modelo real.
-  const entry={grip,model,fallback,leftMarks,rightMarks,handedness:null};
+  const entry={grip,model,fallback,leftMarks,rightMarks,leftHand,rightHand,handedness:null};
   grip.visible=false;
   fallback.visible=false;
   leftMarks.visible=false;
   rightMarks.visible=false;
+  leftHand.root.visible=false;
+  rightHand.root.visible=false;
   grip.addEventListener('connected',event=>{
     entry.handedness=event.data?.handedness||null;
   });
@@ -642,6 +729,8 @@ for(let i=0;i<2;i++){
     fallback.visible=false;
     leftMarks.visible=false;
     rightMarks.visible=false;
+    leftHand.root.visible=false;
+    rightHand.root.visible=false;
   });
   controllerVisuals.push(entry);
 }
@@ -735,6 +824,12 @@ function updateControllerVisuals(frame,referenceSpace,session){
     }
     entry.leftMarks.visible=tracked&&entry.handedness==='left';
     entry.rightMarks.visible=tracked&&entry.handedness==='right';
+    entry.leftHand.root.visible=tracked&&entry.handedness==='left';
+    entry.rightHand.root.visible=tracked&&entry.handedness==='right';
+    if(tracked){
+      const hand=entry.handedness==='left'?entry.leftHand:entry.rightHand;
+      hand.update(source);
+    }
   }
 }
 const menuEye=new THREE.Vector3(),menuFacing=new THREE.Vector3(),menuTarget=new THREE.Vector3();
@@ -889,7 +984,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.68 · carteles a la altura del mando';
+versionLabel.textContent='Visor VR 0.69 · manos semitransparentes y dedos dinámicos';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1311,7 +1406,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.68';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.69';
     vrButton.hidden=false;
     return true;
   }catch(error){
