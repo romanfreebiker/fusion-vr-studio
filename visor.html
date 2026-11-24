@@ -603,7 +603,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.45 · escaleras un poco más ágiles';
+versionLabel.textContent='Visor VR 0.46 · subida de escaleras más ágil';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -675,7 +675,7 @@ let colliderMeshes=[],lastFloorY=0,modelFloorY=0,vrDiagnostics='';
 // Separar la altura física del apoyo de la altura visual evita que la cámara
 // salte instantáneamente al siguiente peldaño.
 let physicsFeetY=null;
-const STEP_VISUAL_SPEED=.48; // Transición vertical moderada: unos 0,42 s por 20 cm
+const STEP_VISUAL_SPEED_UP=.54,STEP_VISUAL_SPEED_DOWN=.48; // Subida ligeramente más rápida; bajada sin cambios
 const STEP_VISUAL_SMOOTHING=7; // amortiguación más ágil al subir y al bajar
 // Caminar normal intacto; sobre peldaños movimiento horizontal lento.
 const WALK_SPEED=1.95,STAIR_SPEED_FACTOR=.41;
@@ -893,7 +893,7 @@ function solveMovement(headset,desired,dt){
   const isStairMotion=performance.now()<stairSlowUntil&&Math.abs(visualDelta)<=MAX_STEP+.12;
   if(isStairMotion||visualDelta>0){
     const easing=1-Math.exp(-STEP_VISUAL_SMOOTHING*dt);
-    const amount=Math.min(Math.abs(visualDelta),STEP_VISUAL_SPEED*dt,
+    const amount=Math.min(Math.abs(visualDelta),(visualDelta>0?STEP_VISUAL_SPEED_UP:STEP_VISUAL_SPEED_DOWN)*dt,
                           Math.abs(visualDelta)*easing);
     rig.position.y+=Math.sign(visualDelta)*amount;
     if(Math.abs(footY-rig.position.y)<.002)rig.position.y=footY;
