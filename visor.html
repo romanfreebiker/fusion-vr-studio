@@ -583,9 +583,8 @@ for(let i=0;i<2;i++){
   rig.add(grip);
   const leftMarks=addTinyMarks(grip,'left');
   const rightMarks=addTinyMarks(grip,'right');
-  // El modelo Touch descargado incluye un aro de seguimiento que tapa
-  // las flechas. Usamos la carcasa compacta sin aro con joystick accesible.
-  model.visible=false;
+  // Recuperar el modelo Touch detallado de la v0.51. La carcasa simple
+  // únicamente se mostrará si la biblioteca WebXR no carga el modelo real.
   const entry={grip,model,fallback,leftMarks,rightMarks,handedness:null};
   grip.visible=false;
   fallback.visible=false;
@@ -611,7 +610,7 @@ function updateControllerVisuals(frame,referenceSpace,session){
     const tracked=Boolean(frame&&referenceSpace&&source&&
       frame.getPose(source.gripSpace,referenceSpace));
     entry.grip.visible=tracked;
-    entry.fallback.visible=tracked;
+    entry.fallback.visible=tracked&&entry.model.children.length===0;
     entry.leftMarks.visible=tracked&&entry.handedness==='left';
     entry.rightMarks.visible=tracked&&entry.handedness==='right';
   }
@@ -768,7 +767,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.52 · pasos verticales y joysticks sin aro';
+versionLabel.textContent='Visor VR 0.53 · mandos originales y pasos naturales';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1190,7 +1189,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.52';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.53';
     vrButton.hidden=false;
     return true;
   }catch(error){
