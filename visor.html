@@ -618,103 +618,120 @@ function makeTouchFallback(){
 // Mano de agarre semitransparente, de superficies redondeadas.
 // El mando permanece visible: palma detrás de la empuñadura y dedos
 // curvados hacia su cara frontal, con el índice junto al gatillo.
+// Manos anatómicas GLB del perfil público WebXR generic-hand.
+// Sustituyen por completo las antiguas esferas/cilindros y se acoplan
+// al grip de cada Touch sin crear una segunda sesión ni otro rig XR.
+// El modelo procede de los recursos públicos de WebXR Input Profiles
+// (también empleados por XRHandMeshModel de Three.js).
+const handModelLoader=new GLTFLoader();
+const handModelRoot='https://cdn.jsdelivr.net/npm/@webxr-input-profiles/assets@1.0/dist/profiles/generic-hand/';
 function createGhostHand(hand){
   const side=hand==='left'?-1:1;
   const root=new THREE.Group();
-  const skin=new THREE.MeshStandardMaterial({
-    color:0xc2d9e5,emissive:0x213b4b,emissiveIntensity:.12,
-    transparent:true,opacity:.40,roughness:.9,metalness:0,
-    depthWrite:false,side:THREE.FrontSide
-  });
-  const jointGeometry=new THREE.SphereGeometry(1,16,12);
-  // Cono ligeramente cónico con extremos redondeados, no varillas.
-  const segmentGeometry=new THREE.CylinderGeometry(1,1,1,14,1);
-  const axis=new THREE.Vector3(0,1,0);
-  const work=new THREE.Vector3(),normal=new THREE.Vector3();
-  const v=(x,y,z)=>new THREE.Vector3(x,y,z);
-  function ellipsoid(pos,sizes){
-    const m=new THREE.Mesh(jointGeometry,skin);
-    m.position.copy(pos);m.scale.set(...sizes);
-    m.renderOrder=1000;root.add(m);return m;
+  const bones=new Map();
+  const initial=new Map();
+  let loaded=false;
+  let touchAmount=0,indexAmount=.18,gripAmount=.62;
+  const worldPos=(node)=>node.getWorldPosition(new THREE.Vector3());
+  // Giro inicial según puntos anatómicos reales del GLB, no ejes
+  // inventados para los mandos de reserva. Se mantiene estático en
+  // coordenadas del grip y así acompaña cualquier giro del mando.
+  function fitToController(scene){
+    const wrist=scene.getObjectByName('wrist');
+    const middle=scene.getObjectByName('middle-finger-metacarpal')||
+      scene.getObjectByName('middle-finger-phalanx-proximal');
+    const index=scene.getObjectByName('index-finger-metacarpal');
+    const pinky=scene.getObjectByName('pinky-finger-metacarpal');
+    if(!wrist||!middle||!index||!pinky)return false;
+    scene.updateMatrixWorld(true);
+    const wristP=worldPos(wrist);
+    const forward=worldPos(middle).sub(wristP).normalize();
+    const across=worldPos(index).sub(worldPos(pinky));
+    across.addScaledVector(forward,-across.dot(forward)).normalize();
+    if(forward.lengthSq()<.5||across.lengthSq()<.5)return false;
+    const sourceUp=new THREE.Vector3().crossVectors(across,forward).normalize();
+    const sourceFrame=new THREE.Matrix4().makeBasis(across,forward,sourceUp);
+    // Hacia la cabeza del controlador (+Y) y alrededor de la empuñadura.
+    const targetForward=new THREE.Vector3(0,1,-.20).normalize();
+    const targetAcross=new THREE.Vector3(side,0,0);
+    const targetOut=new THREE.Vector3().crossVectors(targetAcross,targetForward).normalize();
+    const targetFrame=new THREE.Matrix4().makeBasis(targetAcross,targetForward,targetOut);
+    const qSource=new THREE.Quaternion().setFromRotationMatrix(sourceFrame);
+    const qTarget=new THREE.Quaternion().setFromRotationMatrix(targetFrame);
+    root.quaternion.copy(qTarget.multiply(qSource.invert()));
+    // Muñeca en el extremo bajo del mango; el dedo índice alcanza
+    // el gatillo y el pulgar queda en el lateral de la botonera.
+    const wristTarget=new THREE.Vector3(side*.013,-.107,.027);
+    root.position.copy(wristTarget).sub(wristP.applyQuaternion(root.quaternion));
+    return true;
   }
-  function limb(){
-    const m=new THREE.Mesh(segmentGeometry,skin);
-    m.renderOrder=1000;root.add(m);return m;
-  }
-  function connect(mesh,a,b,r){
-    work.copy(b).sub(a);
-    mesh.position.copy(a).add(b).multiplyScalar(.5);
-    mesh.quaternion.setFromUnitVectors(axis,normal.copy(work).normalize());
-    mesh.scale.set(r,work.length(),r);
-  }
-  function joint(mesh,p){mesh.position.copy(p)}
-  // El grosor de la palma cubre la parte trasera y lateral del mango,
-  // no la parte superior donde están los botones.
-  // Las falanges se sitúan a varias alturas de la empuñadura.
-  const palm=ellipsoid(v(side*.022,-.061,.039),[.032,.045,.016]);
-  palm.rotation.z=-side*.10;
-  const heel=ellipsoid(v(side*.019,-.096,.037),[.026,.024,.019]);
-  heel.rotation.z=-side*.12;
-  const wrist=ellipsoid(v(side*.015,-.130,.042),[.021,.027,.020]);
-  wrist.rotation.z=-side*.10;
-  const thumbBase=ellipsoid(v(side*.042,-.025,.031),[.018,.021,.017]);
-  const fingers=Array.from({length:4},()=>({
-    a:limb(),b:limb(),c:limb(),
-    j1:ellipsoid(v(0,0,0),[.008,.008,.008]),
-    j2:ellipsoid(v(0,0,0),[.007,.007,.007]),
-    tip:ellipsoid(v(0,0,0),[.0065,.008,.0065])
-  }));
-  const thumb={a:limb(),b:limb(),c:limb(),
-    j1:ellipsoid(v(0,0,0),[.010,.010,.010]),
-    j2:ellipsoid(v(0,0,0),[.008,.008,.008]),
-    tip:ellipsoid(v(0,0,0),[.008,.009,.008])};
-  const bend=(a,b,t)=>v(0,0,0).copy(a).lerp(b,t);
-  let indexCurl=.35,gripCurl=.83,thumbContact=.2;
-  function update(source){
-    const buttons=source?.gamepad?.buttons||[];
-    const touched=i=>Boolean(buttons[i]?.touched||buttons[i]?.pressed);
-    const pressed=i=>Boolean(buttons[i]?.pressed);
-    // Capacitivos Quest: joystick[3], botones superiores[4/5],
-    // índice en gatillo[0]; si touched no existe, queda en agarre.
-    const stickTouch=touched(3),faceTouch=touched(4)||touched(5);
-    const thumbGoal=stickTouch||faceTouch?1:0;
-    const indexGoal=touched(0)?(pressed(0)?1:.70):.35;
-    const gripGoal=pressed(1)?1:.83;
-    thumbContact+=(thumbGoal-thumbContact)*.25;
-    indexCurl+=(indexGoal-indexCurl)*.25;
-    gripCurl+=(gripGoal-gripCurl)*.25;
-    for(let i=0;i<4;i++){
-      const f=fingers[i];
-      const y=-.029-i*.020;
-      const curl=i===0?indexCurl:gripCurl;
-      // Del dorso lateral al frente del mango; y constante por dedo,
-      // como los dedos que abrazan un cilindro, no apuntando hacia fuera.
-      const base=v(side*.039,y,.032);
-      const knuckle=v(side*.048,y+.007,.008);
-      const middle=v(side*.031,y+.010,-.015-curl*.004);
-      const end=v(side*.002,y+.007-curl*.011,-.015-curl*.013);
-      connect(f.a,base,knuckle,.0082-i*.0005);
-      connect(f.b,knuckle,middle,.0075-i*.0005);
-      connect(f.c,middle,end,.0065-i*.0005);
-      joint(f.j1,knuckle);joint(f.j2,middle);joint(f.tip,end);
+  function updateBones(){
+    if(!loaded)return;
+    for(const [name,bone] of bones){
+      const original=initial.get(name);
+      if(!original)continue;
+      const thumb=name.startsWith('thumb-');
+      const index=name.startsWith('index-finger-');
+      const other=/^(middle|ring|pinky)-finger-/.test(name);
+      let curl=0;
+      if(thumb)curl=touchAmount*.36;
+      else if(index)curl=indexAmount*.52;
+      else if(other)curl=gripAmount*.75;
+      // La rotación adicional solo actúa en falanges; conservar
+      // las posiciones originales del esqueleto riggeado.
+      const isJoint=/phalanx-(proximal|intermediate|distal)/.test(name);
+      bone.quaternion.copy(original);
+      if(isJoint&&curl){
+        // Giro articulado moderado, evitando deformaciones bruscas.
+        bone.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(
+          new THREE.Vector3(side*.07,0,1).normalize(),curl
+        ));
+      }
     }
-    const base=v(side*.045,-.020,.034);
-    const open1=v(side*.062,.005,.035);
-    const open2=v(side*.066,.030,.035);
-    // El pulgar salta desde el lateral hasta la zona de los controles.
-    const target=stickTouch?v(-.019,.040,-.035):
-      faceTouch?v(side*.017,.038,-.027):v(-.019,.042,-.030);
-    const touch1=v(side*.043,.018,-.005);
-    const touch2=target.clone().lerp(touch1,.42);
-    const mid1=bend(open1,touch1,thumbContact);
-    const mid2=bend(open2,touch2,thumbContact);
-    const tip=bend(v(side*.070,.038,.029),target,thumbContact);
-    connect(thumb.a,base,mid1,.010);
-    connect(thumb.b,mid1,mid2,.0085);
-    connect(thumb.c,mid2,tip,.007);
-    joint(thumb.j1,mid1);joint(thumb.j2,mid2);joint(thumb.tip,tip);
   }
-  update(null);
+  handModelLoader.load(handModelRoot+hand+'.glb',gltf=>{
+    const scene=gltf.scene;
+    root.add(scene);
+    scene.traverse(node=>{
+      if(node.isSkinnedMesh){
+        node.frustumCulled=false;
+        node.renderOrder=995;
+        node.material=new THREE.MeshStandardMaterial({
+          color:0xcbdde8,transparent:true,opacity:.48,
+          roughness:.88,metalness:0,depthWrite:false,
+          side:THREE.DoubleSide,skinning:true
+        });
+      }
+      if(node.isBone){
+        bones.set(node.name,node);
+        initial.set(node.name,node.quaternion.clone());
+      }
+    });
+    if(!fitToController(scene)){
+      // Un modelo desconocido no debe aparecer en el origen de la escena.
+      root.remove(scene);
+      return;
+    }
+    loaded=true;
+    updateBones();
+  },undefined,error=>{
+    // Si no hay red, conservar únicamente el modelo Touch ya existente.
+    console.warn('No se pudo cargar la mano WebXR '+hand,error);
+  });
+  function update(source){
+    if(!loaded)return;
+    const buttons=source?.gamepad?.buttons||[];
+    const contact=i=>Boolean(buttons[i]?.touched||buttons[i]?.pressed);
+    const press=i=>Boolean(buttons[i]?.pressed);
+    // Sensores capacitivos si el navegador los publica.
+    const thumbGoal=contact(3)||contact(4)||contact(5)?1:0;
+    const indexGoal=press(0)?1:contact(0)?.65:.18;
+    const gripGoal=press(1)?1:.62;
+    touchAmount+=(thumbGoal-touchAmount)*.22;
+    indexAmount+=(indexGoal-indexAmount)*.22;
+    gripAmount+=(gripGoal-gripAmount)*.22;
+    updateBones();
+  }
   return {root,update};
 }
 
@@ -1006,7 +1023,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.70 · manos de agarre mejoradas';
+versionLabel.textContent='Visor VR 0.71 · manos GLB WebXR anatómicas';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1428,7 +1445,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.70';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.71';
     vrButton.hidden=false;
     return true;
   }catch(error){
