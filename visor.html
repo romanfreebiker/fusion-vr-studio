@@ -708,7 +708,7 @@ const versionLabel=document.createElement('div');
 versionLabel.textContent='Visor VR 0.49 · mandos alineados y rótulos mínimos';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
-let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
+let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
 let worldOctree=null,verticalVelocity=0,isGrounded=false,collisionTriangles=0,collisionStops=0;
 const BODY_RADIUS=.22,GRAVITY=9.81;
 // Motor de movimiento VR: posición horizontal sin empujes de penetración.
@@ -1101,6 +1101,9 @@ async function openModel(){
     model.position.y-=bounds.min.y;
     model.position.z-=center.z;
     distance=Math.max(3,size.z/2+Math.max(size.x,size.y,2));
+    // Punto de entrada cerca de la fachada frontal (+Z), no a la distancia
+    // de encuadre del escritorio. Evita empezar en el centro de una pared.
+    vrStartDistance=Math.max(.9,size.z/2+.8);
     height=size.y;
     scene.add(model);
     model.updateMatrixWorld(true);
@@ -1119,7 +1122,7 @@ async function openModel(){
     resetPhysics();
     if(renderer.xr.isPresenting){
       // Cambia el diseño y recoloca al visitante sin cerrar la sesión inmersiva.
-      rig.position.set(0,0,Math.max(.65,Math.min(distance,2)));
+      rig.position.set(0,0,vrStartDistance);
       rig.rotation.set(0,0,0);
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
