@@ -633,111 +633,125 @@ function createGhostHand(hand){
   const side=hand==='left'?-1:1;
   const root=new THREE.Group();
   root.name='AnatomicalControllerHand-'+hand;
-  const bones=new Map(),rest=new Map();
-  let ready=false,thumb=.15,index=.28,grip=.72;
+  const bones=new Map(),rest=new Map(),hinges=new Map();
+  let ready=false,thumb=0,index=.25,grip=.83;
   const V=(x,y,z)=>new THREE.Vector3(x,y,z);
-  const position=o=>o.getWorldPosition(new THREE.Vector3());
-  const bone=(obj,name)=>obj.getObjectByName(name);
+  function relativePosition(node){
+    // Convertir las posiciones al sistema LOCAL de la mano. El modelo GLB
+    // NO debe alinearse con getWorldPosition(): el rig XR puede trasladarse.
+    root.updateMatrixWorld(true);
+    return root.worldToLocal(node.getWorldPosition(new THREE.Vector3()));
+  }
   function align(model){
-    const wrist=bone(model,'wrist');
-    const middle=bone(model,'middle-finger-metacarpal')||bone(model,'middle-finger-phalanx-proximal');
-    const indexB=bone(model,'index-finger-metacarpal')||bone(model,'index-finger-phalanx-proximal');
-    const pinky=bone(model,'pinky-finger-metacarpal')||bone(model,'pinky-finger-phalanx-proximal');
+    const wrist=model.getObjectByName('wrist');
+    const middle=model.getObjectByName('middle-finger-metacarpal')||
+      model.getObjectByName('middle-finger-phalanx-proximal');
+    const indexB=model.getObjectByName('index-finger-metacarpal')||
+      model.getObjectByName('index-finger-phalanx-proximal');
+    const pinky=model.getObjectByName('pinky-finger-metacarpal')||
+      model.getObjectByName('pinky-finger-phalanx-proximal');
     if(!wrist||!middle||!indexB||!pinky)return false;
-    // Calcular la postura partiendo de referencias anatómicas del GLB.
-    root.updateMatrixWorld(true);
-    const wristPos=position(wrist);
-    const pointing=position(middle).sub(wristPos).normalize();
-    const lateral=position(indexB).sub(position(pinky));
-    lateral.addScaledVector(pointing,-lateral.dot(pointing)).normalize();
-    const palmNormal=new THREE.Vector3().crossVectors(lateral,pointing).normalize();
-    if(pointing.lengthSq()<.8||lateral.lengthSq()<.8||palmNormal.lengthSq()<.8)return false;
-    // Longitud realista, sin depender de unidades arbitrarias del GLB.
-    const width=position(indexB).distanceTo(position(pinky));
-    root.scale.setScalar(THREE.MathUtils.clamp(.065/Math.max(width,.001),.7,1.3));
-    const from=new THREE.Quaternion().setFromRotationMatrix(
-      new THREE.Matrix4().makeBasis(lateral,pointing,palmNormal));
-    // Dedos hacia botones (+Y), palma alrededor del mango, no al aire.
-    const up=V(0,1,-.11).normalize();
-    // El índice está hacia el interior, próximo al pulgar: para la mano
-    // derecha index-pinky mira a -X; para la izquierda, a +X.
-    // El signo anterior era el opuesto y giraba la palma al revés.
-    const across=V(-side,0,0);
-    const back=new THREE.Vector3().crossVectors(across,up).normalize();
-    const target=new THREE.Quaternion().setFromRotationMatrix(
-      new THREE.Matrix4().makeBasis(across,up,back));
-    root.quaternion.copy(target.multiply(from.invert()));
+    // Medir en coordenadas del GLB sin aplicar antes ninguna escala/rotación.
     root.position.set(0,0,0);
+    root.quaternion.identity();
+    root.scale.setScalar(1);
     root.updateMatrixWorld(true);
-    const after=position(wrist);
-    root.position.add(V(side*.016,-.110,.030).sub(after));
+    const wristPos=relativePosition(wrist);
+    const middlePos=relativePosition(middle);
+    const indexPos=relativePosition(indexB);
+    const pinkyPos=relativePosition(pinky);
+    const longitudinal=middlePos.clone().sub(wristPos).normalize();
+    const lateral=indexPos.clone().sub(pinkyPos);
+    lateral.addScaledVector(longitudinal,-lateral.dot(longitudinal)).normalize();
+    const normal=new THREE.Vector3().crossVectors(lateral,longitudinal).normalize();
+    if(longitudinal.lengthSq()<.8||lateral.lengthSq()<.8||normal.lengthSq()<.8)return false;
+    // El ancho de nudillos es la referencia de tamaño, no la longitud
+    // ni la escala mundial del avatar: una mano adulta aprox. 7.4 cm.
+    const width=indexPos.distanceTo(pinkyPos);
+    if(width<.001)return false;
+    const scale=THREE.MathUtils.clamp(.074/width,.25,3);
+    const from=new THREE.Quaternion().setFromRotationMatrix(
+      new THREE.Matrix4().makeBasis(lateral,longitudinal,normal));
+    const towardFingers=V(0,1,-.12).normalize();
+    const across=V(-side,0,0);
+    const face=new THREE.Vector3().crossVectors(across,towardFingers).normalize();
+    const to=new THREE.Quaternion().setFromRotationMatrix(
+      new THREE.Matrix4().makeBasis(across,towardFingers,face));
+    root.quaternion.copy(to.multiply(from.invert()));
+    root.scale.setScalar(scale);
+    // Colocar la muñeca en el extremo del mango EN COORDENADAS DEL GRIP.
+    // No mezclar espacio mundo con posiciones locales.
+    const targetWrist=V(side*.016,-.113,.035);
+    root.position.copy(targetWrist).sub(
+      wristPos.multiplyScalar(scale).applyQuaternion(root.quaternion)
+    );
     root.updateMatrixWorld(true);
+    // Calcular ejes de bisagra locales de cada articulación desde la
+    // orientación del esqueleto cargado; no asumir X/Y/Z globales.
+    const rootQ=root.getWorldQuaternion(new THREE.Quaternion());
+    const rootAcross=V(-side,0,0).applyQuaternion(rootQ);
+    const rootPalm=V(0,0,1).applyQuaternion(rootQ);
+    for(const [name,b] of bones){
+      const q=b.getWorldQuaternion(new THREE.Quaternion()).invert();
+      const isThumb=name.toLowerCase().includes('thumb');
+      const axis=(isThumb?rootPalm:rootAcross).clone().applyQuaternion(q).normalize();
+      hinges.set(name,axis);
+    }
     return true;
   }
   function animate(){
     if(!ready)return;
     for(const [name,b] of bones){
       b.quaternion.copy(rest.get(name));
-      if(!/phalanx-(proximal|intermediate|distal)/.test(name))continue;
-      if(name.startsWith('thumb-')){
-        // El pulgar requiere oposición + flexión, no la misma curvatura
-        // que los otros dedos. Sus tres falanges giran sobre ejes locales
-        // diferentes, con un arco visible desde reposo hasta el joystick.
-        const proximal=name.endsWith('phalanx-proximal');
-        const distal=name.endsWith('phalanx-distal');
-        const amount=thumb;
-        const x=proximal?.45:distal?.60:.22;
-        const y=proximal?.48:distal?.22:.12;
-        b.quaternion.multiply(new THREE.Quaternion().setFromEuler(
-          new THREE.Euler(amount*x,amount*side*y,amount*side*.18,'XYZ')
-        ));
-      }else{
-        const amount=name.startsWith('index-finger-')?index*.62:
-          /^(middle|ring|pinky)-finger-/.test(name)?grip*.80:0;
-        if(amount)b.quaternion.multiply(new THREE.Quaternion()
-          .setFromAxisAngle(V(.06*side,0,1).normalize(),amount));
-      }
+      const n=name.toLowerCase();
+      if(!/phalanx-(proximal|intermediate|distal)/.test(n))continue;
+      let angle=0;
+      if(n.includes('thumb'))angle=thumb*(n.includes('proximal')?.62:.44);
+      else if(n.includes('index-finger'))angle=index*(n.includes('proximal')?.55:.78);
+      else if(/(middle|ring|pinky)-finger/.test(n))
+        angle=grip*(n.includes('proximal')?.64:.88);
+      const axis=hinges.get(name);
+      if(axis&&angle)b.quaternion.multiply(
+        new THREE.Quaternion().setFromAxisAngle(axis,angle)
+      );
     }
   }
-  const applyModel=gltf=>{
-    const model=gltf.scene;
-    root.add(model);
+  function applyModel(gltf){
+    const model=gltf.scene;root.add(model);
     let skinned=0;
     model.traverse(node=>{
       if(node.isSkinnedMesh){
         skinned++;
         node.frustumCulled=false;
         node.renderOrder=995;
-        const mats=Array.isArray(node.material)?node.material:[node.material];
-        const transparent=mats.map(m=>{
-          const copy=m.clone();
-          copy.transparent=true;copy.opacity=.48;copy.depthWrite=false;
-          copy.side=THREE.DoubleSide;
-          return copy;
-        });
-        node.material=Array.isArray(node.material)?transparent:transparent[0];
+        const mats=(Array.isArray(node.material)?node.material:[node.material])
+          .map(m=>{
+            const c=m.clone();
+            c.transparent=true;c.opacity=.48;c.depthWrite=false;
+            c.side=THREE.DoubleSide;return c;
+          });
+        node.material=Array.isArray(node.material)?mats:mats[0];
       }
       if(node.isBone){bones.set(node.name,node);rest.set(node.name,node.quaternion.clone())}
     });
     if(!skinned||!align(model)){
       root.remove(model);
-      console.warn('Mano GLB no compatible con el esqueleto previsto:',hand,'mallas',skinned);
+      bones.clear();rest.clear();hinges.clear();
+      console.warn('Mano GLB: no es posible calibrar esqueleto',hand);
       return false;
     }
-    ready=true;
-    animate();
-    console.info('Mano 3D WebXR cargada y orientada:',hand,'mallas:',skinned);
+    ready=true;animate();
+    console.info('Mano WebXR calibrada:',hand,'escala',root.scale.x,'huesos',bones.size);
     return true;
-  };
-  function loadModel(index=0){
-    if(index>=HAND_URLS.length){
-      console.error('No se ha podido cargar la mano anatómica '+hand+
-        '. No se mostrarán las antiguas manos geométricas.');
+  }
+  function loadModel(i=0){
+    if(i>=HAND_URLS.length){
+      console.warn('Mano anatómica no disponible, se mantienen mandos:',hand);
       return;
     }
-    new GLTFLoader().load(HAND_URLS[index]+hand+'.glb',gltf=>{
-      if(!applyModel(gltf))loadModel(index+1);
-    },undefined,()=>loadModel(index+1));
+    new GLTFLoader().load(HAND_URLS[i]+hand+'.glb',gltf=>{
+      if(!applyModel(gltf))loadModel(i+1);
+    },undefined,()=>loadModel(i+1));
   }
   loadModel();
   function update(source){
@@ -745,14 +759,14 @@ function createGhostHand(hand){
     const b=source?.gamepad?.buttons||[];
     const touch=i=>Boolean(b[i]?.touched||b[i]?.pressed);
     const press=i=>Boolean(b[i]?.pressed);
-    // El eje táctil del pulgar puede permanecer activo al apoyar el dedo.
-    // Pasar de gesto abierto a contacto claro sin depender de pulsar.
-    const t=touch(3)||touch(4)||touch(5)?1:0;
-    const f=press(0)?1:touch(0)?.7:.28;
-    const g=press(1)?1:.72;
-    thumb+=(t-thumb)*.30;
-    index+=(f-index)*.22;
-    grip+=(g-grip)*.22;
+    // Joystick, botones de cara y gatillo cambian la postura si WebXR
+    // expone sensores de contacto. No inferir detección que no exista.
+    const targetThumb=touch(3)?1:(touch(4)||touch(5))?.72:0;
+    const targetIndex=press(0)?1:touch(0)?.66:.25;
+    const targetGrip=press(1)?1:.83;
+    thumb+=(targetThumb-thumb)*.24;
+    index+=(targetIndex-index)*.24;
+    grip+=(targetGrip-grip)*.24;
     animate();
   }
   return {root,update};
@@ -1046,7 +1060,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.73 · orientación de palmas y pulgar articulado';
+versionLabel.textContent='Visor VR 0.74 · calibración local de manos y articulaciones';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1468,7 +1482,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.73';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.74';
     vrButton.hidden=false;
     return true;
   }catch(error){
