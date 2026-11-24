@@ -533,7 +533,9 @@ function addTinyMarks(grip,hand){
   const marks=new THREE.Group();
   // Las flechas van encima de la cabeza del joystick, separadas de los textos.
   const arrow=makeJoystickArrow(hand==='left'?'walk':'turn');
-  arrow.position.set(-.019,.045,-.035);
+  // La cabeza del joystick simplificado tiene cota superior Y=.0425.
+  // Se pega a su tapa, sin apuntar al aro externo.
+  arrow.position.set(-.019,.043,-.035);
   marks.add(arrow);
   const items=hand==='left'
     ? [['X Catálogo','',.013,.047,-.012],
@@ -561,7 +563,8 @@ function makeTouchFallback(){
   );
   deck.scale.set(.9,.35,1.2);deck.position.set(0,.012,-.015);group.add(deck);
   const keyMat=new THREE.MeshStandardMaterial({color:0xc4d3e2,roughness:.45});
-  const stick=new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,.017,12),keyMat);
+  const stick=new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,.017,12),
+    new THREE.MeshStandardMaterial({color:0x202a35,roughness:.8}));
   stick.position.set(-.019,.034,-.035);group.add(stick);
   for(const [x,z] of [[.014,-.019],[.029,-.038]]){
     const key=new THREE.Mesh(new THREE.CylinderGeometry(.008,.008,.005,12),keyMat);
@@ -580,6 +583,9 @@ for(let i=0;i<2;i++){
   rig.add(grip);
   const leftMarks=addTinyMarks(grip,'left');
   const rightMarks=addTinyMarks(grip,'right');
+  // El modelo Touch descargado incluye un aro de seguimiento que tapa
+  // las flechas. Usamos la carcasa compacta sin aro con joystick accesible.
+  model.visible=false;
   const entry={grip,model,fallback,leftMarks,rightMarks,handedness:null};
   grip.visible=false;
   fallback.visible=false;
@@ -605,7 +611,7 @@ function updateControllerVisuals(frame,referenceSpace,session){
     const tracked=Boolean(frame&&referenceSpace&&source&&
       frame.getPose(source.gripSpace,referenceSpace));
     entry.grip.visible=tracked;
-    entry.fallback.visible=tracked&&entry.model.children.length===0;
+    entry.fallback.visible=tracked;
     entry.leftMarks.visible=tracked&&entry.handedness==='left';
     entry.rightMarks.visible=tracked&&entry.handedness==='right';
   }
@@ -762,7 +768,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.51 · flechas impresas sobre joysticks';
+versionLabel.textContent='Visor VR 0.52 · pasos verticales y joysticks sin aro';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1184,7 +1190,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.51';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.52';
     vrButton.hidden=false;
     return true;
   }catch(error){
@@ -1210,7 +1216,7 @@ renderer.xr.addEventListener('sessionstart',()=>{
   returnToLibrary=false;
   canTurn=true;
   smoothTurnAxis=0;
-  gaitPhase=0;
+  gaitPhase=0;gaitBob=0;
   resetPhysics();
   floorBaseSpace=null;
   appliedFloorOffsetCm=null;
@@ -1258,12 +1264,15 @@ function rotateAroundHeadset(headset,angle){
  rig.position.add(pivot).sub(turned);
  rig.rotation.y+=angle;
 }
-let menuButtonHeld=false,floorButtonHeld=false,menuRedrawAt=0,gaitPhase=0;
+let menuButtonHeld=false,floorButtonHeld=false,menuRedrawAt=0,gaitPhase=0,gaitBob=0;
 let meterStart=0,meterFrames=0,meterSlowest=0,meterLast=0;
 renderer.setAnimationLoop(time=>{
   const dt=lastTime?Math.min(.05,(time-lastTime)/1000):0;
   lastTime=time;
   if(renderer.xr.isPresenting){
+    // Quitar la oscilación visual del fotograma anterior antes de resolver
+    // posición, escalones y colisiones; no altera el apoyo físico.
+    rig.position.y-=gaitBob;
     // Ajustar solo una vez por sesión; nunca recalibrar en cada peldaño.
     // Tras cambiar la referencia, esperar al siguiente frame para que tanto
     // el render de Three como la lógica usen las MISMAS coordenadas.
@@ -1322,16 +1331,24 @@ renderer.setAnimationLoop(time=>{
       }
     }
     const walkingSpeed=time<stairSlowUntil?WALK_SPEED*STAIR_SPEED_FACTOR:WALK_SPEED;
-    // La velocidad responde inmediatamente al joystick: sin cola de inercia
-    // cuando se suelta. Cadencia sutil en la traslación (sin sacudir la cabeza
-    // del usuario en VR) para reducir la sensación de deslizarse.
+    // Paso vertical de 1,8 cm ligado a distancia REAL recorrida, no a un reloj.
+    // ~0,7 m por paso: dos elevaciones en una zancada completa.
+    // Solo en superficie plana; escaleras y colisiones no reciben este offset.
     const isWalking=!menuGroup.visible&&walkingDirection.lengthSq()>.025;
-    if(isWalking)gaitPhase+=dt*2*Math.PI*(1.65+walkingDirection.length()*.18);
-    else gaitPhase=0;
-    const gaitFactor=isWalking&&time>=stairSlowUntil
-      ?1+.045*Math.sin(gaitPhase):1;
-    const move=walkingDirection.multiplyScalar(walkingSpeed*gaitFactor*dt);
+    const move=walkingDirection.multiplyScalar(walkingSpeed*dt);
+    const beforeX=rig.position.x,beforeZ=rig.position.z;
     if(!heightChanged&&!returnToLibrary)solveMovement(headset,menuGroup.visible?new THREE.Vector3():move,dt);
+    const distanceMoved=Math.hypot(rig.position.x-beforeX,rig.position.z-beforeZ);
+    const onFlatGround=isGrounded&&time>=stairSlowUntil&&
+      physicsFeetY!==null&&Math.abs(physicsFeetY-rig.position.y)<.025;
+    if(isWalking&&onFlatGround&&distanceMoved>.0001){
+      gaitPhase+=(distanceMoved/.70)*Math.PI*2;
+    }
+    const targetBob=isWalking&&onFlatGround&&distanceMoved>.0001
+      ?.018*(.5-.5*Math.cos(gaitPhase)):0;
+    gaitBob+=(targetBob-gaitBob)*(1-Math.exp(-14*dt));
+    if(Math.abs(gaitBob)<.0001)gaitBob=0;
+    rig.position.y+=gaitBob;
     if(turnMode.value==='snap'){
       smoothTurnAxis=0;
       if(Math.abs(turn)<.25)canTurn=true;
