@@ -45,7 +45,7 @@ p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-va
 <option value="65" selected>Normal · 65°/s</option>
 <option value="100">Rápida · 100°/s</option>
 </select>
-<p>En VR verás ambos mandos con etiquetas: X Biblioteca, Y Config. suelo, joystick izquierdo Caminar y derecho Girar. Usa el mando izquierdo para caminar y la palanca derecha para girar. <strong>Pulsa X para salir a la biblioteca y cambiar de diseño; pulsa Y para ajustar el suelo dentro de VR.</strong> Apunta al ajuste y pulsa el gatillo. Si notas mareo, cambia a giro por pasos.</p>
+<p>En VR verás ambos mandos con etiquetas: X Biblioteca, Y Config. suelo, joystick izquierdo Caminar y derecho Girar. Usa el mando izquierdo para caminar y la palanca derecha para girar. <strong>Pulsa B para salir al catálogo y cambiar de diseño; pulsa Y para ajustar el suelo dentro de VR.</strong> Apunta al ajuste y pulsa el gatillo. Si notas mareo, cambia a giro por pasos.</p>
 <a href="./quest.html">Volver a la biblioteca</a>
 </header>
 <script>
@@ -510,13 +510,15 @@ function makeJoystickArrow(kind){
     ctx.moveTo(91,175);ctx.lineTo(128,212);ctx.lineTo(165,175);
     ctx.stroke();
   }else{
-    ctx.beginPath();ctx.arc(128,128,73,-Math.PI*.80,Math.PI*.52);ctx.stroke();
-    const a=Math.PI*.52, px=128+73*Math.cos(a),py=128+73*Math.sin(a);
-    const tangent=a+Math.PI/2;
-    ctx.beginPath();ctx.moveTo(px,py);
-    ctx.lineTo(px-43*Math.cos(tangent-.55),py-43*Math.sin(tangent-.55));
-    ctx.moveTo(px,py);
-    ctx.lineTo(px-43*Math.cos(tangent+.55),py-43*Math.sin(tangent+.55));
+    // Flecha circular limpia, centrada, con cabeza tangencial.
+    const radius=71,start=-Math.PI*.82,end=Math.PI*.50;
+    ctx.beginPath();ctx.arc(128,128,radius,start,end,false);ctx.stroke();
+    const px=128+radius*Math.cos(end),py=128+radius*Math.sin(end);
+    const tangent=end+Math.PI/2;
+    ctx.beginPath();
+    ctx.moveTo(px-38*Math.cos(tangent-.62),py-38*Math.sin(tangent-.62));
+    ctx.lineTo(px,py);
+    ctx.lineTo(px-38*Math.cos(tangent+.62),py-38*Math.sin(tangent+.62));
     ctx.stroke();
   }
   const texture=new THREE.CanvasTexture(canvas);
@@ -539,10 +541,10 @@ function addTinyMarks(grip,hand){
   marks.add(arrow);
   marks.userData.joystickArrow=arrow;
   const items=hand==='left'
-    ? [['X Catálogo','',.013,.047,-.012],
-       ['Y Configuración','',.031,.047,-.032],
+    ? [['Y Configuración','',.031,.047,-.032],
        ['Caminar','walk',-.021,.065,.008]]
-    : [['Girar','turn',-.021,.065,.008]];
+    : [['B Catálogo','',.031,.047,-.032],
+       ['Girar','turn',-.021,.065,.008]];
   for(const [text,icon,x,y,z] of items){
     const mark=makeTinyMark(text,icon);
     mark.position.set(x,y,z);
@@ -655,11 +657,23 @@ function placeArrowOnRealStick(entry){
   mesh.geometry.computeBoundingBox();
   const bounds=mesh.geometry.boundingBox;
   if(!bounds){arrow.visible=false;return}
-  const center=bounds.getCenter(new THREE.Vector3());
   const size=bounds.getSize(new THREE.Vector3());
   // Evitar mallas grandes de la carcasa: solo la tapa del joystick.
   if(Math.max(size.x,size.z)>.09){arrow.visible=false;return}
-  arrow.position.set(center.x,bounds.max.y+.0005,center.z);
+  // Centrar en la superficie superior, no en el centro del volumen del
+  // mecanismo (el eje puede estar desplazado respecto a la tapa).
+  const vertices=mesh.geometry.getAttribute('position');
+  let top=bounds.max.y,centerX=0,centerZ=0,count=0;
+  const tolerance=Math.max(.001,size.y*.12);
+  for(let i=0;i<vertices.count;i++){
+    const y=vertices.getY(i);
+    if(y>=top-tolerance){
+      centerX+=vertices.getX(i);centerZ+=vertices.getZ(i);count++;
+    }
+  }
+  if(count){centerX/=count;centerZ/=count}
+  else{centerX=(bounds.min.x+bounds.max.x)/2;centerZ=(bounds.min.z+bounds.max.z)/2}
+  arrow.position.set(centerX,top+.0004,centerZ);
   mesh.add(arrow); // se mueve con la palanca, jamás con la marcha del usuario
   arrow.visible=true;
   entry.arrowAttached=true;
@@ -833,7 +847,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.56 · flechas estables y símbolos en rótulos';
+versionLabel.textContent='Visor VR 0.57 · catálogo B y flechas centradas';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1255,7 +1269,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.56';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.57';
     vrButton.hidden=false;
     return true;
   }catch(error){
@@ -1349,9 +1363,10 @@ renderer.setAnimationLoop(time=>{
     const [x,y]=stick(inputs.find(s=>s.handedness==='left'));
     const [turn]=stick(inputs.find(s=>s.handedness==='right'));
     const left=inputs.find(s=>s.handedness==='left');
-    // WebXR Quest Touch: face button 4 = X, 5 = Y (también permite Y).
-    // Solo alterna al pulsar, no vuelve a alternar por mantenerlo presionado.
-    const exitPressed=Boolean(left?.gamepad?.buttons?.[4]?.pressed);
+    const rightInput=inputs.find(s=>s.handedness==='right');
+    // WebXR Quest Touch: botones de cara 4=A, 5=B en el mando derecho.
+    // Solo alterna al pulsar, sin reactivar por mantenerlo pulsado.
+    const exitPressed=Boolean(rightInput?.gamepad?.buttons?.[5]?.pressed);
     const adjustPressed=Boolean(left?.gamepad?.buttons?.[5]?.pressed);
     if(exitPressed&&!menuButtonHeld)leaveDesign();
     if(adjustPressed&&!floorButtonHeld&&!returnToLibrary){
