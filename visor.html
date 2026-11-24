@@ -45,7 +45,7 @@ p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-va
 <option value="65" selected>Normal · 65°/s</option>
 <option value="100">Rápida · 100°/s</option>
 </select>
-<p>En VR, usa el mando izquierdo para caminar y la palanca derecha para girar. <strong>Pulsa X para salir a la biblioteca y cambiar de diseño; pulsa Y para ajustar el suelo dentro de VR.</strong> Apunta al ajuste y pulsa el gatillo. Si notas mareo, cambia a giro por pasos.</p>
+<p>En VR verás ambos mandos con sus botones y joysticks. Usa el mando izquierdo para caminar y la palanca derecha para girar. <strong>Pulsa X para salir a la biblioteca y cambiar de diseño; pulsa Y para ajustar el suelo dentro de VR.</strong> Apunta al ajuste y pulsa el gatillo. Si notas mareo, cambia a giro por pasos.</p>
 <a href="./quest.html">Volver a la biblioteca</a>
 </header>
 <script>
@@ -83,6 +83,7 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRButton} from 'three/addons/webxr/VRButton.js';
+import {XRControllerModelFactory} from 'three/addons/webxr/XRControllerModelFactory.js';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import {Octree} from 'three/addons/math/Octree.js';
 import {Capsule} from 'three/addons/math/Capsule.js';
@@ -451,6 +452,45 @@ scene.add(menuGroup);
 let menuPage=0,menuBusy=false,menuNote='',menuHovered='';
 const menuRaycaster=new THREE.Raycaster();
 const menuControllerObjects=[];
+// Modelos 3D de los mandos Touch: siguen la posición real de cada mano.
+// El modelo WebXR muestra botones y joystick; la maqueta local cubre
+// el caso en que el navegador no pueda descargar el perfil del mando.
+const controllerModelFactory=new XRControllerModelFactory();
+const controllerVisuals=[];
+function makeTouchFallback(){
+  const group=new THREE.Group();
+  const shell=new THREE.Mesh(
+    new THREE.CylinderGeometry(.027,.035,.105,12),
+    new THREE.MeshStandardMaterial({color:0x30343d,roughness:.7})
+  );
+  shell.rotation.x=-.3;shell.position.set(0,-.053,.017);group.add(shell);
+  const deck=new THREE.Mesh(
+    new THREE.SphereGeometry(.047,14,9),
+    new THREE.MeshStandardMaterial({color:0x454c58,roughness:.55})
+  );
+  deck.scale.set(.9,.35,1.2);deck.position.set(0,.012,-.015);group.add(deck);
+  const keyMat=new THREE.MeshStandardMaterial({color:0xc4d3e2,roughness:.45});
+  const stick=new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,.017,12),keyMat);
+  stick.position.set(-.019,.034,-.035);group.add(stick);
+  for(const [x,z] of [[.014,-.019],[.029,-.038]]){
+    const key=new THREE.Mesh(new THREE.CylinderGeometry(.008,.008,.005,12),keyMat);
+    key.position.set(x,.033,z);group.add(key);
+  }
+  return group;
+}
+for(let i=0;i<2;i++){
+  const grip=renderer.xr.getControllerGrip(i);
+  const model=controllerModelFactory.createControllerModel(grip);
+  const fallback=makeTouchFallback();
+  grip.add(model,fallback);
+  scene.add(grip);
+  controllerVisuals.push({model,fallback});
+}
+function updateControllerVisuals(){
+  for(const {model,fallback} of controllerVisuals){
+    fallback.visible=model.children.length===0;
+  }
+}
 const menuEye=new THREE.Vector3(),menuFacing=new THREE.Vector3(),menuTarget=new THREE.Vector3();
 const menuPointer=new THREE.Mesh(new THREE.SphereGeometry(.014,10,8),
   new THREE.MeshBasicMaterial({color:0xffffff,depthTest:false,depthWrite:false}));
@@ -603,7 +643,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.46 · subida de escaleras más ágil';
+versionLabel.textContent='Visor VR 0.47 · mandos Touch visibles';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1022,7 +1062,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.45';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.47';
     vrButton.hidden=false;
     return true;
   }catch(error){
@@ -1104,6 +1144,7 @@ renderer.setAnimationLoop(time=>{
     // Ajustar solo una vez por sesión; nunca recalibrar en cada peldaño.
     // Tras cambiar la referencia, esperar al siguiente frame para que tanto
     // el render de Three como la lógica usen las MISMAS coordenadas.
+    updateControllerVisuals();
     const heightChanged=calibrateVirtualFloor();
     const headset=renderer.xr.getCamera();
     const inputs=Array.from(renderer.xr.getSession().inputSources);
