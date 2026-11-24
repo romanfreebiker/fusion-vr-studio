@@ -563,12 +563,12 @@ function addTinyMarks(grip,hand){
   arrow.position.set(-.019,.043,-.035); // solo para el modelo de emergencia
   marks.add(arrow);
   marks.userData.joystickArrow=arrow;
-  // Carteles rígidos respecto al grip: giran y se trasladan con el mando.
-  // +Z local apunta hacia el usuario (detrás de la punta del mando);
-  // adelantamos las placas hacia el espectador para que no queden ocultas detrás.
-  // Centros separados 54 mm; ancho 43 mm: 11 mm libres entre carteles.
-  // Mismo Y, mismo Z, misma orientación => un único plano delante del mando.
-  const rowY=-.084,rowZ=.125,leftX=-.027,rightX=.027;
+  // Carteles rígidos anclados al grip: conservan posición y rotación local.
+  // Los anteriores estaban en la base (Y negativo) y del lado lejano (+Z).
+  // Los trasladamos a la zona superior, hacia el espectador (-Z observado en Quest),
+  // y orientamos ambos planos paralelos a la cara superior del mando.
+  // Dos placas de 43 mm, centros a 54 mm, 11 mm entre placas.
+  const rowY=.070,rowZ=-.095,leftX=-.027,rightX=.027;
   const items=hand==='left'
     ? [['Configuración','Y',leftX,rowY,rowZ],
        ['Caminar','walk',rightX,rowY,rowZ]]
@@ -577,6 +577,9 @@ function addTinyMarks(grip,hand){
   for(const [text,icon,x,y,z] of items){
     const mark=makeTinyMark(text,icon);
     mark.position.set(x,y,z);
+    // Rótulos paralelos a la cara superior, legibles al mirar hacia el mando.
+    // Al ser hijos del grip NO miran automáticamente a la cámara.
+    mark.rotation.x=-Math.PI/2;
     marks.add(mark);
   }
   grip.add(marks);
@@ -876,7 +879,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.61 · carteles rígidos delante del mando';
+versionLabel.textContent='Visor VR 0.62 · carteles hacia la vista y sobre el mando';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1298,7 +1301,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.61';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.62';
     vrButton.hidden=false;
     return true;
   }catch(error){
