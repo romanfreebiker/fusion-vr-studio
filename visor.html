@@ -497,13 +497,49 @@ function makeTinyMark(text,icon=''){
   mark.renderOrder=1002;
   return mark;
 }
+// Calcomanía sobre la superficie superior del joystick, no junto al cartel.
+function makeJoystickArrow(kind){
+  const canvas=document.createElement('canvas');
+  canvas.width=256;canvas.height=256;
+  const ctx=canvas.getContext('2d');
+  ctx.strokeStyle=kind==='walk'?'#b7f2ff':'#ffe5af';
+  ctx.lineWidth=19;ctx.lineCap='round';ctx.lineJoin='round';
+  if(kind==='walk'){
+    ctx.beginPath();ctx.moveTo(128,44);ctx.lineTo(128,212);
+    ctx.moveTo(91,81);ctx.lineTo(128,44);ctx.lineTo(165,81);
+    ctx.moveTo(91,175);ctx.lineTo(128,212);ctx.lineTo(165,175);
+    ctx.stroke();
+  }else{
+    ctx.beginPath();ctx.arc(128,128,73,-Math.PI*.80,Math.PI*.52);ctx.stroke();
+    const a=Math.PI*.52, px=128+73*Math.cos(a),py=128+73*Math.sin(a);
+    const tangent=a+Math.PI/2;
+    ctx.beginPath();ctx.moveTo(px,py);
+    ctx.lineTo(px-43*Math.cos(tangent-.55),py-43*Math.sin(tangent-.55));
+    ctx.moveTo(px,py);
+    ctx.lineTo(px-43*Math.cos(tangent+.55),py-43*Math.sin(tangent+.55));
+    ctx.stroke();
+  }
+  const texture=new THREE.CanvasTexture(canvas);
+  texture.colorSpace=THREE.SRGBColorSpace;
+  const decal=new THREE.Mesh(
+    new THREE.PlaneGeometry(.021,.021),
+    new THREE.MeshBasicMaterial({map:texture,transparent:true,depthTest:false,depthWrite:false,side:THREE.DoubleSide})
+  );
+  decal.rotation.x=-Math.PI/2;
+  decal.renderOrder=1003;
+  return decal;
+}
 function addTinyMarks(grip,hand){
   const marks=new THREE.Group();
+  // Las flechas van encima de la cabeza del joystick, separadas de los textos.
+  const arrow=makeJoystickArrow(hand==='left'?'walk':'turn');
+  arrow.position.set(-.019,.045,-.035);
+  marks.add(arrow);
   const items=hand==='left'
     ? [['X Catálogo','',.013,.047,-.012],
        ['Y Configuración','',.031,.047,-.032],
-       ['Caminar','walk',-.021,.049,-.036]]
-    : [['Girar','turn',-.021,.049,-.036]];
+       ['Caminar','',-.021,.065,.008]]
+    : [['Girar','',-.021,.065,.008]];
   for(const [text,icon,x,y,z] of items){
     const mark=makeTinyMark(text,icon);
     mark.position.set(x,y,z);
@@ -726,7 +762,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.50 · rótulos completos y paso natural';
+versionLabel.textContent='Visor VR 0.51 · flechas impresas sobre joysticks';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1148,7 +1184,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.50';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.51';
     vrButton.hidden=false;
     return true;
   }catch(error){
