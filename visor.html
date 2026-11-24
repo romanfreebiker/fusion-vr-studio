@@ -540,11 +540,14 @@ function addTinyMarks(grip,hand){
   arrow.position.set(-.019,.043,-.035); // solo para el modelo de emergencia
   marks.add(arrow);
   marks.userData.joystickArrow=arrow;
+  // Dos rótulos alineados sobre la zona de muñeca/empuñadura,
+  // alejados de la corona del aro y de los controles superiores.
+  // La primera fila indica el botón; la segunda, el joystick.
   const items=hand==='left'
-    ? [['Y Configuración','',.031,.047,-.032],
-       ['Caminar','walk',-.021,.065,.008]]
-    : [['B Catálogo','',.031,.047,-.032],
-       ['Girar','turn',-.021,.065,.008]];
+    ? [['Y Configuración','',-.044,-.070,.065],
+       ['Caminar','walk',-.044,-.096,.065]]
+    : [['B Catálogo','',.044,-.070,.065],
+       ['Girar','turn',.044,-.096,.065]];
   for(const [text,icon,x,y,z] of items){
     const mark=makeTinyMark(text,icon);
     mark.position.set(x,y,z);
@@ -847,7 +850,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.57 · catálogo B y flechas centradas';
+versionLabel.textContent='Visor VR 0.58 · rótulos ordenados junto a muñeca';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1269,7 +1272,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.57';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.58';
     vrButton.hidden=false;
     return true;
   }catch(error){
