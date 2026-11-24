@@ -541,8 +541,8 @@ function addTinyMarks(grip,hand){
   const items=hand==='left'
     ? [['X Catálogo','',.013,.047,-.012],
        ['Y Configuración','',.031,.047,-.032],
-       ['Caminar','',-.021,.065,.008]]
-    : [['Girar','',-.021,.065,.008]];
+       ['Caminar','walk',-.021,.065,.008]]
+    : [['Girar','turn',-.021,.065,.008]];
   for(const [text,icon,x,y,z] of items){
     const mark=makeTinyMark(text,icon);
     mark.position.set(x,y,z);
@@ -617,37 +617,52 @@ function trimTouchTrackingRing(entry){
     }
   });
 }
-const tempThumbBox=new THREE.Box3();
-const tempThumbCenter=new THREE.Vector3();
+// Anclaje estable a la malla física del stick. No recalcular una caja
+// mundial en cada fotograma: la animación del joystick la hacía saltar.
 function placeArrowOnRealStick(entry){
+  if(entry.arrowAttached||!entry.model.children.length||!entry.handedness)return;
   const marks=entry.handedness==='left'?entry.leftMarks:entry.rightMarks;
   const arrow=marks.userData.joystickArrow;
-  if(!arrow||!entry.model.children.length)return;
+  if(!arrow)return;
   const component=entry.model.motionController?.components?.['xr-standard-thumbstick'];
-  let thumb=null;
-  if(component){
-    for(const response of Object.values(component.visualResponses||{})){
-      if(response.valueNode&&response.valueNodeProperty==='transform'){
-        thumb=response.valueNode;break;
-      }
-    }
-  }
-  if(!thumb){
-    entry.model.traverse(obj=>{
-      const name=(obj.name||'').toLowerCase();
-      if(!thumb&&obj.isMesh&&/(thumbstick|joystick|thumb_stick)/.test(name)&&
-          !/(min|max|ring|base|socket|touchpad|tracking)/.test(name))thumb=obj;
+  const thumbRoot=component?.rootNode||Object.values(component?.visualResponses||{})
+    .find(response=>response.valueNode)?.valueNode;
+  const matches=[];
+  function collect(root){
+    root?.traverse(node=>{
+      if(!node.isMesh||!node.geometry?.attributes?.position)return;
+      const name=(node.name||'').toLowerCase();
+      if(/ring|tracking|sensor|base|socket|controller|grip/.test(name))return;
+      node.geometry.computeBoundingBox();
+      const bounds=node.geometry.boundingBox;
+      if(!bounds)return;
+      const dims=new THREE.Vector3();
+      bounds.getSize(dims);
+      if(dims.length()>.20)return;
+      matches.push(node);
     });
   }
-  if(!thumb)return;
-  entry.grip.updateMatrixWorld(true);
-  tempThumbBox.setFromObject(thumb);
-  if(tempThumbBox.isEmpty())return;
-  tempThumbBox.getCenter(tempThumbCenter);
-  tempThumbCenter.y=tempThumbBox.max.y+.0005;
-  entry.grip.worldToLocal(tempThumbCenter);
-  // La flecha es el único elemento que debe seguir la cabeza del stick.
-  arrow.position.copy(tempThumbCenter);
+  if(thumbRoot)collect(thumbRoot);
+  if(!matches.length){
+    entry.model.traverse(node=>{
+      if(node.isMesh&&/(thumbstick|joystick|thumb_stick)/i.test(node.name||'')&&
+          !/ring|base|socket|tracking/i.test(node.name||''))matches.push(node);
+    });
+  }
+  // Ante dudas, no imprimir sobre el aro ni otra pieza equivocada.
+  if(!matches.length){arrow.visible=false;return}
+  const mesh=matches.find(node=>/thumbstick|joystick|thumb_stick/i.test(node.name||''))||matches[0];
+  mesh.geometry.computeBoundingBox();
+  const bounds=mesh.geometry.boundingBox;
+  if(!bounds){arrow.visible=false;return}
+  const center=bounds.getCenter(new THREE.Vector3());
+  const size=bounds.getSize(new THREE.Vector3());
+  // Evitar mallas grandes de la carcasa: solo la tapa del joystick.
+  if(Math.max(size.x,size.z)>.09){arrow.visible=false;return}
+  arrow.position.set(center.x,bounds.max.y+.0005,center.z);
+  mesh.add(arrow); // se mueve con la palanca, jamás con la marcha del usuario
+  arrow.visible=true;
+  entry.arrowAttached=true;
 }
 function updateControllerVisuals(frame,referenceSpace,session){
   for(const entry of controllerVisuals){
@@ -818,7 +833,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.55 · flechas pequeñas centradas en joystick';
+versionLabel.textContent='Visor VR 0.56 · flechas estables y símbolos en rótulos';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1240,7 +1255,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.55';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.56';
     vrButton.hidden=false;
     return true;
   }catch(error){
