@@ -177,10 +177,42 @@ function applyQuality(){
 }
 quality.addEventListener('change',applyQuality);
 applyQuality();
-const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.MeshLambertMaterial({color:0xb9c3cd}));
+// Base diferenciada de los materiales CAD: azul profundo y cuadrícula
+// antialias con desvanecimiento progresivo. Las líneas finas desaparecen
+// antes de llegar al horizonte para evitar el moiré ("fila de hormigas").
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.ShaderMaterial({
+  vertexShader:`
+    varying vec3 vGridWorld;
+    void main(){
+      vec4 world=modelMatrix*vec4(position,1.0);
+      vGridWorld=world.xyz;
+      gl_Position=projectionMatrix*viewMatrix*world;
+    }`,
+  fragmentShader:`
+    varying vec3 vGridWorld;
+    float lineCoverage(vec2 uv,float width){
+      vec2 cells=abs(fract(uv-.5)-.5);
+      vec2 fw=max(fwidth(uv),vec2(.0001));
+      vec2 a=1.0-smoothstep(vec2(width),vec2(width)+fw*1.25,cells);
+      return max(a.x,a.y);
+    }
+    void main(){
+      float distanceToEye=distance(vGridWorld.xz,cameraPosition.xz);
+      float fade=1.0-smoothstep(5.0,19.0,distanceToEye);
+      // Atenuar las celdas que en pantalla ya miden menos de dos píxeles.
+      vec2 fine=vGridWorld.xz*2.0;
+      float fineFade=1.0-smoothstep(.20,.55,max(fwidth(fine.x),fwidth(fine.y)));
+      float minor=lineCoverage(fine,.018)*fineFade;
+      float major=lineCoverage(vGridWorld.xz*.5,.012);
+      vec3 base=vec3(.075,.145,.235);
+      vec3 color=mix(base,vec3(.16,.40,.67),max(minor*.45,major*.60)*fade);
+      gl_FragColor=vec4(color,1.0);
+    }`,
+  side:THREE.DoubleSide,depthWrite:true
+}));
 ground.rotation.x=-Math.PI/2;
 ground.position.y=-.012;
-ground.receiveShadow=true;
+ground.receiveShadow=false;
 scene.add(ground);
 scene.add(new THREE.HemisphereLight(0xf0f7ff,0x9ea5ac,1.45));
 const sun=new THREE.DirectionalLight(0xfff1d9,2.0);
@@ -899,12 +931,12 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.77 · sin manos virtuales';
+versionLabel.textContent='Visor VR 0.78 · colisión corporal, reinicio A y cuadrícula azul';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
 let worldOctree=null,verticalVelocity=0,isGrounded=false,collisionTriangles=0,collisionStops=0;
-const BODY_RADIUS=.22,GRAVITY=9.81;
+const BODY_RADIUS=.29,GRAVITY=9.81;
 // Motor de movimiento VR: posición horizontal sin empujes de penetración.
 // El suelo real es la superficie caminable del GLB bajo los pies, no el límite
 // inferior del modelo ni una corrección de paredes sobre la altura del rig.
@@ -1003,7 +1035,7 @@ const wallDirection=new THREE.Vector3(),wallRayStart=new THREE.Vector3();
 // Índice geométrico propio: triángulos de pared a doble cara, sin
 // depender del material ni del resultado de Mesh.raycast.
 const wallCells=new Map(),largeWalls=[];
-const WALL_CELL=.75,WALL_RADIUS=.20;
+const WALL_CELL=.75,WALL_RADIUS=.28;
 let wallCount=0,wallChecks=0,joystickMeters=0,physicalMeters=0;
 let lastTrackedHead=null;
 const closestWallPoint=new THREE.Vector3();
@@ -1063,6 +1095,23 @@ function wallPenetration(x,z,feet){
   }
   wallChecks++;
   return deepest;
+}
+// Comprobación VOLUMÉTRICA: una persona no atraviesa un hueco solo
+// porque un conjunto de rayos coincida entre dos peldaños. La cápsula
+// representa tronco/hombros, sin invadir el suelo con su extremo inferior.
+const bodyCapsule=new Capsule(new THREE.Vector3(),new THREE.Vector3(),BODY_RADIUS);
+function bodyPenetration(x,z,feet){
+  if(!worldOctree)return 0;
+  bodyCapsule.start.set(x,feet+.40,z);
+  bodyCapsule.end.set(x,feet+1.44,z);
+  const hit=worldOctree.capsuleIntersect(bodyCapsule);
+  return hit?.depth||0;
+}
+function bodyBlocked(x,z,feet,nextX,nextZ,nextFeet=feet){
+  const before=bodyPenetration(x,z,feet);
+  const after=bodyPenetration(nextX,nextZ,nextFeet);
+  // Si el avatar nace dentro de geometría, permitir salir; no empeorar.
+  return after>.008&&after>=Math.max(.008,before-.001);
 }
 let geometryRayHits=0;
 function wallClearance(x,z,feet,move){
@@ -1132,7 +1181,8 @@ function solveMovement(headset,desired,dt){
     // Si ya estamos en contacto, sólo permitir salir, nunca profundizar.
     const baseDepth=wallPenetration(x,z,footY);
     const targetDepth=wallPenetration(x+step.x,z+step.z,footY);
-    const triangleBlocked=targetDepth>.005&&targetDepth>=Math.max(.005,baseDepth-.0001);
+    const triangleBlocked=(targetDepth>.005&&targetDepth>=Math.max(.005,baseDepth-.0001))||
+      bodyBlocked(x,z,footY,x+step.x,z+step.z);
     const allowance=triangleBlocked?0:wallClearance(x,z,footY,step);
     if(allowance>=step.length()-.00001){x+=step.x;z+=step.z;continue}
     collisionStops++;
@@ -1141,6 +1191,7 @@ function solveMovement(headset,desired,dt){
     const rise=candidateFloor-footY;
     if(isGrounded&&rise>.025&&rise<=MAX_STEP&&
       wallPenetration(x+step.x,z+step.z,candidateFloor)<.005&&
+      !bodyBlocked(x,z,footY,x+step.x,z+step.z,candidateFloor)&&
       wallClearance(x,z,candidateFloor,step)>=step.length()-.00001){
       x+=step.x;z+=step.z;footY=candidateFloor;
       lastStairContactMs=performance.now();
@@ -1151,7 +1202,8 @@ function solveMovement(headset,desired,dt){
     for(const axis of ['x','z']){
       const component=new THREE.Vector3(axis==='x'?step.x:0,0,axis==='z'?step.z:0);
       const check=wallPenetration(x+component.x,z+component.z,footY);
-      const permitted=(check>.005&&check>=Math.max(.005,wallPenetration(x,z,footY)-.0001))
+      const permitted=((check>.005&&check>=Math.max(.005,wallPenetration(x,z,footY)-.0001))||
+        bodyBlocked(x,z,footY,x+component.x,z+component.z))
         ?0:wallClearance(x,z,footY,component);
       if(permitted>=component.length()-.00001){
         x+=component.x;z+=component.z;
@@ -1212,6 +1264,30 @@ function resetPhysics(){
   joystickMeters=0;physicalMeters=0;lastTrackedHead=null;xrPoseAvailable=false;
 }
 
+// Botón A del mando DERECHO: rescate sin cerrar el diseño ni las gafas.
+// Mantiene el HMD en su pose física y recoloca el rig para que los pies
+// vuelvan al punto de entrada del diseño, incluso si el usuario se desplazó
+// físicamente por su habitación desde que comenzó la sesión.
+function restartModelView(){
+  if(!model||!renderer.xr.isPresenting)return;
+  const hadBob=gaitBob;
+  rig.position.y-=hadBob;
+  gaitBob=0;gaitPhase=0;
+  const frame=renderer.xr.getFrame();
+  const ref=renderer.xr.getReferenceSpace();
+  const pose=frame&&ref?frame.getViewerPose(ref):null;
+  rig.rotation.set(0,0,0);
+  rig.position.set(
+    pose?-(pose.transform.position.x):0,
+    0,
+    vrStartDistance-(pose?pose.transform.position.z:0)
+  );
+  resetPhysics();
+  smoothTurnAxis=0;
+  canTurn=true;
+  menuNote='Vista reiniciada · A';
+  if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
+}
 function desktopView(){
   rig.position.set(0,0,0);
   rig.rotation.set(0,0,0);
@@ -1321,7 +1397,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.77';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.78';
     vrButton.hidden=false;
     return true;
   }catch(error){
@@ -1344,6 +1420,7 @@ renderer.xr.addEventListener('sessionstart',()=>{
   lastTime=0;
   menuButtonHeld=false;
   floorButtonHeld=false;
+  restartButtonHeld=false;
   returnToLibrary=false;
   canTurn=true;
   smoothTurnAxis=0;
@@ -1395,7 +1472,7 @@ function rotateAroundHeadset(headset,angle){
  rig.position.add(pivot).sub(turned);
  rig.rotation.y+=angle;
 }
-let menuButtonHeld=false,floorButtonHeld=false,menuRedrawAt=0,gaitPhase=0,gaitBob=0;
+let menuButtonHeld=false,floorButtonHeld=false,restartButtonHeld=false,menuRedrawAt=0,gaitPhase=0,gaitBob=0;
 let meterStart=0,meterFrames=0,meterSlowest=0,meterLast=0;
 renderer.setAnimationLoop(time=>{
   const dt=lastTime?Math.min(.05,(time-lastTime)/1000):0;
@@ -1420,6 +1497,9 @@ renderer.setAnimationLoop(time=>{
     // Solo alterna al pulsar, sin reactivar por mantenerlo pulsado.
     const exitPressed=Boolean(rightInput?.gamepad?.buttons?.[5]?.pressed);
     const adjustPressed=Boolean(left?.gamepad?.buttons?.[5]?.pressed);
+    const restartPressed=Boolean(rightInput?.gamepad?.buttons?.[4]?.pressed);
+    if(restartPressed&&!restartButtonHeld&&!returnToLibrary)restartModelView();
+    restartButtonHeld=restartPressed;
     if(exitPressed&&!menuButtonHeld)leaveDesign();
     if(adjustPressed&&!floorButtonHeld&&!returnToLibrary){
       if(menuGroup.visible)closeVRMenu();
@@ -1469,7 +1549,8 @@ renderer.setAnimationLoop(time=>{
     const isWalking=!menuGroup.visible&&walkingDirection.lengthSq()>.025;
     const move=walkingDirection.multiplyScalar(walkingSpeed*dt);
     const beforeX=rig.position.x,beforeZ=rig.position.z;
-    if(!heightChanged&&!returnToLibrary)solveMovement(headset,menuGroup.visible?new THREE.Vector3():move,dt);
+    if(!heightChanged&&!returnToLibrary&&!restartPressed)
+      solveMovement(headset,menuGroup.visible?new THREE.Vector3():move,dt);
     const distanceMoved=Math.hypot(rig.position.x-beforeX,rig.position.z-beforeZ);
     const onFlatGround=isGrounded&&time>=stairSlowUntil&&
       physicsFeetY!==null&&Math.abs(physicsFeetY-rig.position.y)<.025;
