@@ -126,7 +126,7 @@ try {
 renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.12;
+renderer.toneMappingExposure=1.00;
 // El zoom en pantallas HiDPI puede forzar muchos píxeles por fotograma.
 // Predeterminado a 1x, sin reducir calidad de los mapas de materiales.
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1));
@@ -142,7 +142,7 @@ renderer.xr.setFramebufferScaleFactor(.85);
 const pmrem=new THREE.PMREMGenerator(renderer);
 const room=new RoomEnvironment();
 scene.environment=pmrem.fromScene(room,.04).texture;
-scene.environmentIntensity=.9;
+scene.environmentIntensity=.68;
 room.dispose();pmrem.dispose();
 document.body.append(renderer.domElement);
 const controls=new OrbitControls(camera,renderer.domElement);
@@ -204,8 +204,9 @@ const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.ShaderMat
       float fineFade=1.0-smoothstep(.20,.55,max(fwidth(fine.x),fwidth(fine.y)));
       float minor=lineCoverage(fine,.018)*fineFade;
       float major=lineCoverage(vGridWorld.xz*.5,.012);
-      vec3 base=vec3(.075,.145,.235);
-      vec3 color=mix(base,vec3(.16,.40,.67),max(minor*.45,major*.60)*fade);
+      // Inversión de prueba: fondo azul luminoso y líneas oscuras.
+      vec3 base=vec3(.16,.40,.67);
+      vec3 color=mix(base,vec3(.075,.145,.235),max(minor*.45,major*.60)*fade);
       gl_FragColor=vec4(color,1.0);
     }`,
   side:THREE.DoubleSide,depthWrite:true
@@ -214,8 +215,10 @@ ground.rotation.x=-Math.PI/2;
 ground.position.y=-.012;
 ground.receiveShadow=false;
 scene.add(ground);
-scene.add(new THREE.HemisphereLight(0xf0f7ff,0x9ea5ac,1.45));
-const sun=new THREE.DirectionalLight(0xfff1d9,2.0);
+// Menor relleno ambiental: recuperar sombras y lectura de bordes.
+scene.add(new THREE.HemisphereLight(0xf0f7ff,0x7c8795,.78));
+// Dirección dominante suave para separar visualmente aristas y caras.
+const sun=new THREE.DirectionalLight(0xfff1d9,1.50);
 sun.position.set(8,16,10);
 sun.castShadow=true;
 sun.shadow.mapSize.set(1024,1024);
@@ -931,7 +934,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.78 · colisión corporal, reinicio A y cuadrícula azul';
+versionLabel.textContent='Visor VR 0.79 · luz equilibrada, cuadrícula invertida y escaleras';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1102,8 +1105,12 @@ function wallPenetration(x,z,feet){
 const bodyCapsule=new Capsule(new THREE.Vector3(),new THREE.Vector3(),BODY_RADIUS);
 function bodyPenetration(x,z,feet){
   if(!worldOctree)return 0;
-  bodyCapsule.start.set(x,feet+.40,z);
-  bodyCapsule.end.set(x,feet+1.44,z);
+  // La cápsula protege el tronco y los hombros; NO incluye los pies,
+  // que ya se resuelven con los rayos y el sistema de peldaños.
+  // La v0.78 empezaba en .40 con radio .29 (base a .11 m),
+  // invadiendo las contrahuellas de escaleras normales.
+  bodyCapsule.start.set(x,feet+.66,z);
+  bodyCapsule.end.set(x,feet+1.46,z);
   const hit=worldOctree.capsuleIntersect(bodyCapsule);
   return hit?.depth||0;
 }
@@ -1397,7 +1404,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.78';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.79';
     vrButton.hidden=false;
     return true;
   }catch(error){
