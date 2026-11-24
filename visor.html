@@ -458,13 +458,39 @@ const menuControllerObjects=[];
 const controllerModelFactory=new XRControllerModelFactory();
 const controllerVisuals=[];
 // Rótulos discretos anclados a la superficie del mando, sin carteles flotantes.
+// Un mismo pictograma de giro, con punta tangencial visible y
+// separación limpia entre arco y cabeza, para mando y rótulo.
+function drawTurnArrow(ctx,cx,cy,r,width){
+  const start=-Math.PI*.88,end=Math.PI*.40;
+  const color='#ffd597';
+  ctx.strokeStyle=color;ctx.lineWidth=width;
+  ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.beginPath();ctx.arc(cx,cy,r,start,end,false);ctx.stroke();
+  const px=cx+r*Math.cos(end),py=cy+r*Math.sin(end);
+  const tangent=end+Math.PI/2;
+  const backX=px-Math.cos(tangent)*width*3.2;
+  const backY=py-Math.sin(tangent)*width*3.2;
+  ctx.beginPath();
+  ctx.moveTo(backX+Math.cos(tangent-1.0)*width*2,backY+Math.sin(tangent-1.0)*width*2);
+  ctx.lineTo(px,py);
+  ctx.lineTo(backX+Math.cos(tangent+1.0)*width*2,backY+Math.sin(tangent+1.0)*width*2);
+  ctx.stroke();
+}
 function makeTinyMark(text,icon=''){
   const canvas=document.createElement('canvas');
   canvas.width=512;canvas.height=128;
   const ctx=canvas.getContext('2d');
   ctx.fillStyle='rgba(18,30,44,.92)';
   ctx.beginPath();ctx.roundRect(3,5,506,118,22);ctx.fill();
-  const textStart=icon?108:22;
+  // Reservar siempre la misma columna izquierda para el símbolo o letra.
+  // Así las cuatro descripciones comienzan en idéntico punto.
+  const textStart=112;
+  if(icon==='X'||icon==='Y'||icon==='B'||icon==='A'){
+    ctx.fillStyle='#a5e9ff';
+    ctx.font='bold 49px system-ui,sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(icon,62,66);
+  }
   if(icon==='walk'){
     // Flecha doble: avanzar y retroceder.
     ctx.strokeStyle='#a5e9ff';ctx.fillStyle='#a5e9ff';
@@ -473,11 +499,7 @@ function makeTinyMark(text,icon=''){
     ctx.beginPath();ctx.moveTo(42,50);ctx.lineTo(63,29);ctx.lineTo(84,50);
     ctx.moveTo(42,78);ctx.lineTo(63,99);ctx.lineTo(84,78);ctx.stroke();
   }else if(icon==='turn'){
-    // Flecha circular para el giro.
-    ctx.strokeStyle='#ffd597';ctx.fillStyle='#ffd597';
-    ctx.lineWidth=9;ctx.lineCap='round';
-    ctx.beginPath();ctx.arc(61,64,30,-.8*Math.PI,.55*Math.PI);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(57,92);ctx.lineTo(89,90);ctx.lineTo(80,60);ctx.stroke();
+    drawTurnArrow(ctx,62,64,28,9);
   }
   ctx.fillStyle='#f3f8ff';
   ctx.textAlign='center';ctx.textBaseline='middle';
@@ -510,16 +532,7 @@ function makeJoystickArrow(kind){
     ctx.moveTo(91,175);ctx.lineTo(128,212);ctx.lineTo(165,175);
     ctx.stroke();
   }else{
-    // Flecha circular limpia, centrada, con cabeza tangencial.
-    const radius=71,start=-Math.PI*.82,end=Math.PI*.50;
-    ctx.beginPath();ctx.arc(128,128,radius,start,end,false);ctx.stroke();
-    const px=128+radius*Math.cos(end),py=128+radius*Math.sin(end);
-    const tangent=end+Math.PI/2;
-    ctx.beginPath();
-    ctx.moveTo(px-38*Math.cos(tangent-.62),py-38*Math.sin(tangent-.62));
-    ctx.lineTo(px,py);
-    ctx.lineTo(px-38*Math.cos(tangent+.62),py-38*Math.sin(tangent+.62));
-    ctx.stroke();
+    drawTurnArrow(ctx,128,128,70,17);
   }
   const texture=new THREE.CanvasTexture(canvas);
   texture.colorSpace=THREE.SRGBColorSpace;
@@ -544,9 +557,9 @@ function addTinyMarks(grip,hand){
   // alejados de la corona del aro y de los controles superiores.
   // La primera fila indica el botón; la segunda, el joystick.
   const items=hand==='left'
-    ? [['Y Configuración','',-.044,-.070,.065],
+    ? [['Configuración','Y',-.044,-.070,.065],
        ['Caminar','walk',-.044,-.096,.065]]
-    : [['B Catálogo','',.044,-.070,.065],
+    : [['Catálogo','B',.044,-.070,.065],
        ['Girar','turn',.044,-.096,.065]];
   for(const [text,icon,x,y,z] of items){
     const mark=makeTinyMark(text,icon);
@@ -850,7 +863,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.58 · rótulos ordenados junto a muñeca';
+versionLabel.textContent='Visor VR 0.59 · rótulos alineados y giro mejorado';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1272,7 +1285,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.58';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.59';
     vrButton.hidden=false;
     return true;
   }catch(error){
