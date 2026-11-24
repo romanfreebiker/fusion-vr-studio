@@ -458,33 +458,54 @@ const menuControllerObjects=[];
 const controllerModelFactory=new XRControllerModelFactory();
 const controllerVisuals=[];
 // Rótulos discretos anclados a la superficie del mando, sin carteles flotantes.
-function makeTinyMark(text){
+function makeTinyMark(text,icon=''){
   const canvas=document.createElement('canvas');
-  canvas.width=192;canvas.height=64;
+  canvas.width=512;canvas.height=128;
   const ctx=canvas.getContext('2d');
   ctx.fillStyle='rgba(18,30,44,.92)';
-  ctx.beginPath();ctx.roundRect(2,2,188,60,14);ctx.fill();
-  ctx.fillStyle='#f3f8ff';ctx.font='bold 33px system-ui,sans-serif';
+  ctx.beginPath();ctx.roundRect(3,5,506,118,22);ctx.fill();
+  const textStart=icon?108:22;
+  if(icon==='walk'){
+    // Flecha doble: avanzar y retroceder.
+    ctx.strokeStyle='#a5e9ff';ctx.fillStyle='#a5e9ff';
+    ctx.lineWidth=9;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(63,94);ctx.lineTo(63,34);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(42,50);ctx.lineTo(63,29);ctx.lineTo(84,50);
+    ctx.moveTo(42,78);ctx.lineTo(63,99);ctx.lineTo(84,78);ctx.stroke();
+  }else if(icon==='turn'){
+    // Flecha circular para el giro.
+    ctx.strokeStyle='#ffd597';ctx.fillStyle='#ffd597';
+    ctx.lineWidth=9;ctx.lineCap='round';
+    ctx.beginPath();ctx.arc(61,64,30,-.8*Math.PI,.55*Math.PI);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(57,92);ctx.lineTo(89,90);ctx.lineTo(80,60);ctx.stroke();
+  }
+  ctx.fillStyle='#f3f8ff';
   ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText(text,96,32,170);
+  let font=44;
+  ctx.font='bold '+font+'px system-ui,sans-serif';
+  while(font>22&&ctx.measureText(text).width>490-textStart){
+    font-=2;ctx.font='bold '+font+'px system-ui,sans-serif';
+  }
+  ctx.fillText(text,(textStart+512)/2,66,490-textStart);
   const texture=new THREE.CanvasTexture(canvas);
   texture.colorSpace=THREE.SRGBColorSpace;
   const mark=new THREE.Sprite(new THREE.SpriteMaterial({
     map:texture,transparent:true,depthTest:false,depthWrite:false
   }));
-  mark.scale.set(.028,.010,1);
+  // Tamaño visual muy reducido, como una inscripción sobre el mando.
+  mark.scale.set(.043,.0108,1);
   mark.renderOrder=1002;
   return mark;
 }
 function addTinyMarks(grip,hand){
   const marks=new THREE.Group();
-  // Posiciones relativas a la cara superior del Touch; pequeños desplazamientos
-  // para mantener visible el texto sin tapar todo el pulsador.
   const items=hand==='left'
-    ? [['BIB',.013,.047,-.012],['CFG',.031,.047,-.032],['CAM',-.021,.049,-.036]]
-    : [['GIR',-.021,.049,-.036]];
-  for(const [text,x,y,z] of items){
-    const mark=makeTinyMark(text);
+    ? [['X Catálogo','',.013,.047,-.012],
+       ['Y Configuración','',.031,.047,-.032],
+       ['Caminar','walk',-.021,.049,-.036]]
+    : [['Girar','turn',-.021,.049,-.036]];
+  for(const [text,icon,x,y,z] of items){
+    const mark=makeTinyMark(text,icon);
     mark.position.set(x,y,z);
     marks.add(mark);
   }
@@ -705,7 +726,7 @@ const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']}
 vrButton.hidden=true;
 document.body.append(vrButton);
 const versionLabel=document.createElement('div');
-versionLabel.textContent='Visor VR 0.49 · mandos alineados y rótulos mínimos';
+versionLabel.textContent='Visor VR 0.50 · rótulos completos y paso natural';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 document.body.append(versionLabel);
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
@@ -1127,7 +1148,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.49';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.50';
     vrButton.hidden=false;
     return true;
   }catch(error){
@@ -1153,6 +1174,7 @@ renderer.xr.addEventListener('sessionstart',()=>{
   returnToLibrary=false;
   canTurn=true;
   smoothTurnAxis=0;
+  gaitPhase=0;
   resetPhysics();
   floorBaseSpace=null;
   appliedFloorOffsetCm=null;
@@ -1200,7 +1222,7 @@ function rotateAroundHeadset(headset,angle){
  rig.position.add(pivot).sub(turned);
  rig.rotation.y+=angle;
 }
-let menuButtonHeld=false,floorButtonHeld=false,menuRedrawAt=0;
+let menuButtonHeld=false,floorButtonHeld=false,menuRedrawAt=0,gaitPhase=0;
 let meterStart=0,meterFrames=0,meterSlowest=0,meterLast=0;
 renderer.setAnimationLoop(time=>{
   const dt=lastTime?Math.min(.05,(time-lastTime)/1000):0;
@@ -1264,7 +1286,15 @@ renderer.setAnimationLoop(time=>{
       }
     }
     const walkingSpeed=time<stairSlowUntil?WALK_SPEED*STAIR_SPEED_FACTOR:WALK_SPEED;
-    const move=walkingDirection.multiplyScalar(walkingSpeed*dt);
+    // La velocidad responde inmediatamente al joystick: sin cola de inercia
+    // cuando se suelta. Cadencia sutil en la traslación (sin sacudir la cabeza
+    // del usuario en VR) para reducir la sensación de deslizarse.
+    const isWalking=!menuGroup.visible&&walkingDirection.lengthSq()>.025;
+    if(isWalking)gaitPhase+=dt*2*Math.PI*(1.65+walkingDirection.length()*.18);
+    else gaitPhase=0;
+    const gaitFactor=isWalking&&time>=stairSlowUntil
+      ?1+.045*Math.sin(gaitPhase):1;
+    const move=walkingDirection.multiplyScalar(walkingSpeed*gaitFactor*dt);
     if(!heightChanged&&!returnToLibrary)solveMovement(headset,menuGroup.visible?new THREE.Vector3():move,dt);
     if(turnMode.value==='snap'){
       smoothTurnAxis=0;
