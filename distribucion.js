@@ -11,7 +11,7 @@
  async function read(force=false,token=null){
    if(!force&&cached&&Date.now()-readAt<12000)return cached;
    if(!force&&pending)return pending;
-   const task=(async()=>{const f=await request(api+'/contents/'+path+'?ref='+branch,{headers:{...readHeaders,...(token?{Authorization:'Bearer '+token}:{})}});const data=decode(f.content);if(!Array.isArray(data.modelos))throw Error('Catálogo de distribución no válido');cached={sha:f.sha,data};readAt=Date.now();return cached})();
+   const task=(async()=>{const f=await request(api+'/contents/'+path+'?ref='+branch+'&_='+Date.now(),{headers:{...readHeaders,...(token?{Authorization:'Bearer '+token}:{})}});const data=decode(f.content);if(!Array.isArray(data.modelos))throw Error('Catálogo de distribución no válido');cached={sha:f.sha,data};readAt=Date.now();return cached})();
    if(!force)pending=task;
    try{return await task}finally{if(pending===task)pending=null}
  }
@@ -26,9 +26,9 @@
  async function list(role,force=false){const {data}=await read(force);return role==='director'?data.modelos.filter(m=>m.status==='active'&&!isHidden(m)):data.modelos}
  async function send(m){await write(rows=>{const next={...safe(m),status:'active',updated:new Date().toISOString()};const i=rows.findIndex(x=>x.id===m.id);if(i<0)rows.push(next);else rows[i]=next})}
  async function setStatus(id,status,role){if(role!=='admin')throw Error('La retirada global debe confirmarse desde la central.');await write(rows=>{const i=rows.findIndex(x=>x.id===id);if(i<0)return;if(status==='revoked')rows.splice(i,1);else rows[i]={...rows[i],status,updated:new Date().toISOString()}})}
- function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','90');return u}
+ function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','91');return u}
  async function share(id){const rows=await list('admin',true);if(!rows.some(m=>m.id===id&&m.status==='active'))throw Error('Diseño retirado de dirección');return viewer(id,'invitado').href}
- async function loadViewer(access,id){if(!['director','invitado','demo-invitado'].includes(access))throw Error('Acceso no válido');const m=(await list('admin',true)).find(x=>x.id===id&&x.status==='active');if(!m)throw Error('Este diseño ya no está disponible.');return {meta:m,url:new URL(m.archivo,location.href).href}}
+ async function loadViewer(access,id){if(!['director','invitado','demo-invitado'].includes(access))throw Error('Acceso no válido');const m=(await list(access==='director'?'director':'admin',true)).find(x=>x.id===id&&x.status==='active');if(!m)throw Error('Este diseño ya no está disponible.');return {meta:m,url:new URL(m.archivo,location.href).href}}
  function removalUrl(m){const u=new URL('https://github.com/'+repo+'/issues/new');u.searchParams.set('title','[Dirección] Retirar diseño '+m.id);u.searchParams.set('body','Solicito retirar de la biblioteca de dirección el diseño '+m.nombre+'.\n\nIdentificador: '+m.id+'\nVersión: '+m.updated);return u.href}
- window.FusionDistribution={demo:false,publicFiles:true,configureAdmin,list,send,setStatus,viewer,share,loadViewer,hide,removalUrl};
+ window.FusionDistribution={version:3,demo:false,publicFiles:true,configureAdmin,list,send,setStatus,viewer,share,loadViewer,hide,removalUrl};
 })();
