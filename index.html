@@ -13,7 +13,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=1"></script>
 <script>
 /* Three.js
 The MIT License
@@ -4215,8 +4215,10 @@ async function refresh(){
   catch(e){setConnection('Error de conexión');toast(e.message,true);render()}
   finally{$('refreshBtn').disabled=false}
 }
+window.addEventListener('storage',e=>{if(e.key==='fusion-distribution-demo-v1')render()});
 const dateLabel=new Intl.DateTimeFormat('es-ES',{dateStyle:'medium',timeStyle:'short'});
 function render(){
+  if(!document.getElementById('distributionNav')){const link=document.createElement('a');link.id='distributionNav';link.href='direccion.html';link.target='_blank';link.rel='noopener';link.className='button secondary small';link.textContent='Biblioteca de dirección';const note=document.createElement('p');note.className='muted tiny';note.textContent=FusionDistribution.demo?'Distribución en demostración local (no sincroniza otros ordenadores).':'Distribución protegida';const panel=document.createElement('div');panel.style.marginBottom='16px';panel.append(link,note);$('gallery').before(panel);}
   $('statCount').textContent=state.models.length;
   $('statCategories').textContent=new Set(state.models.map(x=>x.categoria).filter(Boolean)).size;
   $('statSize').textContent=((state.models.reduce((n,m)=>n+(Number(m.bytes)||0),0)/1048576)||0).toFixed(1)+' MB';
@@ -4249,7 +4251,14 @@ function render(){
     foot.append(view);
     const presentationUrl=new URL(viewerUrl.href);presentationUrl.searchParams.set('modo','presentacion');presentationUrl.searchParams.set('v','82p');
     const presentationLink=textNode('a','Presentación','button secondary small');presentationLink.href=presentationUrl.href;presentationLink.target='_blank';presentationLink.rel='noopener';foot.append(presentationLink);
-    const share=textNode('button','Copiar enlace presentación','button secondary small');share.type='button';share.onclick=async()=>{try{await navigator.clipboard.writeText(presentationUrl.href);toast('Enlace de presentación copiado.');}catch{prompt('Copia el enlace de presentación',presentationUrl.href);}};foot.append(share);
+    const distribution=textNode('div','Consultando distribución…','muted tiny');distribution.style.flexBasis='100%';foot.append(distribution);
+    const send=textNode('button','Enviar a dirección','button secondary small');send.type='button';foot.append(send);
+    const revoke=textNode('button','Retirar de dirección','button ghost small');revoke.hidden=true;foot.append(revoke);
+    const updateDistribution=async()=>{try{const d=(await FusionDistribution.list('admin')).find(x=>x.id===m.id);distribution.textContent=d?.status==='active'?'Activo en dirección':d?.status==='inactive'?'Desactivado por dirección':'No enviado a dirección';send.textContent=d?.status==='inactive'?'Reactivar en dirección':d?.status==='active'?'Actualizar en dirección':'Enviar a dirección';revoke.hidden=!d;}catch(e){distribution.textContent='Distribución: '+e.message}};
+    send.onclick=async()=>{send.disabled=true;try{await FusionDistribution.send(m);toast('Diseño enviado a dirección');await updateDistribution()}catch(e){toast(e.message,true)}finally{send.disabled=false}};
+    revoke.onclick=async()=>{try{await FusionDistribution.setStatus(m.id,'revoked','admin');await updateDistribution()}catch(e){toast(e.message,true)}};
+    if(FusionDistribution.demo)updateDistribution();else distribution.textContent='Consulta el estado al conectar distribución';
+    distribution.onclick=updateDistribution;distribution.style.cursor='pointer';
     const dl=document.createElement('button');dl.className='button secondary small';dl.textContent='↓ Descargar GLB';dl.addEventListener('click',()=>downloadModel(m));foot.append(dl);
     const remove=textNode('button','Eliminar','button secondary small delete-design');
     remove.type='button';
