@@ -9,7 +9,7 @@ header{position:absolute;z-index:1;top:16px;left:16px;max-width:min(440px,calc(1
 h1{font-size:19px;margin:0 0 10px}label{display:block;margin-bottom:5px}select{font:inherit;color:inherit;background:#243652;border:1px solid #637a9d;border-radius:6px;padding:7px;max-width:100%}
 p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-variant-numeric:tabular-nums;margin-top:8px}details{margin-top:12px;border-top:1px solid #42536f;padding-top:9px}summary{cursor:pointer;font-weight:600;color:#b9d9f7}#detectedMaterials{max-height:160px;overflow:auto;font-size:12px;line-height:1.65;white-space:pre-wrap;color:#d5e0f0;margin-top:7px}
 body.presentation header{display:none}body.presentation #VRButton{display:none!important}body.presentation canvas{touch-action:none;cursor:grab}body.presentation canvas:active{cursor:grabbing}
-#presentationBar{position:fixed;z-index:20;top:14px;left:14px;right:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;pointer-events:none}#presentationBar>*{pointer-events:auto;background:#142034eb;border:1px solid #52647b;border-radius:9px;color:white;padding:10px 13px;font:14px system-ui}#presentationBar strong{margin-right:auto}#presentationBar button{cursor:pointer}#presentationHint{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:20;background:#142034e8;color:white;border-radius:10px;padding:10px 15px;font:13px system-ui;text-align:center;pointer-events:none;max-width:90vw}#presentationStatus{position:fixed;z-index:21;top:50%;left:50%;transform:translate(-50%,-50%);background:#142034e8;padding:18px;border-radius:12px;text-align:center}
+#presentationBar{position:fixed;z-index:20;top:14px;left:14px;right:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;pointer-events:none}#presentationBar>*{pointer-events:auto;background:#142034eb;border:1px solid #52647b;border-radius:9px;color:white;padding:10px 13px;font:14px system-ui}#presentationBar strong{margin-right:auto}#presentationBar button{cursor:pointer;transition:background .12s,border-color .12s,transform .12s}#presentationBar button:hover{background:#36516d;border-color:#a6c5e4}#presentationBar button:active{background:#80c8ff;color:#0b1625;transform:translateY(2px)}#presentationBar button[aria-pressed=true],#presentationBar button.confirmed{background:#2378b9;border-color:#9ed8ff;color:white;box-shadow:0 0 0 1px #9ed8ff}#presentationBar button:focus-visible{outline:2px solid #b8e6ff;outline-offset:3px}#presentationHint{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:20;background:#142034e8;color:white;border-radius:10px;padding:10px 15px;font:13px system-ui;text-align:center;pointer-events:none;max-width:90vw}#presentationStatus{position:fixed;z-index:21;top:50%;left:50%;transform:translate(-50%,-50%);background:#142034e8;padding:18px;border-radius:12px;text-align:center}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
@@ -150,29 +150,33 @@ scene.environmentIntensity=.68;
 room.dispose();pmrem.dispose();
 document.body.append(renderer.domElement);
 const controls=new OrbitControls(camera,renderer.domElement);
-let mouseButtons=0, wheelDistance=0, yaw=0,pitch=0;
+let mouseButtons=0, wheelDistance=0, yaw=0,pitch=0, walkingMode=false;
 const keys=new Set();
-let presentationStatus,presentationTitle;
+let presentationStatus,presentationTitle,presentationHint,orbitButton,walkButton;
 if(presentation){
  renderer.xr.enabled=false;
- controls.enabled=false;
+ controls.enabled=true;
+ controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;controls.mouseButtons.RIGHT=THREE.MOUSE.PAN;controls.mouseButtons.MIDDLE=THREE.MOUSE.PAN;
  const bar=document.createElement('div');bar.id='presentationBar';
  presentationTitle=document.createElement('strong');presentationTitle.textContent='Fusion Studio · Presentación';bar.append(presentationTitle);
- function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);}
+ function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
+ orbitButton=button('Vista 3D',()=>setPresentationMode(false));walkButton=button('Recorrer a pie',()=>setPresentationMode(true));
+ orbitButton.setAttribute('aria-pressed','true');walkButton.setAttribute('aria-pressed','false');
  button('Inicio',()=>desktopView());
- button('Pantalla completa',()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{});});
- button('Copiar enlace',async()=>{try{await navigator.clipboard.writeText(location.href)}catch{prompt('Copia este enlace',location.href)}});
+ const full=button('Pantalla completa',()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{});});
+ document.addEventListener('fullscreenchange',()=>{full.setAttribute('aria-pressed',String(!!document.fullscreenElement));full.textContent=document.fullscreenElement?'Salir de pantalla completa':'Pantalla completa';});
+ const copy=button('Copiar enlace',async()=>{try{await navigator.clipboard.writeText(location.href);copy.textContent='¡Copiado!';copy.classList.add('confirmed');setTimeout(()=>{copy.textContent='Copiar enlace';copy.classList.remove('confirmed');},1600)}catch{prompt('Copia este enlace',location.href)}});
  document.body.append(bar);
- const hint=document.createElement('div');hint.id='presentationHint';hint.textContent='Arrastra con el botón izquierdo para mirar · Mantén el derecho para avanzar · Rueda para avanzar o retroceder · WASD / flechas opcionales';document.body.append(hint);
+ presentationHint=document.createElement('div');presentationHint.id='presentationHint';presentationHint.textContent='Izquierdo: girar · Derecho o central: desplazar · Rueda: zoom';document.body.append(presentationHint);
  presentationStatus=document.createElement('div');presentationStatus.id='presentationStatus';presentationStatus.textContent='Cargando diseño…';document.body.append(presentationStatus);
  const canvas=renderer.domElement;
  canvas.addEventListener('contextmenu',e=>e.preventDefault());
- canvas.addEventListener('pointerdown',e=>{if(e.button!==0&&e.button!==2)return;e.preventDefault();mouseButtons=e.buttons;canvas.setPointerCapture(e.pointerId);});
- canvas.addEventListener('pointermove',e=>{mouseButtons=e.buttons;if(e.buttons&1){yaw-=e.movementX*.003;pitch=THREE.MathUtils.clamp(pitch-e.movementY*.003,-1.45,1.45);camera.rotation.set(pitch,yaw,0,'YXZ');}});
+ canvas.addEventListener('pointerdown',e=>{if(!walkingMode)return;if(e.button!==0&&e.button!==2)return;e.preventDefault();mouseButtons=e.buttons;canvas.setPointerCapture(e.pointerId);});
+ canvas.addEventListener('pointermove',e=>{if(!walkingMode)return;mouseButtons=e.buttons;if(e.buttons&1){yaw-=e.movementX*.003;pitch=THREE.MathUtils.clamp(pitch-e.movementY*.003,-1.45,1.45);camera.rotation.set(pitch,yaw,0,'YXZ');}});
  const release=e=>{mouseButtons=e.buttons||0;};canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',()=>mouseButtons=0);canvas.addEventListener('lostpointercapture',()=>mouseButtons=0);
- canvas.addEventListener('wheel',e=>{e.preventDefault();const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?innerHeight:1);wheelDistance=THREE.MathUtils.clamp(wheelDistance-delta*.003,-1.5,1.5);},{passive:false});
+ canvas.addEventListener('wheel',e=>{if(!walkingMode)return;e.preventDefault();const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?innerHeight:1);wheelDistance=THREE.MathUtils.clamp(wheelDistance-delta*.003,-1.5,1.5);},{passive:false});
  const movementKeys=['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'];
- addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(movementKeys.includes(k)){e.preventDefault();keys.add(k);}});
+ addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(walkingMode&&movementKeys.includes(k)){e.preventDefault();keys.add(k);}});
  addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
  addEventListener('blur',()=>{keys.clear();mouseButtons=0;wheelDistance=0;});
  new MutationObserver(()=>{if(status.textContent.startsWith('Escala 1:1'))presentationStatus.hidden=true;else{presentationStatus.hidden=false;presentationStatus.textContent=status.textContent;}}).observe(status,{childList:true,characterData:true,subtree:true});
@@ -1363,12 +1367,22 @@ function restartModelView(){
   menuNote='Vista reiniciada · A';
   if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
 }
+function setPresentationMode(walk){
+ if(walkingMode===walk)return;
+ // Vaciar la amortiguación orbital antes de entrar en modo a pie.
+ if(!walkingMode){const damping=controls.enableDamping;controls.enableDamping=false;controls.update();controls.enableDamping=damping;}
+ walkingMode=walk;controls.enabled=!walk;keys.clear();mouseButtons=0;wheelDistance=0;
+ orbitButton.setAttribute('aria-pressed',String(!walk));walkButton.setAttribute('aria-pressed',String(walk));
+ presentationHint.textContent=walk?'Izquierdo: mirar · Derecho: caminar · Rueda: avanzar/retroceder · WASD opcional':'Izquierdo: girar · Derecho o central: desplazar · Rueda: zoom';
+ desktopView();
+}
 function desktopView(){
-  if(presentation){if(!model)return;rig.position.set(0,0,vrStartDistance);rig.rotation.set(0,0,0);camera.position.set(0,1.65,0);yaw=0;pitch=0;camera.rotation.set(0,0,0,'YXZ');wheelDistance=0;resetPhysics();return;}
+  if(presentation&&walkingMode){if(!model)return;rig.position.set(0,0,vrStartDistance);rig.rotation.set(0,0,0);camera.position.set(0,1.65,0);yaw=0;pitch=0;camera.rotation.set(0,0,0,'YXZ');wheelDistance=0;resetPhysics();return;}
   rig.position.set(0,0,0);
   rig.rotation.set(0,0,0);
   camera.position.set(distance*.65,height*.85+1,distance);
   controls.target.set(0,height*.45,0);
+  if(presentation){controls.maxDistance=Math.max(100,distance*8);controls.minDistance=.08;}
   controls.update();
 }
 function dispose(root){
@@ -1656,7 +1670,7 @@ renderer.setAnimationLoop(time=>{
       rotateAroundHeadset(headset,-smoothTurnAxis*radiansPerSecond*dt);
     }
   }
-  if(presentation&&model){
+  if(presentation&&walkingMode&&model){
     const stride=Number(Boolean(mouseButtons&2)||keys.has('w')||keys.has('arrowup'))-Number(keys.has('s')||keys.has('arrowdown'));
     const strafe=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft'));
     forward.set(-Math.sin(yaw),0,-Math.cos(yaw));right.crossVectors(forward,THREE.Object3D.DEFAULT_UP);
