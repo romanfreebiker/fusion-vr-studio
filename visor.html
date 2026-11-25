@@ -13,6 +13,7 @@ html.presentation-boot header,body.presentation header{display:none}body.present
 #presentationBar{position:fixed;z-index:20;top:14px;left:14px;right:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;pointer-events:none}#presentationBar>*{pointer-events:auto;background:#142034eb;border:1px solid #52647b;border-radius:9px;color:white;padding:10px 13px;font:14px system-ui}#presentationBar strong{margin-right:auto}#presentationBar button{cursor:pointer;transition:background .12s,border-color .12s,transform .12s}#presentationBar button:hover{background:#36516d;border-color:#a6c5e4}#presentationBar button:active{background:#80c8ff;color:#0b1625;transform:translateY(2px)}#presentationBar button[aria-pressed=true],#presentationBar button.confirmed{background:#2378b9;border-color:#9ed8ff;color:white;box-shadow:0 0 0 1px #9ed8ff}#presentationBar button:focus-visible{outline:2px solid #b8e6ff;outline-offset:3px}#presentationHint{position:fixed;bottom:16px;right:16px;z-index:20;background:#142034b8;color:white;border-radius:10px;padding:8px 11px;font:12px system-ui;text-align:left;pointer-events:none;display:flex;align-items:center;gap:9px;max-width:90vw}.mouseLegend{display:grid;gap:5px}.mouseLegend span{display:flex;align-items:center;gap:6px;white-space:nowrap}.mouseLegend i{width:8px;height:8px;border-radius:2px;display:inline-block}.mouseLegend small{color:#b7c9dd;font-size:11px}#presentationStatus{position:fixed;z-index:21;top:50%;left:50%;transform:translate(-50%,-50%);background:#142034e8;padding:18px;border-radius:12px;text-align:center}
 #presentationBoot{display:none}html.presentation-boot #presentationBoot:not([hidden]){display:grid;position:fixed;inset:0;z-index:100;place-items:center;background:radial-gradient(ellipse at 50% 38%,#233a53,#101a29 65%);color:#eef6ff;font:15px system-ui}
 .boot-panel{width:min(360px,78vw);text-align:center}.boot-logo{margin:0 auto 24px;width:64px;height:64px;display:grid;place-items:center;border:1px solid #7899bb;border-radius:18px;background:#213b55;box-shadow:0 14px 40px #0004}.boot-name{font-size:25px;font-weight:650;letter-spacing:.5px}.boot-sub{margin-top:7px;color:#a7bed4;font-size:13px}.boot-track{height:5px;background:#31465e;border-radius:99px;margin-top:30px;overflow:hidden}.boot-fill{height:100%;width:5%;background:#73c4ff;border-radius:99px;transition:width .25s ease}.boot-step{margin-top:15px;color:#bad0e6;font-size:13px;min-height:36px}.boot-panel button{font:inherit;color:white;background:#294766;border:1px solid #7398ba;border-radius:8px;padding:8px 14px;cursor:pointer}.boot-track.indeterminate .boot-fill{width:30%!important;animation:boot-scan 1.4s ease-in-out infinite}@keyframes boot-scan{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
+#presentationHint.touchGuide{bottom:max(10px,env(safe-area-inset-bottom));right:10px;padding:6px 9px}.touchLegend{gap:2px}.touchLegend svg{flex:none}.touchLegend span{white-space:nowrap}@media(max-width:600px){#presentationBar{top:8px;left:8px;right:8px;gap:5px}#presentationBar>*{font-size:12px;padding:7px 9px}#presentationBar strong{flex-basis:100%}#presentationHint.touchGuide{font-size:11px;background:#142034a8}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
@@ -182,12 +183,15 @@ let mouseButtons=0, wheelDistance=0, yaw=0,pitch=0, walkingMode=false, verticalD
 let walkTargetYaw=0,walkTargetPitch=0,walkSpeed=0,walkSideSpeed=0;
 const keys=new Set();
 let headDrag=false,headX=0,headY=0;
+const touchPoints=new Map();let touchSnapshot=null;
+let touchGuide=matchMedia('(pointer: coarse)').matches||(navigator.maxTouchPoints>0&&matchMedia('(hover: none)').matches);
 const headEuler=new THREE.Euler(0,0,0,'YXZ');
 let presentationStatus,presentationTitle,presentationHint,orbitButton,walkButton;
 if(presentation){
  renderer.xr.enabled=false;
  controls.enabled=true;
  controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;controls.mouseButtons.RIGHT=null;controls.mouseButtons.MIDDLE=THREE.MOUSE.PAN;
+ controls.touches.ONE=THREE.TOUCH.ROTATE;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;
  const bar=document.createElement('div');bar.id='presentationBar';
  presentationTitle=document.createElement('strong');presentationTitle.textContent='Fusion Studio · Presentación';bar.append(presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
@@ -205,13 +209,47 @@ if(presentation){
  presentationHint=document.createElement('div');presentationHint.id='presentationHint';document.body.append(presentationHint);updateMouseGuide();
  presentationStatus=document.getElementById('presentationBoot');window.presentationProgress('Preparando el proyecto…',null);
  const canvas=renderer.domElement;
+ // Adaptación al dispositivo real, incluso en equipos híbridos.
+ canvas.addEventListener('pointerdown',e=>{
+   const next=e.pointerType==='touch';
+   if((next||e.pointerType==='mouse')&&next!==touchGuide){touchGuide=next;updateMouseGuide();}
+ },true);
+ function snapshotTouch(){
+   const pts=[...touchPoints.values()];if(!pts.length)return null;
+   if(pts.length===1)return {count:1,x:pts[0].x,y:pts[0].y,span:0};
+   return {count:2,x:(pts[0].x+pts[1].x)/2,y:(pts[0].y+pts[1].y)/2,span:Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y)};
+ }
+ canvas.addEventListener('pointerdown',e=>{
+   if(!walkingMode||e.pointerType!=='touch')return;
+   e.preventDefault();e.stopImmediatePropagation();touchPoints.set(e.pointerId,{x:e.clientX,y:e.clientY});touchSnapshot=snapshotTouch();canvas.setPointerCapture(e.pointerId);
+ },true);
+ canvas.addEventListener('pointermove',e=>{
+   if(!walkingMode||e.pointerType!=='touch'||!touchPoints.has(e.pointerId))return;
+   e.preventDefault();e.stopImmediatePropagation();
+   touchPoints.set(e.pointerId,{x:e.clientX,y:e.clientY});const next=snapshotTouch(),prev=touchSnapshot;touchSnapshot=next;
+   if(!prev||prev.count!==next.count)return;
+   const dx=next.x-prev.x,dy=next.y-prev.y;
+   if(next.count===1){
+     walkTargetYaw-=dx*.004;walkTargetPitch=THREE.MathUtils.clamp(walkTargetPitch-dy*.004,-Math.PI/2+.01,Math.PI/2-.01);
+   }else{
+     const speed=Math.max(.006,Math.min(.035,distance*.0015));
+     const side=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+     const front=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
+     const shift=side.multiplyScalar(-dx*speed).addScaledVector(front,dy*speed);
+     camera.position.add(shift);controls.target.add(shift);
+     orbitZoomPending=THREE.MathUtils.clamp(orbitZoomPending-(next.span-prev.span)*speed,-distance*2,distance*2);
+     lockEyeHeight();
+   }
+ },true);
+ function endTouch(e){if(!touchPoints.has(e.pointerId))return;e.stopImmediatePropagation();touchPoints.delete(e.pointerId);touchSnapshot=snapshotTouch();}
+ for(const type of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(type,endTouch,true);
  // Modo a pie: girar únicamente la cabeza, sin mover la cámara.
  canvas.addEventListener('pointerdown',e=>{
-   if(!walkingMode||e.button!==0)return;
+   if(!walkingMode||e.pointerType==='touch'||e.button!==0)return;
    e.preventDefault();e.stopImmediatePropagation();headDrag=true;headX=e.clientX;headY=e.clientY;canvas.setPointerCapture(e.pointerId);
  },true);
  canvas.addEventListener('pointermove',e=>{
-   if(!walkingMode||!headDrag)return;
+   if(!walkingMode||e.pointerType==='touch'||!headDrag)return;
    if(!(e.buttons&1)){headDrag=false;return;}
    e.preventDefault();e.stopImmediatePropagation();
    walkTargetYaw-=(e.clientX-headX)*.004;
@@ -222,11 +260,11 @@ if(presentation){
  for(const type of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(type,stopHead,true);
  // Interceptar antes de OrbitControls: zoom lineal y paneo libre horizontal/vertical.
  canvas.addEventListener('pointerdown',e=>{
-   if(e.button!==2&&!(walkingMode&&e.button===1))return;
+   if(e.pointerType==='touch'||(e.button!==2&&!(walkingMode&&e.button===1)))return;
    e.preventDefault();e.stopImmediatePropagation();verticalDrag=true;verticalLastY=e.clientY;panLastX=e.clientX;canvas.setPointerCapture(e.pointerId);
  },true);
  canvas.addEventListener('pointermove',e=>{
-   if(!verticalDrag)return;
+   if(e.pointerType==='touch'||!verticalDrag)return;
    if(!(e.buttons&(walkingMode?6:2))){verticalDrag=false;return;}
    e.preventDefault();e.stopImmediatePropagation();
    const dx=e.clientX-panLastX,dy=e.clientY-verticalLastY;panLastX=e.clientX;verticalLastY=e.clientY;
@@ -248,7 +286,7 @@ if(presentation){
    orbitZoomPending=THREE.MathUtils.clamp(orbitZoomPending+delta/100*unit,-distance*2,distance*2);
  },{capture:true,passive:false});
  canvas.addEventListener('contextmenu',e=>e.preventDefault());
- addEventListener('blur',()=>{headDrag=false;verticalDrag=false;orbitZoomPending=0;});
+ addEventListener('blur',()=>{headDrag=false;verticalDrag=false;orbitZoomPending=0;touchPoints.clear();touchSnapshot=null;});
  new MutationObserver(()=>{const message=status.textContent;if(/^(No se pudo|Error|El motor)/i.test(message))window.presentationProgress(message,null,true);}).observe(status,{childList:true,characterData:true,subtree:true});
 }
 controls.enableDamping=true;
@@ -1439,6 +1477,15 @@ function restartModelView(){
 }
 function updateMouseGuide(){
  if(!presentationHint)return;
+ if(touchGuide){
+   const finger=(x,y,color)=>'<rect x="'+x+'" y="'+y+'" width="10" height="22" rx="5" fill="'+color+'" stroke="#dbe9f6" stroke-width="1"/>';
+   const single='<svg width="42" height="26" viewBox="0 0 42 26" aria-hidden="true">'+finger(16,2,'#65b9ff')+'<path d="M13 13H3m0 0 4-4m-4 4 4 4M29 13h10m0 0-4-4m4 4-4 4" stroke="#65b9ff" fill="none" stroke-width="1.5"/></svg>';
+   const double='<svg width="42" height="26" viewBox="0 0 42 26" aria-hidden="true">'+finger(10,2,'#f4b56e')+finger(22,2,'#f4b56e')+'<path d="M8 13H2m0 0 3-3m-3 3 3 3M34 13h6m0 0-3-3m3 3-3 3" stroke="#f4b56e" fill="none" stroke-width="1.5"/></svg>';
+   const pinch='<svg width="42" height="26" viewBox="0 0 42 26" aria-hidden="true">'+finger(2,2,'#77ddae')+finger(30,2,'#77ddae')+'<path d="M14 13h5m-3-3 3 3-3 3M28 13h-5m3-3-3 3 3 3" stroke="#77ddae" fill="none" stroke-width="1.5"/></svg>';
+   presentationHint.innerHTML='<div class="mouseLegend touchLegend"><span>'+single+'<span>1 dedo · '+(walkingMode?'Mirar alrededor':'Girar')+'</span></span><span>'+double+'<span>2 dedos · '+(walkingMode?'Desplazarse':'Paneo')+'</span></span><span>'+pinch+'<span>Pellizco · '+(walkingMode?'Avanzar / retroceder':'Zoom')+'</span></span>'+(walkingMode?'<small>Altura fija: 1,75 m</small>':'')+'</div>';
+   presentationHint.classList.add('touchGuide');return;
+ }
+ presentationHint.classList.remove('touchGuide');
  presentationHint.innerHTML='<svg width="46" height="64" viewBox="0 0 46 64" aria-hidden="true"><rect x="4" y="3" width="38" height="58" rx="19" fill="#26374a" stroke="#a7bed4" stroke-width="1.5"/><path d="M5 26V21A18 18 0 0 1 20 4V26Z" fill="#65b9ff"/><path d="M41 26V21A18 18 0 0 0 26 4V26Z" fill="#f4b56e"/><path d="M4 27H42" stroke="#a7bed4"/><rect x="20" y="9" width="6" height="16" rx="3" fill="#77ddae" stroke="#172438"/><path d="M23 12v9" stroke="#d7fbea" stroke-width="1.2"/></svg><div class="mouseLegend"><span><i style="background:#65b9ff"></i>'+(walkingMode?'Mirar alrededor':'Girar')+'</span><span><i style="background:#f4b56e"></i>'+'Paneo libre'+'</span><span><i style="background:#77ddae"></i>'+'Zoom'+'</span>'+(walkingMode?'<small>Altura fija: 1,75 m</small>':'<small>Central: desplazar</small>')+'</div>';
 }
 let presentationFloor=0;
@@ -1466,7 +1513,7 @@ function setPresentationMode(walk){
    controls.target.copy(camera.position).addScaledVector(aim,Math.max(.5,Math.min(distance,3)));
    controls.update();
  }
- headDrag=false;verticalDrag=false;orbitZoomPending=0;
+ headDrag=false;verticalDrag=false;orbitZoomPending=0;touchPoints.clear();touchSnapshot=null;
  orbitButton.setAttribute('aria-pressed',String(!walk));walkButton.setAttribute('aria-pressed',String(walk));updateMouseGuide();
 }
 function desktopView(){
