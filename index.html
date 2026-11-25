@@ -13,7 +13,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=1"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=2"></script>
 <script>
 /* Three.js
 The MIT License
@@ -4044,6 +4044,7 @@ function renderMaterialLibrary(){
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>nav(b.dataset.view)));
 document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>nav(b.dataset.goto)));
 Object.assign(state,{owner:'romanfreebiker',repo:'fusion-vr-studio',branch:'main'});
+FusionDistribution.configureAdmin(()=>state.token);
 const authOrigin='https://fusion-vr-studio-roman-auth.independentoffer16.chatgpt.site';
 const authKey='fusion-vr-studio-auth-v1';
 const rememberInput=$('rememberGitHub');
@@ -4215,7 +4216,7 @@ async function refresh(){
   catch(e){setConnection('Error de conexión');toast(e.message,true);render()}
   finally{$('refreshBtn').disabled=false}
 }
-window.addEventListener('storage',e=>{if(e.key==='fusion-distribution-demo-v1')render()});
+
 const dateLabel=new Intl.DateTimeFormat('es-ES',{dateStyle:'medium',timeStyle:'short'});
 function render(){
   if(!document.getElementById('distributionNav')){
@@ -4224,7 +4225,7 @@ function render(){
     const copy=textNode('button','Copiar enlace para dirección','button small');copy.type='button';
     copy.onclick=async()=>{try{await navigator.clipboard.writeText(url.href);copy.textContent='¡Enlace copiado!';toast('Enlace general de dirección copiado');setTimeout(()=>copy.textContent='Copiar enlace para dirección',1600)}catch{prompt('Copia el enlace general de dirección',url.href)}};
     const link=textNode('a','Probar acceso de dirección','button secondary small');link.id='distributionNav';link.href=url.href;link.target='_blank';link.rel='noopener';
-    const note=textNode('p',FusionDistribution.demo?'Distribución en demostración local (no sincroniza otros ordenadores).':'Distribución protegida','muted tiny');note.style.flexBasis='100%';
+    const note=textNode('p','Distribución sincronizada en GitHub · archivos públicos','muted tiny');note.style.flexBasis='100%';
     panel.append(copy,link,note);$('gallery').before(panel);
   }
   $('statCount').textContent=state.models.length;
@@ -4258,13 +4259,13 @@ function render(){
       const active=d?.status==='active';
       distribution.textContent=active?'Activo en dirección':d?.status==='inactive'?'Desactivado por dirección':'No enviado a dirección';
       send.textContent=active?'Enviado a dirección':d?.status==='inactive'?'Reactivar en dirección':'Enviar a dirección';
-      send.disabled=active;revoke.hidden=!d;
+      send.disabled=active;revoke.hidden=!active;
     }
     const updateDistribution=async()=>{try{const d=(await FusionDistribution.list('admin')).find(x=>x.id===m.id);displayDistribution(d)}catch(e){distribution.textContent='Distribución: '+e.message}};
     send.onclick=async()=>{send.disabled=true;try{await FusionDistribution.send(m);toast('Diseño enviado a dirección');await updateDistribution()}catch(e){toast(e.message,true);send.disabled=false}};
-    revoke.onclick=async()=>{try{await FusionDistribution.setStatus(m.id,'revoked','admin');await updateDistribution()}catch(e){toast(e.message,true)}};
+    revoke.onclick=async()=>{try{await FusionDistribution.setStatus(m.id,'inactive','admin');await updateDistribution()}catch(e){toast(e.message,true)}};
     displayDistribution(null);
-    if(FusionDistribution.demo)updateDistribution();else distribution.textContent='Pulsa el estado para consultar la distribución';
+    updateDistribution();
     distribution.onclick=updateDistribution;distribution.style.cursor='pointer';
     const dl=document.createElement('button');dl.className='button secondary small';dl.textContent='↓ Descargar GLB';dl.addEventListener('click',()=>downloadModel(m));foot.append(dl);
     const remove=textNode('button','Eliminar','button secondary small delete-design');
