@@ -1,7 +1,17 @@
 {
   "version": 1,
-  "actualizado": "2026-11-25T06:26:18.200Z",
+  "actualizado": "2026-11-25T06:48:29.967Z",
   "modelos": [
+    {
+      "id": "prova-visor-mwvricy7",
+      "nombre": "prova visor",
+      "categoria": "Viviendas",
+      "descripcion": "",
+      "archivo": "modelos/prova-visor-mwvricy7.glb",
+      "miniatura": "miniaturas/prova-visor-mwvricy7.jpg",
+      "bytes": 10173024,
+      "fecha": "2026-11-25T06:48:29.967Z"
+    },
     {
       "id": "prova-visor-mwvqpsi2",
       "nombre": "prova visor",
