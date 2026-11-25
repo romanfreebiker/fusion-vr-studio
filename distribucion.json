@@ -1,4 +1,15 @@
 {
   "version": 1,
-  "modelos": []
+  "modelos": [
+    {
+      "id": "escalera-falsa-escuadra-olaso-mwvvfm5e",
+      "nombre": "ESCALERA FALSA ESCUADRA OLASO",
+      "descripcion": "",
+      "categoria": "Viviendas",
+      "archivo": "modelos/escalera-falsa-escuadra-olaso-mwvvfm5e.glb",
+      "miniatura": "miniaturas/escalera-falsa-escuadra-olaso-mwvvfm5e.jpg",
+      "status": "active",
+      "updated": "2026-11-25T21:11:26.132Z"
+    }
+  ]
 }
