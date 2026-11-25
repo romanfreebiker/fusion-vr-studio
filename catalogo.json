@@ -1,7 +1,17 @@
 {
   "version": 1,
-  "actualizado": "2026-11-23T06:58:40.852Z",
+  "actualizado": "2026-11-25T05:33:13.195Z",
   "modelos": [
+    {
+      "id": "puerta-zona-generador-mwvotkdj",
+      "nombre": "puerta zona generador",
+      "categoria": "Viviendas",
+      "descripcion": "",
+      "archivo": "modelos/puerta-zona-generador-mwvotkdj.glb",
+      "miniatura": "miniaturas/puerta-zona-generador-mwvotkdj.jpg",
+      "bytes": 5489964,
+      "fecha": "2026-11-25T05:33:13.195Z"
+    },
     {
       "id": "escalera-bascula-mwswzrjg",
       "nombre": "escalera bascula",
