@@ -51,7 +51,7 @@ try{
   name.className='caption';
   const viewer=new URL('./visor.html',location.href);
   viewer.searchParams.set('diseno',m.id);
-  viewer.searchParams.set('v','45'); // evita reutilizar la versión anterior del visor en Quest Browser
+  viewer.searchParams.set('v','81'); // evita reutilizar la versión anterior del visor en Quest Browser
   card.href=viewer.href;
   if(m.miniatura&&/^miniaturas\/[a-zA-Z0-9_-]+\.(jpg|jpeg|png|webp)$/.test(m.miniatura)){
    const img=document.createElement('img');img.src=new URL(m.miniatura,location.href).href;
