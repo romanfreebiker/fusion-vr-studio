@@ -2,17 +2,43 @@
 <html lang="es">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<script>if(new URLSearchParams(location.search).get("modo")==="presentacion")document.documentElement.classList.add("presentation-boot");</script>
 <title>Fusion VR Studio · Visor</title>
 <style>
 body{margin:0;background:#142034;color:#f4f7fd;font:16px system-ui}canvas{display:block}[hidden]{display:none!important}
 header{position:absolute;z-index:1;top:16px;left:16px;max-width:min(440px,calc(100vw - 72px));padding:14px 18px;background:#131e30ee;border:1px solid #42536f;border-radius:12px}
 h1{font-size:19px;margin:0 0 10px}label{display:block;margin-bottom:5px}select{font:inherit;color:inherit;background:#243652;border:1px solid #637a9d;border-radius:6px;padding:7px;max-width:100%}
 p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-variant-numeric:tabular-nums;margin-top:8px}details{margin-top:12px;border-top:1px solid #42536f;padding-top:9px}summary{cursor:pointer;font-weight:600;color:#b9d9f7}#detectedMaterials{max-height:160px;overflow:auto;font-size:12px;line-height:1.65;white-space:pre-wrap;color:#d5e0f0;margin-top:7px}
-body.presentation header{display:none}body.presentation #VRButton{display:none!important}body.presentation canvas{touch-action:none;cursor:grab}body.presentation canvas:active{cursor:grabbing}
+html.presentation-boot header,body.presentation header{display:none}body.presentation #VRButton{display:none!important}body.presentation canvas{touch-action:none;cursor:grab}body.presentation canvas:active{cursor:grabbing}
 #presentationBar{position:fixed;z-index:20;top:14px;left:14px;right:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;pointer-events:none}#presentationBar>*{pointer-events:auto;background:#142034eb;border:1px solid #52647b;border-radius:9px;color:white;padding:10px 13px;font:14px system-ui}#presentationBar strong{margin-right:auto}#presentationBar button{cursor:pointer;transition:background .12s,border-color .12s,transform .12s}#presentationBar button:hover{background:#36516d;border-color:#a6c5e4}#presentationBar button:active{background:#80c8ff;color:#0b1625;transform:translateY(2px)}#presentationBar button[aria-pressed=true],#presentationBar button.confirmed{background:#2378b9;border-color:#9ed8ff;color:white;box-shadow:0 0 0 1px #9ed8ff}#presentationBar button:focus-visible{outline:2px solid #b8e6ff;outline-offset:3px}#presentationHint{position:fixed;bottom:16px;right:16px;z-index:20;background:#142034b8;color:white;border-radius:10px;padding:8px 11px;font:12px system-ui;text-align:left;pointer-events:none;display:flex;align-items:center;gap:9px;max-width:90vw}.mouseLegend{display:grid;gap:5px}.mouseLegend span{display:flex;align-items:center;gap:6px;white-space:nowrap}.mouseLegend i{width:8px;height:8px;border-radius:2px;display:inline-block}.mouseLegend small{color:#b7c9dd;font-size:11px}#presentationStatus{position:fixed;z-index:21;top:50%;left:50%;transform:translate(-50%,-50%);background:#142034e8;padding:18px;border-radius:12px;text-align:center}
+#presentationBoot{display:none}html.presentation-boot #presentationBoot:not([hidden]){display:grid;position:fixed;inset:0;z-index:100;place-items:center;background:radial-gradient(ellipse at 50% 38%,#233a53,#101a29 65%);color:#eef6ff;font:15px system-ui}
+.boot-panel{width:min(360px,78vw);text-align:center}.boot-logo{margin:0 auto 24px;width:64px;height:64px;display:grid;place-items:center;border:1px solid #7899bb;border-radius:18px;background:#213b55;box-shadow:0 14px 40px #0004}.boot-name{font-size:25px;font-weight:650;letter-spacing:.5px}.boot-sub{margin-top:7px;color:#a7bed4;font-size:13px}.boot-track{height:5px;background:#31465e;border-radius:99px;margin-top:30px;overflow:hidden}.boot-fill{height:100%;width:5%;background:#73c4ff;border-radius:99px;transition:width .25s ease}.boot-step{margin-top:15px;color:#bad0e6;font-size:13px;min-height:36px}.boot-panel button{font:inherit;color:white;background:#294766;border:1px solid #7398ba;border-radius:8px;padding:8px 14px;cursor:pointer}.boot-track.indeterminate .boot-fill{width:30%!important;animation:boot-scan 1.4s ease-in-out infinite}@keyframes boot-scan{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
+</script>
+<body>
+<div id="presentationBoot" role="status" aria-live="polite">
+ <div class="boot-panel">
+  <div class="boot-logo"><svg width="37" height="37" viewBox="0 0 40 40" fill="none" stroke="#b7ddff" stroke-width="1.8" aria-hidden="true"><path d="M20 3 35 11.5V28.5L20 37 5 28.5V11.5Z M5 11.5 20 20 35 11.5 M20 20V37 M20 3V20"/></svg></div>
+  <div class="boot-name">Fusion Studio</div><div class="boot-sub">Visualización de proyectos 3D</div>
+  <div class="boot-track indeterminate" id="bootTrack" role="progressbar" aria-label="Carga del diseño"><div class="boot-fill" id="bootFill"></div></div>
+  <div class="boot-step" id="bootStep">Iniciando el visor…</div>
+  <button id="bootRetry" hidden onclick="location.reload()">Reintentar</button>
+ </div>
+</div>
+<script>
+window.presentationProgress=function(message,percent,error=false){
+ if(!document.documentElement.classList.contains('presentation-boot'))return;
+ const root=document.getElementById('presentationBoot'),track=document.getElementById('bootTrack'),fill=document.getElementById('bootFill');
+ if(!root)return;
+ root.hidden=false;document.getElementById('bootStep').textContent=message;
+ const known=Number.isFinite(percent);track.classList.toggle('indeterminate',!known&&!error);
+ if(known){const p=Math.max(0,Math.min(100,percent));fill.style.width=p+'%';track.setAttribute('aria-valuenow',String(Math.round(p)));}else{track.removeAttribute('aria-valuenow');}
+ document.getElementById('bootRetry').hidden=!error;track.style.visibility=error?'hidden':'visible';
+};
+window.addEventListener('error',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo iniciar el visor. Comprueba la conexión.',null,true);});
+window.addEventListener('unhandledrejection',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo cargar el proyecto.',null,true);});
 </script>
 <script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=1"></script>
 <header>
@@ -75,6 +101,7 @@ window.addEventListener('DOMContentLoaded',()=>{
  setTimeout(()=>{
    if(!window.__vrBootStarted && !window.__vrBootFailure){
      el.textContent='El motor 3D no inició. Comprueba si el navegador permite cargar módulos Three.js. V0.24';
+     window.presentationProgress?.('El motor 3D no ha podido iniciarse. Comprueba la conexión.',null,true);
    }
  },9000);
 });
@@ -174,15 +201,15 @@ if(presentation){
  if(access&&FusionDistribution.demo){const demoLabel=document.createElement('span');demoLabel.textContent='DEMO · acceso no protegido';bar.append(demoLabel);}
  document.body.append(bar);
  presentationHint=document.createElement('div');presentationHint.id='presentationHint';document.body.append(presentationHint);updateMouseGuide();
- presentationStatus=document.createElement('div');presentationStatus.id='presentationStatus';presentationStatus.textContent='Cargando diseño…';document.body.append(presentationStatus);
+ presentationStatus=document.getElementById('presentationBoot');window.presentationProgress('Preparando el proyecto…',null);
  const canvas=renderer.domElement;
  // Interceptar antes de OrbitControls: zoom lineal y paneo libre horizontal/vertical.
  canvas.addEventListener('pointerdown',e=>{
-   if(walkingMode||e.button!==2)return;
+   if(e.button!==2)return;
    e.preventDefault();e.stopImmediatePropagation();verticalDrag=true;verticalLastY=e.clientY;panLastX=e.clientX;canvas.setPointerCapture(e.pointerId);
  },true);
  canvas.addEventListener('pointermove',e=>{
-   if(walkingMode||!verticalDrag)return;
+   if(!verticalDrag)return;
    if(!(e.buttons&2)){verticalDrag=false;return;}
    e.preventDefault();e.stopImmediatePropagation();
    const dx=e.clientX-panLastX,dy=e.clientY-verticalLastY;panLastX=e.clientX;verticalLastY=e.clientY;
@@ -198,22 +225,14 @@ if(presentation){
  const stopVertical=e=>{if(!verticalDrag)return;verticalDrag=false;if(e.type==='pointerup')e.stopImmediatePropagation();};
  canvas.addEventListener('pointerup',stopVertical,true);canvas.addEventListener('pointercancel',stopVertical,true);canvas.addEventListener('lostpointercapture',stopVertical,true);
  canvas.addEventListener('wheel',e=>{
-   if(walkingMode)return;
    e.preventDefault();e.stopImmediatePropagation();
    const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?innerHeight:1);
    const unit=Math.max(.12,distance*.025);
    orbitZoomPending=THREE.MathUtils.clamp(orbitZoomPending+delta/100*unit,-distance*2,distance*2);
  },{capture:true,passive:false});
  canvas.addEventListener('contextmenu',e=>e.preventDefault());
- canvas.addEventListener('pointerdown',e=>{if(!walkingMode)return;if(e.button!==0&&e.button!==2)return;e.preventDefault();mouseButtons=e.buttons;canvas.setPointerCapture(e.pointerId);});
- canvas.addEventListener('pointermove',e=>{if(!walkingMode)return;mouseButtons=e.buttons;if(e.buttons&3){walkTargetYaw-=e.movementX*.003;walkTargetPitch=THREE.MathUtils.clamp(walkTargetPitch-e.movementY*.003,-1.45,1.45);}});
- const release=e=>{mouseButtons=e.buttons||0;};canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',()=>mouseButtons=0);canvas.addEventListener('lostpointercapture',()=>mouseButtons=0);
- canvas.addEventListener('wheel',e=>{if(!walkingMode)return;e.preventDefault();const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?innerHeight:1);wheelDistance=THREE.MathUtils.clamp(wheelDistance-delta*.005,-2,2);},{passive:false});
- const movementKeys=['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'];
- addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(walkingMode&&movementKeys.includes(k)){e.preventDefault();keys.add(k);}});
- addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
- addEventListener('blur',()=>{keys.clear();mouseButtons=0;wheelDistance=0;verticalDrag=false;orbitZoomPending=0;});
- new MutationObserver(()=>{if(status.textContent.startsWith('Escala 1:1'))presentationStatus.hidden=true;else{presentationStatus.hidden=false;presentationStatus.textContent=status.textContent;}}).observe(status,{childList:true,characterData:true,subtree:true});
+ addEventListener('blur',()=>{verticalDrag=false;orbitZoomPending=0;});
+ new MutationObserver(()=>{const message=status.textContent;if(/^(No se pudo|Error|El motor)/i.test(message))window.presentationProgress(message,null,true);}).observe(status,{childList:true,characterData:true,subtree:true});
 }
 controls.enableDamping=true;
 controls.dampingFactor=presentation?.25:.10;
@@ -1403,26 +1422,33 @@ function restartModelView(){
 }
 function updateMouseGuide(){
  if(!presentationHint)return;
- presentationHint.innerHTML='<svg width="46" height="64" viewBox="0 0 46 64" aria-hidden="true"><rect x="4" y="3" width="38" height="58" rx="19" fill="#26374a" stroke="#a7bed4" stroke-width="1.5"/><path d="M5 26V21A18 18 0 0 1 20 4V26Z" fill="#65b9ff"/><path d="M41 26V21A18 18 0 0 0 26 4V26Z" fill="#f4b56e"/><path d="M4 27H42" stroke="#a7bed4"/><rect x="20" y="9" width="6" height="16" rx="3" fill="#77ddae" stroke="#172438"/><path d="M23 12v9" stroke="#d7fbea" stroke-width="1.2"/></svg><div class="mouseLegend"><span><i style="background:#65b9ff"></i>'+ (walkingMode?'Mirar':'Girar')+'</span><span><i style="background:#f4b56e"></i>'+(walkingMode?'Caminar y mirar':'Paneo libre')+'</span><span><i style="background:#77ddae"></i>'+(walkingMode?'Avanzar / retroceder':'Zoom')+'</span>'+(walkingMode?'<small>WASD / flechas opcionales</small>':'<small>Central: desplazar</small>')+'</div>';
+ presentationHint.innerHTML='<svg width="46" height="64" viewBox="0 0 46 64" aria-hidden="true"><rect x="4" y="3" width="38" height="58" rx="19" fill="#26374a" stroke="#a7bed4" stroke-width="1.5"/><path d="M5 26V21A18 18 0 0 1 20 4V26Z" fill="#65b9ff"/><path d="M41 26V21A18 18 0 0 0 26 4V26Z" fill="#f4b56e"/><path d="M4 27H42" stroke="#a7bed4"/><rect x="20" y="9" width="6" height="16" rx="3" fill="#77ddae" stroke="#172438"/><path d="M23 12v9" stroke="#d7fbea" stroke-width="1.2"/></svg><div class="mouseLegend"><span><i style="background:#65b9ff"></i>'+ 'Girar'+'</span><span><i style="background:#f4b56e"></i>'+'Paneo libre'+'</span><span><i style="background:#77ddae"></i>'+'Zoom'+'</span>'+(walkingMode?'<small>Altura fija: 1,75 m</small>':'<small>Central: desplazar</small>')+'</div>';
+}
+let presentationFloor=0;
+function lockEyeHeight(){
+ if(!model||!walkingMode)return;
+ const support=floorUnder(camera.position.x,camera.position.z,presentationFloor);
+ presentationFloor=support;
+ const shift=support+1.75-camera.position.y;
+ // Trasladar la cámara y su pivote juntos: conserva la orientación y el zoom.
+ camera.position.y+=shift;controls.target.y+=shift;
+ camera.updateMatrixWorld(true);
 }
 function setPresentationMode(walk){
  if(walkingMode===walk)return;
- // Vaciar la amortiguación orbital antes de entrar en modo a pie.
- if(!walkingMode){const damping=controls.enableDamping;controls.enableDamping=false;controls.update();controls.enableDamping=damping;}
- walkingMode=walk;controls.enabled=!walk;keys.clear();mouseButtons=0;wheelDistance=0;walkSpeed=0;walkSideSpeed=0;
- orbitButton.setAttribute('aria-pressed',String(!walk));walkButton.setAttribute('aria-pressed',String(walk));
- verticalDrag=false;orbitZoomPending=0;updateMouseGuide();
- desktopView();
+ walkingMode=walk;controls.enabled=true;verticalDrag=false;orbitZoomPending=0;
+ orbitButton.setAttribute('aria-pressed',String(!walk));walkButton.setAttribute('aria-pressed',String(walk));updateMouseGuide();
+ if(walk){presentationFloor=0;lockEyeHeight();}
 }
 function desktopView(){
-  if(presentation){orbitZoomPending=0;verticalDrag=false;}
-  if(presentation&&walkingMode){if(!model)return;rig.position.set(0,0,vrStartDistance);rig.rotation.set(0,0,0);camera.position.set(0,1.75,0);yaw=0;pitch=0;walkTargetYaw=0;walkTargetPitch=0;walkSpeed=0;walkSideSpeed=0;camera.rotation.set(0,0,0,'YXZ');wheelDistance=0;resetPhysics();return;}
+  if(presentation){orbitZoomPending=0;verticalDrag=false;presentationFloor=0;}
   rig.position.set(0,0,0);
   rig.rotation.set(0,0,0);
   camera.position.set(distance*.65,height*.85+1,distance);
   controls.target.set(0,height*.45,0);
   if(presentation){controls.maxDistance=Math.max(100,distance*8);controls.minDistance=.08;}
   controls.update();
+  if(presentation&&walkingMode)lockEyeHeight();
 }
 function dispose(root){
   const textures=new Set();
@@ -1443,10 +1469,12 @@ async function openModel(){
   const load=++generation;
   vrButton.hidden=true;
   status.textContent='Cargando diseño…';
+  if(presentation)window.presentationProgress('Descargando el modelo 3D…',null);
   try{
     const url=new URL(distributedModel?distributedModel.url:models.value,location.href);
     if(!distributedModel&&(url.origin!==location.origin||!url.pathname.startsWith(new URL('modelos/',location.href).pathname)||!url.pathname.endsWith('.glb')))throw Error('Ruta de modelo no válida.');
-    const {scene:next}=await loader.loadAsync(url.href);
+    const {scene:next}=await loader.loadAsync(url.href,event=>{if(presentation&&load===generation){const known=event.lengthComputable&&event.total>0;window.presentationProgress(known?'Descargando el modelo 3D · '+Math.round(event.loaded/event.total*100)+'%':'Descargando el modelo 3D…',known?event.loaded/event.total*100:null);}});
+    if(presentation)window.presentationProgress('Preparando geometría y materiales…',null);
     if(load!==generation){dispose(next);return}
     const upAxis=orientation.value;
     switch(upAxis){
@@ -1461,6 +1489,7 @@ async function openModel(){
     if(appearance.value==='library'){
       if(!globalThis.FusionMaterialLib)throw Error('No se pudo cargar nuestra biblioteca de materiales.');
       status.textContent='Cargando materiales PBR CC0 (si no hay conexión, uso los locales)…';
+      if(presentation)window.presentationProgress('Preparando texturas y acabados…',null);
       await globalThis.FusionMaterialLib.prepare();
     }
     const applied=appearance.value==='library'?applyLibrary(next):0;
@@ -1489,6 +1518,7 @@ async function openModel(){
         }
       }
     });
+    if(presentation)window.presentationProgress('Preparando la escena 3D…',null);
     const stats=materialStats(next);
     const bounds=new THREE.Box3().setFromObject(next,true);
     if(bounds.isEmpty()){dispose(next);throw Error('El archivo está vacío.')}
@@ -1528,9 +1558,10 @@ async function openModel(){
     }else desktopView();
     status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.81';
     vrButton.hidden=false;
+    if(presentation){window.presentationProgress('Proyecto listo',100);requestAnimationFrame(()=>requestAnimationFrame(()=>{if(load===generation)presentationStatus.hidden=true;}));}
     return true;
   }catch(error){
-    if(load===generation)status.textContent='No se pudo abrir el diseño. '+error.message;
+    if(load===generation){status.textContent='No se pudo abrir el diseño. '+error.message;if(presentation)window.presentationProgress('No se pudo abrir el proyecto. '+error.message,null,true);}
     if(model)vrButton.hidden=false;
     return false;
   }
@@ -1709,55 +1740,7 @@ renderer.setAnimationLoop(time=>{
       rotateAroundHeadset(headset,-smoothTurnAxis*radiansPerSecond*dt);
     }
   }
-  if(presentation&&walkingMode&&model){
-    const lookBlend=1-Math.exp(-24*dt);yaw+=(walkTargetYaw-yaw)*lookBlend;pitch+=(walkTargetPitch-pitch)*lookBlend;camera.rotation.set(pitch,yaw,0,'YXZ');
-    const stride=Number(Boolean(mouseButtons&2)||keys.has('w')||keys.has('arrowup'))-Number(keys.has('s')||keys.has('arrowdown'));
-    const strafe=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft'));
-    forward.set(-Math.sin(yaw),0,-Math.cos(yaw));right.crossVectors(forward,THREE.Object3D.DEFAULT_UP);
-    // Mantener el paso más lento al detectar una huella de escalera real.
-    const input=new THREE.Vector3().addScaledVector(forward,stride).addScaledVector(right,strafe);
-    if(input.lengthSq()>.01||Math.abs(wheelDistance)>.01){
-      const dir=input.lengthSq()>.01?input.clone().normalize():forward.clone().multiplyScalar(Math.sign(wheelDistance));
-      const feet=physicsFeetY??rig.position.y;
-      const here=floorUnder(rig.position.x,rig.position.z,feet);
-      const ahead=floorUnder(rig.position.x+dir.x*.34,rig.position.z+dir.z*.34,feet);
-      if(Math.abs(ahead-here)>.045&&Math.abs(ahead-here)<=MAX_STEP+.06)stairSlowUntil=time+900;
-    }
-    const speed=time<stairSlowUntil?1.55*.54:1.55;
-    const norm=Math.max(1,Math.hypot(stride,strafe));
-    const acceleration=1-Math.exp(-18*dt);
-    walkSpeed+=(stride/norm*speed-walkSpeed)*acceleration;
-    walkSideSpeed+=(strafe/norm*speed-walkSideSpeed)*acceleration;
-    if(!stride&&Math.abs(walkSpeed)<.025)walkSpeed=0;
-    if(!strafe&&Math.abs(walkSideSpeed)<.025)walkSideSpeed=0;
-    const scroll=Math.sign(wheelDistance)*Math.min(Math.abs(wheelDistance),speed*dt);
-    const motion=new THREE.Vector3().addScaledVector(forward,walkSpeed*dt+scroll).addScaledVector(right,walkSideSpeed*dt);
-    if(motion.length()>speed*dt)motion.setLength(speed*dt);
-    // Presentación: únicamente el punto de vista, sin cápsula ni volumen de avatar.
-    // Un pequeño margen de cámara impide cruzar una cara a la altura de los ojos.
-    const oldX=rig.position.x,oldZ=rig.position.z;
-    const eyeMargin=.006;
-    for(const axis of ['x','z']){
-      const amount=motion[axis];if(Math.abs(amount)<1e-8)continue;
-      const direction=new THREE.Vector3();direction[axis]=Math.sign(amount);
-      const eye=new THREE.Vector3(rig.position.x,rig.position.y+1.75,rig.position.z);
-      const hit=rayHits(eye,direction,Math.abs(amount)+eyeMargin)[0];
-      const allowed=hit?Math.max(0,Math.min(Math.abs(amount),hit.distance-eyeMargin)):Math.abs(amount);
-      rig.position[axis]+=Math.sign(amount)*allowed;
-    }
-    const feet=physicsFeetY??rig.position.y;
-    const support=floorUnder(rig.position.x,rig.position.z,feet);
-    physicsFeetY=support;
-    // La altura de los ojos permanece a 1750 mm del apoyo local.
-    // Interpolar únicamente al cambiar de nivel, sin animación de avatar.
-    const delta=support-rig.position.y;
-    rig.position.y+=Math.sign(delta)*Math.min(Math.abs(delta),Math.max(.85,Math.abs(delta)*8)*dt);
-    if(Math.abs(support-rig.position.y)<.002)rig.position.y=support;
-    const traveled=Math.hypot(rig.position.x-oldX,rig.position.z-oldZ);
-    if(scroll)wheelDistance-=Math.sign(scroll)*Math.min(Math.abs(scroll),traveled);
-    if(scroll&&traveled<.00001)wheelDistance=0;
-
-  }else if(!renderer.xr.isPresenting){
+  if(!renderer.xr.isPresenting){
     if(presentation&&model&&Math.abs(orbitZoomPending)>.0001){
       const offset=camera.position.clone().sub(controls.target);
       const current=offset.length();
@@ -1776,6 +1759,7 @@ renderer.setAnimationLoop(time=>{
     }
     controls.update();
   }
+  if(presentation&&walkingMode)lockEyeHeight();
   if(presentation)ground.visible=walkingMode||camera.getWorldPosition(new THREE.Vector3()).y>=ground.position.y;
   renderer.render(scene,camera);
   if(!meterStart)meterStart=time;
@@ -1821,6 +1805,6 @@ try{
   appearance.value='library';
   await openModel();
   }
-}catch(error){status.textContent=error.message}
+}catch(error){status.textContent=error.message;if(presentation)window.presentationProgress('No se pudo abrir el proyecto. '+error.message,null,true);}
 </script>
 </html>
