@@ -8,6 +8,8 @@ body{margin:0;background:#142034;color:#f4f7fd;font:16px system-ui}canvas{displa
 header{position:absolute;z-index:1;top:16px;left:16px;max-width:min(440px,calc(100vw - 72px));padding:14px 18px;background:#131e30ee;border:1px solid #42536f;border-radius:12px}
 h1{font-size:19px;margin:0 0 10px}label{display:block;margin-bottom:5px}select{font:inherit;color:inherit;background:#243652;border:1px solid #637a9d;border-radius:6px;padding:7px;max-width:100%}
 p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-variant-numeric:tabular-nums;margin-top:8px}details{margin-top:12px;border-top:1px solid #42536f;padding-top:9px}summary{cursor:pointer;font-weight:600;color:#b9d9f7}#detectedMaterials{max-height:160px;overflow:auto;font-size:12px;line-height:1.65;white-space:pre-wrap;color:#d5e0f0;margin-top:7px}
+body.presentation header{display:none}body.presentation #VRButton{display:none!important}body.presentation canvas{touch-action:none;cursor:grab}body.presentation canvas:active{cursor:grabbing}
+#presentationBar{position:fixed;z-index:20;top:14px;left:14px;right:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;pointer-events:none}#presentationBar>*{pointer-events:auto;background:#142034eb;border:1px solid #52647b;border-radius:9px;color:white;padding:10px 13px;font:14px system-ui}#presentationBar strong{margin-right:auto}#presentationBar button{cursor:pointer}#presentationHint{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:20;background:#142034e8;color:white;border-radius:10px;padding:10px 15px;font:13px system-ui;text-align:center;pointer-events:none;max-width:90vw}#presentationStatus{position:fixed;z-index:21;top:50%;left:50%;transform:translate(-50%,-50%);background:#142034e8;padding:18px;border-radius:12px;text-align:center}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
@@ -69,7 +71,7 @@ window.addEventListener('DOMContentLoaded',()=>{
  const label=document.createElement('div');
  label.textContent='VR Studio 0.24 · diagnóstico de arranque';
  label.style.cssText='position:fixed;right:12px;bottom:12px;z-index:9;background:#18344a;color:#9ef3e2;padding:8px;border-radius:7px;font:14px system-ui';
- document.body.append(label);
+ if(new URLSearchParams(location.search).get('modo')!=='presentacion')document.body.append(label);
  setTimeout(()=>{
    if(!window.__vrBootStarted && !window.__vrBootFailure){
      el.textContent='El motor 3D no inició. Comprueba si el navegador permite cargar módulos Three.js. V0.24';
@@ -88,6 +90,8 @@ import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import {Octree} from 'three/addons/math/Octree.js';
 import {Capsule} from 'three/addons/math/Capsule.js';
 
+const presentation=new URLSearchParams(location.search).get('modo')==='presentacion';
+document.body.classList.toggle('presentation',presentation);
 const status=document.querySelector('#status'), models=document.querySelector('#models');
 const orientation=document.querySelector('#orientation'), appearance=document.querySelector('#appearance');
 const detectedMaterials=document.querySelector('#detectedMaterials');
@@ -146,6 +150,33 @@ scene.environmentIntensity=.68;
 room.dispose();pmrem.dispose();
 document.body.append(renderer.domElement);
 const controls=new OrbitControls(camera,renderer.domElement);
+let mouseButtons=0, wheelDistance=0, yaw=0,pitch=0;
+const keys=new Set();
+let presentationStatus,presentationTitle;
+if(presentation){
+ renderer.xr.enabled=false;
+ controls.enabled=false;
+ const bar=document.createElement('div');bar.id='presentationBar';
+ presentationTitle=document.createElement('strong');presentationTitle.textContent='Fusion Studio · Presentación';bar.append(presentationTitle);
+ function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);}
+ button('Inicio',()=>desktopView());
+ button('Pantalla completa',()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{});});
+ button('Copiar enlace',async()=>{try{await navigator.clipboard.writeText(location.href)}catch{prompt('Copia este enlace',location.href)}});
+ document.body.append(bar);
+ const hint=document.createElement('div');hint.id='presentationHint';hint.textContent='Arrastra con el botón izquierdo para mirar · Mantén el derecho para avanzar · Rueda para avanzar o retroceder · WASD / flechas opcionales';document.body.append(hint);
+ presentationStatus=document.createElement('div');presentationStatus.id='presentationStatus';presentationStatus.textContent='Cargando diseño…';document.body.append(presentationStatus);
+ const canvas=renderer.domElement;
+ canvas.addEventListener('contextmenu',e=>e.preventDefault());
+ canvas.addEventListener('pointerdown',e=>{if(e.button!==0&&e.button!==2)return;e.preventDefault();mouseButtons=e.buttons;canvas.setPointerCapture(e.pointerId);});
+ canvas.addEventListener('pointermove',e=>{mouseButtons=e.buttons;if(e.buttons&1){yaw-=e.movementX*.003;pitch=THREE.MathUtils.clamp(pitch-e.movementY*.003,-1.45,1.45);camera.rotation.set(pitch,yaw,0,'YXZ');}});
+ const release=e=>{mouseButtons=e.buttons||0;};canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',()=>mouseButtons=0);canvas.addEventListener('lostpointercapture',()=>mouseButtons=0);
+ canvas.addEventListener('wheel',e=>{e.preventDefault();const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?innerHeight:1);wheelDistance=THREE.MathUtils.clamp(wheelDistance-delta*.003,-1.5,1.5);},{passive:false});
+ const movementKeys=['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'];
+ addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(movementKeys.includes(k)){e.preventDefault();keys.add(k);}});
+ addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+ addEventListener('blur',()=>{keys.clear();mouseButtons=0;wheelDistance=0;});
+ new MutationObserver(()=>{if(status.textContent.startsWith('Escala 1:1'))presentationStatus.hidden=true;else{presentationStatus.hidden=false;presentationStatus.textContent=status.textContent;}}).observe(status,{childList:true,characterData:true,subtree:true});
+}
 controls.enableDamping=true;
 controls.dampingFactor=.10;
 controls.zoomSpeed=.62;
@@ -935,7 +966,7 @@ async function activateMenuHit(hit){
 }
 const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']});
 vrButton.hidden=true;
-document.body.append(vrButton);
+if(!presentation)document.body.append(vrButton);
 const versionLabel=document.createElement('div');
 versionLabel.textContent='Visor VR 0.81 · A Rescate en mando derecho';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
@@ -1147,7 +1178,8 @@ function wallClearance(x,z,feet,move){
   return distance;
 }
 function solveMovement(headset,desired,dt){
-  if(!syncViewerPose()){
+  if(presentation||!syncViewerPose()){
+    rig.updateMatrixWorld(true);
     headset.updateMatrixWorld(true);
     headset.getWorldPosition(avatarHead);
     xrWorldForward.set(0,0,-1).transformDirection(headset.matrixWorld);
@@ -1332,6 +1364,7 @@ function restartModelView(){
   if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
 }
 function desktopView(){
+  if(presentation){if(!model)return;rig.position.set(0,0,vrStartDistance);rig.rotation.set(0,0,0);camera.position.set(0,1.65,0);yaw=0;pitch=0;camera.rotation.set(0,0,0,'YXZ');wheelDistance=0;resetPhysics();return;}
   rig.position.set(0,0,0);
   rig.rotation.set(0,0,0);
   camera.position.set(distance*.65,height*.85+1,distance);
@@ -1623,7 +1656,19 @@ renderer.setAnimationLoop(time=>{
       rotateAroundHeadset(headset,-smoothTurnAxis*radiansPerSecond*dt);
     }
   }
-  if(!renderer.xr.isPresenting)controls.update(); // amortiguación de la rueda en escritorio
+  if(presentation&&model){
+    const stride=Number(Boolean(mouseButtons&2)||keys.has('w')||keys.has('arrowup'))-Number(keys.has('s')||keys.has('arrowdown'));
+    const strafe=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft'));
+    forward.set(-Math.sin(yaw),0,-Math.cos(yaw));right.crossVectors(forward,THREE.Object3D.DEFAULT_UP);
+    const speed=time<stairSlowUntil?WALK_SPEED*STAIR_SPEED_FACTOR:WALK_SPEED;
+    const scroll=Math.sign(wheelDistance)*Math.min(Math.abs(wheelDistance),speed*dt);
+    wheelDistance-=scroll;
+    const motion=new THREE.Vector3().addScaledVector(forward,stride).addScaledVector(right,strafe);
+    if(motion.lengthSq()>1)motion.normalize();
+    motion.multiplyScalar(speed*dt).addScaledVector(forward,scroll);
+    if(motion.length()>speed*dt)motion.setLength(speed*dt);
+    solveMovement(camera,motion,dt);
+  }else if(!renderer.xr.isPresenting)controls.update(); // amortiguación de la rueda en escritorio
   renderer.render(scene,camera);
   if(!meterStart)meterStart=time;
   if(meterLast){
@@ -1659,6 +1704,7 @@ try{
   const requestedId=new URLSearchParams(location.search).get('diseno');
   const requested=modelos.find(item=>item.id===requestedId);
   if(requested)models.value=requested.archivo;
+  if(presentation){if(!requested)throw Error('El enlace no identifica un diseño disponible.');presentationTitle.textContent=requested.nombre;document.title=requested.nombre+' · Fusion Studio';}
   for(const control of [models,orientation,appearance])control.disabled=false;
   appearance.value='library';
   await openModel();
