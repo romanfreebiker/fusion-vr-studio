@@ -4244,6 +4244,7 @@ function render(){
     const view=textNode('a','Abrir en visor','button small');
     const viewerUrl=new URL('visor.html',location.href);
     viewerUrl.searchParams.set('diseno',m.id);
+    viewerUrl.searchParams.set('v','81');
     view.href=viewerUrl.href;
     foot.append(view);
     const dl=document.createElement('button');dl.className='button secondary small';dl.textContent='↓ Descargar GLB';dl.addEventListener('click',()=>downloadModel(m));foot.append(dl);
