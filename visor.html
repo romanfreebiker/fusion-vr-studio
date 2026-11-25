@@ -1195,6 +1195,39 @@ function solveMovement(headset,desired,dt){
       bodyBlocked(x,z,footY,x+step.x,z+step.z);
     const allowance=triangleBlocked?0:wallClearance(x,z,footY,step);
     if(allowance>=step.length()-.00001){x+=step.x;z+=step.z;continue}
+    // El radio del avatar alcanza la contrahuella antes que el rayo bajo
+    // los pies. Buscar una huella real por delante, sin saltar horizontalmente.
+    if(isGrounded&&step.lengthSq()>1e-10){
+      const dir=step.clone().normalize();
+      const nx=x+step.x,nz=z+step.z;
+      let landing=null;
+      for(let d=.035;d<=BODY_RADIUS+.055;d+=.035){
+        const px=nx+dir.x*d,pz=nz+dir.z*d;
+        const y=floorUnder(px,pz,footY);
+        const rise=y-footY;
+        if(rise<=.025||rise>MAX_STEP)continue;
+        // Exigir una huella con profundidad y anchura, no un borde aislado.
+        const far=floorUnder(px+dir.x*.055,pz+dir.z*.055,footY);
+        const left=floorUnder(px-dir.z*.07,pz+dir.x*.07,footY);
+        const right=floorUnder(px+dir.z*.07,pz-dir.x*.07,footY);
+        if([far,left,right].some(v=>Math.abs(v-y)>.025))continue;
+        if(wallPenetration(nx,nz,y)>.005||
+           bodyBlocked(x,z,footY,nx,nz,y)||
+           wallClearance(x,z,y,step)<step.length()-.00001)continue;
+        landing=y;break;
+      }
+      if(landing!==null){
+        x=nx;z=nz;
+        // Elevar el apoyo únicamente cuando el centro alcanza la huella.
+        const under=floorUnder(x,z,footY);
+        if(under-footY>.025&&under-footY<=MAX_STEP){
+          footY=under;verticalVelocity=0;
+        }
+        lastStairContactMs=performance.now();
+        stairSlowUntil=Math.max(stairSlowUntil,lastStairContactMs+1100);
+        continue;
+      }
+    }
     collisionStops++;
     // Probar peldaño; el ascenso debe tener superficie de apoyo y espacio.
     const candidateFloor=floorUnder(x+step.x,z+step.z,footY);
@@ -1407,7 +1440,7 @@ async function openModel(){
       smoothTurnAxis=0;
       if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
     }else desktopView();
-    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.80';
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.81';
     vrButton.hidden=false;
     return true;
   }catch(error){
