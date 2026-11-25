@@ -168,7 +168,7 @@ if(presentation){
  document.addEventListener('fullscreenchange',()=>{full.setAttribute('aria-pressed',String(!!document.fullscreenElement));full.textContent=document.fullscreenElement?'Salir de pantalla completa':'Pantalla completa';});
  if(access==='director'){
    button('Mi biblioteca',()=>location.assign('direccion.html'));
-   const share=button('Compartir diseño',async()=>{try{const url=await FusionDistribution.share(params.get('diseno'));try{await navigator.clipboard.writeText(url);share.textContent='¡Enlace copiado!';setTimeout(()=>share.textContent='Compartir diseño',1600)}catch{prompt('Enlace individual',url)}}catch(e){alert(e.message)}});
+   const share=button('Copiar enlace para terceros',async()=>{if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}share.disabled=true;try{const url=await FusionDistribution.share(params.get('diseno'));try{await navigator.clipboard.writeText(url);share.textContent='¡Enlace copiado!';share.classList.add('confirmed');setTimeout(()=>{share.textContent='Copiar enlace para terceros';share.classList.remove('confirmed')},1600)}catch{prompt('Enlace individual para terceros',url)}}catch(e){alert(e.message)}finally{share.disabled=false}});
  }
  if(access&&FusionDistribution.demo){const demoLabel=document.createElement('span');demoLabel.textContent='DEMO · acceso no protegido';bar.append(demoLabel);}
  document.body.append(bar);
