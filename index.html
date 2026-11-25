@@ -4218,7 +4218,15 @@ async function refresh(){
 window.addEventListener('storage',e=>{if(e.key==='fusion-distribution-demo-v1')render()});
 const dateLabel=new Intl.DateTimeFormat('es-ES',{dateStyle:'medium',timeStyle:'short'});
 function render(){
-  if(!document.getElementById('distributionNav')){const link=document.createElement('a');link.id='distributionNav';link.href='direccion.html';link.target='_blank';link.rel='noopener';link.className='button secondary small';link.textContent='Biblioteca de dirección';const note=document.createElement('p');note.className='muted tiny';note.textContent=FusionDistribution.demo?'Distribución en demostración local (no sincroniza otros ordenadores).':'Distribución protegida';const panel=document.createElement('div');panel.style.marginBottom='16px';panel.append(link,note);$('gallery').before(panel);}
+  if(!document.getElementById('distributionNav')){
+    const url=new URL('direccion.html',location.href);
+    const panel=document.createElement('div');panel.style.cssText='margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center';
+    const copy=textNode('button','Copiar enlace para dirección','button small');copy.type='button';
+    copy.onclick=async()=>{try{await navigator.clipboard.writeText(url.href);copy.textContent='¡Enlace copiado!';toast('Enlace general de dirección copiado');setTimeout(()=>copy.textContent='Copiar enlace para dirección',1600)}catch{prompt('Copia el enlace general de dirección',url.href)}};
+    const link=textNode('a','Probar acceso de dirección','button secondary small');link.id='distributionNav';link.href=url.href;link.target='_blank';link.rel='noopener';
+    const note=textNode('p',FusionDistribution.demo?'Distribución en demostración local (no sincroniza otros ordenadores).':'Distribución protegida','muted tiny');note.style.flexBasis='100%';
+    panel.append(copy,link,note);$('gallery').before(panel);
+  }
   $('statCount').textContent=state.models.length;
   $('statCategories').textContent=new Set(state.models.map(x=>x.categoria).filter(Boolean)).size;
   $('statSize').textContent=((state.models.reduce((n,m)=>n+(Number(m.bytes)||0),0)/1048576)||0).toFixed(1)+' MB';
@@ -4243,27 +4251,17 @@ function render(){
     }
     body.append(textNode('p',m.descripcion||'Listo para explorar en realidad virtual.','tile-desc'));
     const foot=document.createElement('div');foot.className='tile-foot';
-    const directionUrl=FusionDistribution.viewer(m.id,'director');directionUrl.searchParams.set('v','84');
     const distribution=textNode('div','Consultando distribución…','muted tiny');distribution.style.flexBasis='100%';foot.append(distribution);
-    const copy=textNode('button','Copiar enlace para dirección','button small');copy.type='button';foot.append(copy);
-    const preview=textNode('a','Probar visor de dirección','button secondary small');preview.href=directionUrl.href;preview.target='_blank';preview.rel='noopener';foot.append(preview);
+    const send=textNode('button','Enviar a dirección','button secondary small');send.type='button';foot.append(send);
     const revoke=textNode('button','Retirar de dirección','button ghost small');revoke.hidden=true;foot.append(revoke);
-    let active=false;
     function displayDistribution(d){
-      active=d?.status==='active';
+      const active=d?.status==='active';
       distribution.textContent=active?'Activo en dirección':d?.status==='inactive'?'Desactivado por dirección':'No enviado a dirección';
-      copy.textContent=d?.status==='inactive'?'Reactivar y copiar enlace':'Copiar enlace para dirección';
-      preview.setAttribute('aria-disabled',String(!active));preview.style.opacity=active?'1':'.55';revoke.hidden=!d;
+      send.textContent=active?'Enviado a dirección':d?.status==='inactive'?'Reactivar en dirección':'Enviar a dirección';
+      send.disabled=active;revoke.hidden=!d;
     }
     const updateDistribution=async()=>{try{const d=(await FusionDistribution.list('admin')).find(x=>x.id===m.id);displayDistribution(d)}catch(e){distribution.textContent='Distribución: '+e.message}};
-    copy.onclick=async()=>{copy.disabled=true;try{
-      const d=(await FusionDistribution.list('admin')).find(x=>x.id===m.id);
-      if(d?.status!=='active')await FusionDistribution.send(m);
-      await updateDistribution();
-      try{await navigator.clipboard.writeText(directionUrl.href);toast(FusionDistribution.demo?'Enlace de dirección copiado · prueba local':'Enlace de dirección copiado');copy.textContent='¡Enlace copiado!';setTimeout(()=>{if(copy.isConnected)copy.textContent='Copiar enlace para dirección'},1600)}
-      catch{prompt('Copia el enlace de dirección',directionUrl.href)}
-    }catch(e){toast(e.message,true)}finally{copy.disabled=false}};
-    preview.onclick=async e=>{if(active)return;e.preventDefault();await updateDistribution();if(active)location.assign(directionUrl.href);else toast('Primero pulsa Copiar enlace para dirección para activar el diseño.',true)};
+    send.onclick=async()=>{send.disabled=true;try{await FusionDistribution.send(m);toast('Diseño enviado a dirección');await updateDistribution()}catch(e){toast(e.message,true);send.disabled=false}};
     revoke.onclick=async()=>{try{await FusionDistribution.setStatus(m.id,'revoked','admin');await updateDistribution()}catch(e){toast(e.message,true)}};
     displayDistribution(null);
     if(FusionDistribution.demo)updateDistribution();else distribution.textContent='Pulsa el estado para consultar la distribución';
