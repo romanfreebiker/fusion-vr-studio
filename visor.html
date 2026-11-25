@@ -151,7 +151,7 @@ scene.environmentIntensity=.68;
 room.dispose();pmrem.dispose();
 document.body.append(renderer.domElement);
 const controls=new OrbitControls(camera,renderer.domElement);
-let mouseButtons=0, wheelDistance=0, yaw=0,pitch=0, walkingMode=false, verticalDrag=false, verticalLastY=0, orbitZoomPending=0;
+let mouseButtons=0, wheelDistance=0, yaw=0,pitch=0, walkingMode=false, verticalDrag=false, verticalLastY=0, panLastX=0, orbitZoomPending=0;
 let walkTargetYaw=0,walkTargetPitch=0,walkSpeed=0,walkSideSpeed=0;
 const keys=new Set();
 let presentationStatus,presentationTitle,presentationHint,orbitButton,walkButton;
@@ -176,18 +176,23 @@ if(presentation){
  presentationHint=document.createElement('div');presentationHint.id='presentationHint';document.body.append(presentationHint);updateMouseGuide();
  presentationStatus=document.createElement('div');presentationStatus.id='presentationStatus';presentationStatus.textContent='Cargando diseño…';document.body.append(presentationStatus);
  const canvas=renderer.domElement;
- // Interceptar antes de OrbitControls: zoom lineal y traslación estrictamente vertical.
+ // Interceptar antes de OrbitControls: zoom lineal y paneo libre horizontal/vertical.
  canvas.addEventListener('pointerdown',e=>{
    if(walkingMode||e.button!==2)return;
-   e.preventDefault();e.stopImmediatePropagation();verticalDrag=true;verticalLastY=e.clientY;canvas.setPointerCapture(e.pointerId);
+   e.preventDefault();e.stopImmediatePropagation();verticalDrag=true;verticalLastY=e.clientY;panLastX=e.clientX;canvas.setPointerCapture(e.pointerId);
  },true);
  canvas.addEventListener('pointermove',e=>{
    if(walkingMode||!verticalDrag)return;
    if(!(e.buttons&2)){verticalDrag=false;return;}
    e.preventDefault();e.stopImmediatePropagation();
-   const dy=e.clientY-verticalLastY;verticalLastY=e.clientY;
-   const step=dy*Math.max(.012,distance*.0025);
-   camera.position.y+=step;controls.target.y+=step;
+   const dx=e.clientX-panLastX,dy=e.clientY-verticalLastY;panLastX=e.clientX;verticalLastY=e.clientY;
+   const speed=Math.max(.012,distance*.0025);
+   camera.updateMatrixWorld(true);
+   const horizontal=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
+   horizontal.y=0;horizontal.normalize();
+   const shift=horizontal.multiplyScalar(-dx*speed);
+   shift.y=dy*speed;
+   camera.position.add(shift);controls.target.add(shift);
    controls.update();
  },true);
  const stopVertical=e=>{if(!verticalDrag)return;verticalDrag=false;if(e.type==='pointerup')e.stopImmediatePropagation();};
@@ -1398,7 +1403,7 @@ function restartModelView(){
 }
 function updateMouseGuide(){
  if(!presentationHint)return;
- presentationHint.innerHTML='<svg width="46" height="64" viewBox="0 0 46 64" aria-hidden="true"><rect x="4" y="3" width="38" height="58" rx="19" fill="#26374a" stroke="#a7bed4" stroke-width="1.5"/><path d="M5 26V21A18 18 0 0 1 20 4V26Z" fill="#65b9ff"/><path d="M41 26V21A18 18 0 0 0 26 4V26Z" fill="#f4b56e"/><path d="M4 27H42" stroke="#a7bed4"/><rect x="20" y="9" width="6" height="16" rx="3" fill="#77ddae" stroke="#172438"/><path d="M23 12v9" stroke="#d7fbea" stroke-width="1.2"/></svg><div class="mouseLegend"><span><i style="background:#65b9ff"></i>'+ (walkingMode?'Mirar':'Girar')+'</span><span><i style="background:#f4b56e"></i>'+(walkingMode?'Caminar y mirar':'Subir / bajar')+'</span><span><i style="background:#77ddae"></i>'+(walkingMode?'Avanzar / retroceder':'Zoom')+'</span>'+(walkingMode?'<small>WASD / flechas opcionales</small>':'<small>Central: desplazar</small>')+'</div>';
+ presentationHint.innerHTML='<svg width="46" height="64" viewBox="0 0 46 64" aria-hidden="true"><rect x="4" y="3" width="38" height="58" rx="19" fill="#26374a" stroke="#a7bed4" stroke-width="1.5"/><path d="M5 26V21A18 18 0 0 1 20 4V26Z" fill="#65b9ff"/><path d="M41 26V21A18 18 0 0 0 26 4V26Z" fill="#f4b56e"/><path d="M4 27H42" stroke="#a7bed4"/><rect x="20" y="9" width="6" height="16" rx="3" fill="#77ddae" stroke="#172438"/><path d="M23 12v9" stroke="#d7fbea" stroke-width="1.2"/></svg><div class="mouseLegend"><span><i style="background:#65b9ff"></i>'+ (walkingMode?'Mirar':'Girar')+'</span><span><i style="background:#f4b56e"></i>'+(walkingMode?'Caminar y mirar':'Paneo libre')+'</span><span><i style="background:#77ddae"></i>'+(walkingMode?'Avanzar / retroceder':'Zoom')+'</span>'+(walkingMode?'<small>WASD / flechas opcionales</small>':'<small>Central: desplazar</small>')+'</div>';
 }
 function setPresentationMode(walk){
  if(walkingMode===walk)return;
