@@ -955,11 +955,7 @@ function closeVRMenu(){
 }
 async function refreshVRLibrary(){
   try{
-    if(presentation&&access){
-    distributedModel=await FusionDistribution.loadViewer(access,params.get('diseno'),params.get('token'));
-    const item=distributedModel.meta;orientation.value='z';appearance.value='library';models.add(new Option(item.nombre,item.id));presentationTitle.textContent=item.nombre;document.title=item.nombre+' · Fusion Studio';await openModel();
-  }else{
-  const catalogURL=new URL('catalogo.json',location.href);
+    const catalogURL=new URL('catalogo.json',location.href);
     catalogURL.searchParams.set('refresh',String(Date.now()));
     const response=await fetch(catalogURL.href,{cache:'no-store'});
     if(!response.ok)throw Error('HTTP '+response.status);
@@ -1755,6 +1751,10 @@ addEventListener('resize',()=>{
 });
 for(const control of [models,orientation,appearance])control.addEventListener('change',openModel);
 try{
+    if(presentation&&access){
+    distributedModel=await FusionDistribution.loadViewer(access,params.get('diseno'),params.get('token'));
+    const item=distributedModel.meta;orientation.value='z';appearance.value='library';models.add(new Option(item.nombre,item.id));presentationTitle.textContent=item.nombre;document.title=item.nombre+' · Fusion Studio';await openModel();
+  }else{
   const catalogURL=new URL('catalogo.json',location.href);
   catalogURL.searchParams.set('refresh',String(Date.now()));
   const response=await fetch(catalogURL.href,{cache:'no-store'});
