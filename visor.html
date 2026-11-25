@@ -180,7 +180,7 @@ if(presentation){
    if(!(e.buttons&2)){verticalDrag=false;return;}
    e.preventDefault();e.stopImmediatePropagation();
    const dy=e.clientY-verticalLastY;verticalLastY=e.clientY;
-   const step=-dy*Math.max(.012,distance*.0025);
+   const step=dy*Math.max(.012,distance*.0025);
    camera.position.y+=step;controls.target.y+=step;
    controls.update();
  },true);
