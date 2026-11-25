@@ -117,7 +117,7 @@ turnSpeed.addEventListener('change',()=>{
 });
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0xa9bdcf);
-const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.03,500);
+const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,presentation?.002:.03,500);
 const rig=new THREE.Group();
 rig.add(camera);
 scene.add(rig);
@@ -216,7 +216,7 @@ if(presentation){
  new MutationObserver(()=>{if(status.textContent.startsWith('Escala 1:1'))presentationStatus.hidden=true;else{presentationStatus.hidden=false;presentationStatus.textContent=status.textContent;}}).observe(status,{childList:true,characterData:true,subtree:true});
 }
 controls.enableDamping=true;
-controls.dampingFactor=.10;
+controls.dampingFactor=presentation?.25:.10;
 controls.zoomSpeed=.62;
 controls.minDistance=.15;
 controls.maxDistance=100;
@@ -1416,7 +1416,7 @@ function setPresentationMode(walk){
 }
 function desktopView(){
   if(presentation){orbitZoomPending=0;verticalDrag=false;}
-  if(presentation&&walkingMode){if(!model)return;rig.position.set(0,0,vrStartDistance);rig.rotation.set(0,0,0);camera.position.set(0,1.65,0);yaw=0;pitch=0;walkTargetYaw=0;walkTargetPitch=0;walkSpeed=0;walkSideSpeed=0;camera.rotation.set(0,0,0,'YXZ');wheelDistance=0;resetPhysics();return;}
+  if(presentation&&walkingMode){if(!model)return;rig.position.set(0,0,vrStartDistance);rig.rotation.set(0,0,0);camera.position.set(0,1.75,0);yaw=0;pitch=0;walkTargetYaw=0;walkTargetPitch=0;walkSpeed=0;walkSideSpeed=0;camera.rotation.set(0,0,0,'YXZ');wheelDistance=0;resetPhysics();return;}
   rig.position.set(0,0,0);
   rig.rotation.set(0,0,0);
   camera.position.set(distance*.65,height*.85+1,distance);
@@ -1733,11 +1733,29 @@ renderer.setAnimationLoop(time=>{
     const scroll=Math.sign(wheelDistance)*Math.min(Math.abs(wheelDistance),speed*dt);
     const motion=new THREE.Vector3().addScaledVector(forward,walkSpeed*dt+scroll).addScaledVector(right,walkSideSpeed*dt);
     if(motion.length()>speed*dt)motion.setLength(speed*dt);
+    // Presentación: únicamente el punto de vista, sin cápsula ni volumen de avatar.
+    // Un pequeño margen de cámara impide cruzar una cara a la altura de los ojos.
     const oldX=rig.position.x,oldZ=rig.position.z;
-    solveMovement(camera,motion,dt);
+    const eyeMargin=.006;
+    for(const axis of ['x','z']){
+      const amount=motion[axis];if(Math.abs(amount)<1e-8)continue;
+      const direction=new THREE.Vector3();direction[axis]=Math.sign(amount);
+      const eye=new THREE.Vector3(rig.position.x,rig.position.y+1.75,rig.position.z);
+      const hit=rayHits(eye,direction,Math.abs(amount)+eyeMargin)[0];
+      const allowed=hit?Math.max(0,Math.min(Math.abs(amount),hit.distance-eyeMargin)):Math.abs(amount);
+      rig.position[axis]+=Math.sign(amount)*allowed;
+    }
+    const feet=physicsFeetY??rig.position.y;
+    const support=floorUnder(rig.position.x,rig.position.z,feet);
+    physicsFeetY=support;
+    // La altura de los ojos permanece a 1750 mm del apoyo local.
+    // Interpolar únicamente al cambiar de nivel, sin animación de avatar.
+    const delta=support-rig.position.y;
+    rig.position.y+=Math.sign(delta)*Math.min(Math.abs(delta),Math.max(.85,Math.abs(delta)*8)*dt);
+    if(Math.abs(support-rig.position.y)<.002)rig.position.y=support;
     const traveled=Math.hypot(rig.position.x-oldX,rig.position.z-oldZ);
     if(scroll)wheelDistance-=Math.sign(scroll)*Math.min(Math.abs(scroll),traveled);
-    if(scroll&&traveled<.00001&&Math.abs((physicsFeetY??rig.position.y)-rig.position.y)<.028)wheelDistance=0;
+    if(scroll&&traveled<.00001)wheelDistance=0;
 
   }else if(!renderer.xr.isPresenting){
     if(presentation&&model&&Math.abs(orbitZoomPending)>.0001){
@@ -1745,9 +1763,16 @@ renderer.setAnimationLoop(time=>{
       const current=offset.length();
       const step=orbitZoomPending*(1-Math.exp(-18*dt));
       const next=THREE.MathUtils.clamp(current+step,controls.minDistance,controls.maxDistance);
-      if(current>1e-8)camera.position.copy(controls.target).addScaledVector(offset,next/current);
+      if(current>1e-8){
+        const axis=offset.divideScalar(current);
+        camera.position.copy(controls.target).addScaledVector(axis,next);
+        // Al alcanzar el centro orbital, continuar acercando la cámara y
+        // su objetivo juntos: no detener el zoom en el centro del modelo.
+        const overflow=Math.min(0,current+step-controls.minDistance);
+        if(overflow<0){const shift=axis.multiplyScalar(overflow);camera.position.add(shift);controls.target.add(shift);}
+      }
       orbitZoomPending-=step;
-      if((next<=controls.minDistance&&step<0)||(next>=controls.maxDistance&&step>0))orbitZoomPending=0;
+      if(next>=controls.maxDistance&&step>0)orbitZoomPending=0;
     }
     controls.update();
   }
