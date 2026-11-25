@@ -40,7 +40,7 @@ window.presentationProgress=function(message,percent,error=false){
 window.addEventListener('error',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo iniciar el visor. Comprueba la conexión.',null,true);});
 window.addEventListener('unhandledrejection',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo cargar el proyecto.',null,true);});
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=1"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=2"></script>
 <header>
 <h1>Fusion VR Studio · Visor</h1>
 <label for="models">Diseño</label><select id="models" disabled></select>
@@ -198,7 +198,7 @@ if(presentation){
    button('Mi biblioteca',()=>location.assign('direccion.html'));
    const share=button('Copiar enlace para terceros',async()=>{if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}share.disabled=true;try{const url=await FusionDistribution.share(params.get('diseno'));try{await navigator.clipboard.writeText(url);share.textContent='¡Enlace copiado!';share.classList.add('confirmed');setTimeout(()=>{share.textContent='Copiar enlace para terceros';share.classList.remove('confirmed')},1600)}catch{prompt('Enlace individual para terceros',url)}}catch(e){alert(e.message)}finally{share.disabled=false}});
  }
- if(access&&FusionDistribution.demo){const demoLabel=document.createElement('span');demoLabel.textContent='DEMO · acceso no protegido';bar.append(demoLabel);}
+
  document.body.append(bar);
  presentationHint=document.createElement('div');presentationHint.id='presentationHint';document.body.append(presentationHint);updateMouseGuide();
  presentationStatus=document.getElementById('presentationBoot');window.presentationProgress('Preparando el proyecto…',null);
