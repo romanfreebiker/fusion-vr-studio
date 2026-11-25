@@ -4247,6 +4247,9 @@ function render(){
     viewerUrl.searchParams.set('v','81');
     view.href=viewerUrl.href;
     foot.append(view);
+    const presentationUrl=new URL(viewerUrl.href);presentationUrl.searchParams.set('modo','presentacion');presentationUrl.searchParams.set('v','82p');
+    const presentationLink=textNode('a','Presentación','button secondary small');presentationLink.href=presentationUrl.href;presentationLink.target='_blank';presentationLink.rel='noopener';foot.append(presentationLink);
+    const share=textNode('button','Copiar enlace presentación','button secondary small');share.type='button';share.onclick=async()=>{try{await navigator.clipboard.writeText(presentationUrl.href);toast('Enlace de presentación copiado.');}catch{prompt('Copia el enlace de presentación',presentationUrl.href);}};foot.append(share);
     const dl=document.createElement('button');dl.className='button secondary small';dl.textContent='↓ Descargar GLB';dl.addEventListener('click',()=>downloadModel(m));foot.append(dl);
     const remove=textNode('button','Eliminar','button secondary small delete-design');
     remove.type='button';
