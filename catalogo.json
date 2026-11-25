@@ -1,7 +1,17 @@
 {
   "version": 1,
-  "actualizado": "2026-11-25T05:43:04.195Z",
+  "actualizado": "2026-11-25T06:26:18.200Z",
   "modelos": [
+    {
+      "id": "prova-visor-mwvqpsi2",
+      "nombre": "prova visor",
+      "categoria": "Viviendas",
+      "descripcion": "",
+      "archivo": "modelos/prova-visor-mwvqpsi2.glb",
+      "miniatura": "miniaturas/prova-visor-mwvqpsi2.jpg",
+      "bytes": 5294024,
+      "fecha": "2026-11-25T06:26:18.200Z"
+    },
     {
       "id": "puerta-zona-generador-abierta-mwvp69l8",
       "nombre": "puerta zona generador abierta",
