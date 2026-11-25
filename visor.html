@@ -152,6 +152,7 @@ room.dispose();pmrem.dispose();
 document.body.append(renderer.domElement);
 const controls=new OrbitControls(camera,renderer.domElement);
 let mouseButtons=0, wheelDistance=0, yaw=0,pitch=0, walkingMode=false, verticalDrag=false, verticalLastY=0, orbitZoomPending=0;
+let walkTargetYaw=0,walkTargetPitch=0,walkSpeed=0,walkSideSpeed=0;
 const keys=new Set();
 let presentationStatus,presentationTitle,presentationHint,orbitButton,walkButton;
 if(presentation){
@@ -200,9 +201,9 @@ if(presentation){
  },{capture:true,passive:false});
  canvas.addEventListener('contextmenu',e=>e.preventDefault());
  canvas.addEventListener('pointerdown',e=>{if(!walkingMode)return;if(e.button!==0&&e.button!==2)return;e.preventDefault();mouseButtons=e.buttons;canvas.setPointerCapture(e.pointerId);});
- canvas.addEventListener('pointermove',e=>{if(!walkingMode)return;mouseButtons=e.buttons;if(e.buttons&1){yaw-=e.movementX*.003;pitch=THREE.MathUtils.clamp(pitch-e.movementY*.003,-1.45,1.45);camera.rotation.set(pitch,yaw,0,'YXZ');}});
+ canvas.addEventListener('pointermove',e=>{if(!walkingMode)return;mouseButtons=e.buttons;if(e.buttons&3){walkTargetYaw-=e.movementX*.003;walkTargetPitch=THREE.MathUtils.clamp(walkTargetPitch-e.movementY*.003,-1.45,1.45);}});
  const release=e=>{mouseButtons=e.buttons||0;};canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',()=>mouseButtons=0);canvas.addEventListener('lostpointercapture',()=>mouseButtons=0);
- canvas.addEventListener('wheel',e=>{if(!walkingMode)return;e.preventDefault();const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?innerHeight:1);wheelDistance=THREE.MathUtils.clamp(wheelDistance-delta*.003,-1.5,1.5);},{passive:false});
+ canvas.addEventListener('wheel',e=>{if(!walkingMode)return;e.preventDefault();const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?innerHeight:1);wheelDistance=THREE.MathUtils.clamp(wheelDistance-delta*.005,-2,2);},{passive:false});
  const movementKeys=['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'];
  addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(walkingMode&&movementKeys.includes(k)){e.preventDefault();keys.add(k);}});
  addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
@@ -1002,7 +1003,7 @@ if(!presentation)document.body.append(vrButton);
 const versionLabel=document.createElement('div');
 versionLabel.textContent='Visor VR 0.81 · A Rescate en mando derecho';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
-document.body.append(versionLabel);
+// El cartel de diagnóstico no se muestra en ningún modo.
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
 let worldOctree=null,verticalVelocity=0,isGrounded=false,collisionTriangles=0,collisionStops=0;
 const BODY_RADIUS=.29,GRAVITY=9.81;
@@ -1397,20 +1398,20 @@ function restartModelView(){
 }
 function updateMouseGuide(){
  if(!presentationHint)return;
- presentationHint.innerHTML='<svg width="46" height="64" viewBox="0 0 46 64" aria-hidden="true"><rect x="4" y="3" width="38" height="58" rx="19" fill="#26374a" stroke="#a7bed4" stroke-width="1.5"/><path d="M5 26V21A18 18 0 0 1 20 4V26Z" fill="#65b9ff"/><path d="M41 26V21A18 18 0 0 0 26 4V26Z" fill="#f4b56e"/><path d="M4 27H42" stroke="#a7bed4"/><rect x="20" y="9" width="6" height="16" rx="3" fill="#77ddae" stroke="#172438"/><path d="M23 12v9" stroke="#d7fbea" stroke-width="1.2"/></svg><div class="mouseLegend"><span><i style="background:#65b9ff"></i>'+ (walkingMode?'Mirar':'Girar')+'</span><span><i style="background:#f4b56e"></i>'+(walkingMode?'Caminar':'Subir / bajar')+'</span><span><i style="background:#77ddae"></i>'+(walkingMode?'Avanzar / retroceder':'Zoom')+'</span>'+(walkingMode?'':'<small>Central: desplazar</small>')+'</div>';
+ presentationHint.innerHTML='<svg width="46" height="64" viewBox="0 0 46 64" aria-hidden="true"><rect x="4" y="3" width="38" height="58" rx="19" fill="#26374a" stroke="#a7bed4" stroke-width="1.5"/><path d="M5 26V21A18 18 0 0 1 20 4V26Z" fill="#65b9ff"/><path d="M41 26V21A18 18 0 0 0 26 4V26Z" fill="#f4b56e"/><path d="M4 27H42" stroke="#a7bed4"/><rect x="20" y="9" width="6" height="16" rx="3" fill="#77ddae" stroke="#172438"/><path d="M23 12v9" stroke="#d7fbea" stroke-width="1.2"/></svg><div class="mouseLegend"><span><i style="background:#65b9ff"></i>'+ (walkingMode?'Mirar':'Girar')+'</span><span><i style="background:#f4b56e"></i>'+(walkingMode?'Caminar y mirar':'Subir / bajar')+'</span><span><i style="background:#77ddae"></i>'+(walkingMode?'Avanzar / retroceder':'Zoom')+'</span>'+(walkingMode?'<small>WASD / flechas opcionales</small>':'<small>Central: desplazar</small>')+'</div>';
 }
 function setPresentationMode(walk){
  if(walkingMode===walk)return;
  // Vaciar la amortiguación orbital antes de entrar en modo a pie.
  if(!walkingMode){const damping=controls.enableDamping;controls.enableDamping=false;controls.update();controls.enableDamping=damping;}
- walkingMode=walk;controls.enabled=!walk;keys.clear();mouseButtons=0;wheelDistance=0;
+ walkingMode=walk;controls.enabled=!walk;keys.clear();mouseButtons=0;wheelDistance=0;walkSpeed=0;walkSideSpeed=0;
  orbitButton.setAttribute('aria-pressed',String(!walk));walkButton.setAttribute('aria-pressed',String(walk));
  verticalDrag=false;orbitZoomPending=0;updateMouseGuide();
  desktopView();
 }
 function desktopView(){
   if(presentation){orbitZoomPending=0;verticalDrag=false;}
-  if(presentation&&walkingMode){if(!model)return;rig.position.set(0,0,vrStartDistance);rig.rotation.set(0,0,0);camera.position.set(0,1.65,0);yaw=0;pitch=0;camera.rotation.set(0,0,0,'YXZ');wheelDistance=0;resetPhysics();return;}
+  if(presentation&&walkingMode){if(!model)return;rig.position.set(0,0,vrStartDistance);rig.rotation.set(0,0,0);camera.position.set(0,1.65,0);yaw=0;pitch=0;walkTargetYaw=0;walkTargetPitch=0;walkSpeed=0;walkSideSpeed=0;camera.rotation.set(0,0,0,'YXZ');wheelDistance=0;resetPhysics();return;}
   rig.position.set(0,0,0);
   rig.rotation.set(0,0,0);
   camera.position.set(distance*.65,height*.85+1,distance);
@@ -1704,17 +1705,35 @@ renderer.setAnimationLoop(time=>{
     }
   }
   if(presentation&&walkingMode&&model){
+    const lookBlend=1-Math.exp(-24*dt);yaw+=(walkTargetYaw-yaw)*lookBlend;pitch+=(walkTargetPitch-pitch)*lookBlend;camera.rotation.set(pitch,yaw,0,'YXZ');
     const stride=Number(Boolean(mouseButtons&2)||keys.has('w')||keys.has('arrowup'))-Number(keys.has('s')||keys.has('arrowdown'));
     const strafe=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft'));
     forward.set(-Math.sin(yaw),0,-Math.cos(yaw));right.crossVectors(forward,THREE.Object3D.DEFAULT_UP);
-    const speed=time<stairSlowUntil?WALK_SPEED*STAIR_SPEED_FACTOR:WALK_SPEED;
+    // Mantener el paso más lento al detectar una huella de escalera real.
+    const input=new THREE.Vector3().addScaledVector(forward,stride).addScaledVector(right,strafe);
+    if(input.lengthSq()>.01||Math.abs(wheelDistance)>.01){
+      const dir=input.lengthSq()>.01?input.clone().normalize():forward.clone().multiplyScalar(Math.sign(wheelDistance));
+      const feet=physicsFeetY??rig.position.y;
+      const here=floorUnder(rig.position.x,rig.position.z,feet);
+      const ahead=floorUnder(rig.position.x+dir.x*.34,rig.position.z+dir.z*.34,feet);
+      if(Math.abs(ahead-here)>.045&&Math.abs(ahead-here)<=MAX_STEP+.06)stairSlowUntil=time+900;
+    }
+    const speed=time<stairSlowUntil?1.55*.54:1.55;
+    const norm=Math.max(1,Math.hypot(stride,strafe));
+    const acceleration=1-Math.exp(-18*dt);
+    walkSpeed+=(stride/norm*speed-walkSpeed)*acceleration;
+    walkSideSpeed+=(strafe/norm*speed-walkSideSpeed)*acceleration;
+    if(!stride&&Math.abs(walkSpeed)<.025)walkSpeed=0;
+    if(!strafe&&Math.abs(walkSideSpeed)<.025)walkSideSpeed=0;
     const scroll=Math.sign(wheelDistance)*Math.min(Math.abs(wheelDistance),speed*dt);
-    wheelDistance-=scroll;
-    const motion=new THREE.Vector3().addScaledVector(forward,stride).addScaledVector(right,strafe);
-    if(motion.lengthSq()>1)motion.normalize();
-    motion.multiplyScalar(speed*dt).addScaledVector(forward,scroll);
+    const motion=new THREE.Vector3().addScaledVector(forward,walkSpeed*dt+scroll).addScaledVector(right,walkSideSpeed*dt);
     if(motion.length()>speed*dt)motion.setLength(speed*dt);
+    const oldX=rig.position.x,oldZ=rig.position.z;
     solveMovement(camera,motion,dt);
+    const traveled=Math.hypot(rig.position.x-oldX,rig.position.z-oldZ);
+    if(scroll)wheelDistance-=Math.sign(scroll)*Math.min(Math.abs(scroll),traveled);
+    if(scroll&&traveled<.00001&&Math.abs((physicsFeetY??rig.position.y)-rig.position.y)<.028)wheelDistance=0;
+
   }else if(!renderer.xr.isPresenting){
     if(presentation&&model&&Math.abs(orbitZoomPending)>.0001){
       const offset=camera.position.clone().sub(controls.target);
