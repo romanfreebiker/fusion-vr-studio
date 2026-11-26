@@ -60,6 +60,16 @@
       "miniatura": "miniaturas/escalera-falsa-escuadra-olaso-mwxejuyt.jpg",
       "status": "active",
       "updated": "2026-11-26T10:34:28.135Z"
+    },
+    {
+      "id": "escalera-bascula-mwswzrjg",
+      "nombre": "escalera bascula",
+      "descripcion": "",
+      "categoria": "Escaleras",
+      "archivo": "modelos/escalera-bascula-mwswzrjg.glb",
+      "miniatura": "miniaturas/escalera-bascula-mwswzrjg.jpg",
+      "status": "active",
+      "updated": "2026-11-26T11:31:47.189Z"
     }
   ]
 }
