@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import html
 import json
+import shutil
 import re
 from pathlib import Path
 from urllib.parse import quote
@@ -93,11 +94,10 @@ def short_page(model, slug, area='v', revision=None):
     viewer_src = "../../visor.html"
     if revision:
         link += revision + "/"
-        image += "?r=" + revision
-        image_src = image
-        viewer_src = HOST + "visor.html"
+        viewer = HOST + "visor.html?modo=presentacion&diseno=" + quote(ident, safe="") + "&acceso=invitado&v=104"
+        return branded_viewer_page(name, link, viewer)
     viewer = viewer_src + "?modo=presentacion&diseno=" + quote(ident, safe="") + "&acceso=invitado&v=100"
-    page_title = ("ESKALA Studio · " if revision else "ESKALA | ") + name
+    page_title = "ESKALA | " + name
     desc = "Explora " + name + " en 3D. Vista interactiva y recorrido virtual en ESKALA."
     esc = lambda x: html.escape(x, quote=True)
     # JS redirect instead of HTTP/meta-refresh: social preview crawlers must read
@@ -141,6 +141,47 @@ a{{display:inline-block;padding:13px 24px;margin-top:12px;border-radius:9px;back
 <a href="{esc(viewer)}">Abrir diseño 3D</a>
 </main>
 <script>setTimeout(function(){{location.replace({json.dumps(viewer,ensure_ascii=False)})}},350)</script>
+</body>
+</html>
+"""
+
+def branded_viewer_page(name, link, viewer):
+    title = html.escape(name, quote=True)
+    canonical = html.escape(link, quote=True)
+    target = html.escape(viewer, quote=True)
+    image = canonical + "preview.jpg"
+    description = "Explora este diseño en 3D con ESKALA Studio."
+    return f"""<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="{description}">
+<meta property="og:url" content="{canonical}">
+<meta property="og:image" content="{image}">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="{title} · ESKALA Studio">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ESKALA Studio">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{title}">
+<meta name="twitter:description" content="{description}">
+<meta name="twitter:image" content="{image}">
+<meta name="description" content="{description}">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="canonical" href="{canonical}">
+<title>{title} · ESKALA Studio</title>
+<style>
+html,body{{margin:0;width:100%;height:100%;background:#151e26;color:#eef7fa}}
+iframe{{display:block;border:0;width:100%;height:100%}}
+noscript a{{display:block;padding:1rem;color:#73daf0}}
+</style>
+</head>
+<body>
+<iframe src="{target}" title="Visor ESKALA · {title}" allowfullscreen></iframe>
+<noscript><a href="{target}">Abrir diseño en ESKALA Studio</a></noscript>
 </body>
 </html>
 """
@@ -190,6 +231,7 @@ def main():
         path = f"p/{slug}/{revision}/"
         folder = ROOT / path
         folder.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(image_path, folder / "preview.jpg")
         (folder / "index.html").write_text(short_page(m, slug, "p", revision), encoding="utf-8")
         shares[ident] = {"path": path, "updated": m.get("updated")}
         print("Vista previa:", ident, "=>", path)
