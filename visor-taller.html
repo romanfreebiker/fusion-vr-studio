@@ -220,7 +220,7 @@ if(presentation){
  const bar=document.createElement('div');bar.id='presentationBar';
  presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
- button('Mis trabajos',()=>location.assign(EskalaTaller.link(location.hash.slice(1))));
+ button('Mis trabajos',()=>{const u=new URL(EskalaTaller.link(location.hash.slice(1)));if(params.get('adminWorker'))u.searchParams.set('adminWorker',params.get('adminWorker'));location.assign(u.href)});
  const measureBtn=button('Medir',()=>toggleMeasure(measureBtn));button('Borrar cotas',()=>clearMeasures());
  orbitButton=button('Vista 3D',()=>setPresentationMode(false));walkButton=button('Recorrer a pie',()=>setPresentationMode(true));
  orbitButton.setAttribute('aria-pressed','true');walkButton.setAttribute('aria-pressed','false');
@@ -2055,7 +2055,7 @@ try{
     const id=params.get('diseno');
     if(access!=='taller')throw Error('Acceso no válido para Taller');
     const key=location.hash.slice(1);
-    const findJob=async()=>{const {jobs}=await EskalaTaller.worker(key);return jobs.find(j=>j.design===id)};
+    const findJob=async()=>{const {jobs}=await (params.get('adminWorker')?EskalaTaller.adminWorker(params.get('adminWorker')):EskalaTaller.worker(key));return jobs.find(j=>j.design===id)};
     const job=await findJob();if(!job)throw Error('Trabajo no asignado');
     distributedModel={meta:job.model,url:new URL(job.model.archivo,location.href).href};
     setInterval(async()=>{if(document.hidden)return;try{if(!await findJob())location.replace(EskalaTaller.link(key))}catch(e){console.warn(e)}},30000);
