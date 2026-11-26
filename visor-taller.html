@@ -1364,16 +1364,41 @@ function previewMeasure(target,x,y){
  updateElastic();
 }
 const measureTouches=new Set();let measurePress=null, desktopOrbit=null;
-function rotateDesktop(dx,dy){const offset=camera.position.clone().sub(controls.target);const spherical=new THREE.Spherical().setFromVector3(offset);spherical.theta-=dx*2*Math.PI/Math.max(1,innerHeight);spherical.phi-=dy*2*Math.PI/Math.max(1,innerHeight);spherical.makeSafe();camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(spherical));camera.lookAt(controls.target);camera.updateMatrixWorld(true);controls.update();}
+function localOrbitPivot(x,y){
+ camera.updateMatrixWorld(true);
+ const r=renderer.domElement.getBoundingClientRect(),ray=new THREE.Raycaster();
+ ray.setFromCamera(new THREE.Vector2((x-r.left)/r.width*2-1,1-(y-r.top)/r.height*2),camera);
+ const hit=model&&ray.intersectObject(model,true).find(h=>h.object.visible&&h.face);
+ return hit?.point.clone()||null;
+}
+function rotateDesktop(dx,dy,pivot){
+ // Rotate camera AND its look target around the local surface point.
+ // This preserves the pivot's screen position, even away from screen centre.
+ const p=pivot||controls.target.clone(),offset=camera.position.clone().sub(p),viewOffset=controls.target.clone().sub(p);
+ const scale=worldPerPixel()*innerHeight;
+ const sensitivity=THREE.MathUtils.clamp(scale/Math.max(distance,.01),.22,1);
+ const theta=-dx*2*Math.PI/Math.max(1,innerHeight)*sensitivity;
+ const phi=-dy*2*Math.PI/Math.max(1,innerHeight)*sensitivity;
+ const direction=camera.getWorldDirection(new THREE.Vector3());
+ const polar=Math.acos(THREE.MathUtils.clamp(-direction.y,-1,1));
+ const pitch=THREE.MathUtils.clamp(phi,.005-polar,Math.PI-.005-polar);
+ const yawQ=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),theta);
+ const right=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0).normalize().applyQuaternion(yawQ);
+ const pitchQ=new THREE.Quaternion().setFromAxisAngle(right,-pitch);
+ const q=pitchQ.multiply(yawQ);
+ camera.position.copy(p).add(offset.applyQuaternion(q));
+ controls.target.copy(p).add(viewOffset.applyQuaternion(q));
+ camera.lookAt(controls.target);camera.updateMatrixWorld(true);controls.update();
+}
 renderer.domElement.addEventListener('pointerdown',e=>{
- if(!walkingMode&&e.pointerType!=='touch'&&e.button===0){e.preventDefault();e.stopImmediatePropagation();desktopOrbit={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,drag:false};renderer.domElement.setPointerCapture(e.pointerId);hideMeasureHover();return;}
+ if(!walkingMode&&e.pointerType!=='touch'&&e.button===0){e.preventDefault();e.stopImmediatePropagation();desktopOrbit={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,drag:false,pivot:localOrbitPivot(e.clientX,e.clientY)||localOrbitPivot(innerWidth/2,innerHeight/2)||controls.target.clone()};renderer.domElement.setPointerCapture(e.pointerId);hideMeasureHover();return;}
  if(!measureMode)return;
  if(e.pointerType==='touch'){measureTouches.add(e.pointerId);if(measureTouches.size>1){measurePress=null;hideMeasureHover();return}}
  if(e.button!==0){measurePress=null;hideMeasureHover();return}
  measurePress={id:e.pointerId,x:e.clientX,y:e.clientY,drag:false,type:e.pointerType};hideMeasureHover();
 },true);
 renderer.domElement.addEventListener('pointermove',e=>{
- if(desktopOrbit?.id===e.pointerId){e.preventDefault();e.stopImmediatePropagation();const d=desktopOrbit;if(!d.drag&&Math.hypot(e.clientX-d.startX,e.clientY-d.startY)>4)d.drag=true;if(d.drag){rotateDesktop(e.clientX-d.x,e.clientY-d.y);d.x=e.clientX;d.y=e.clientY}hideMeasureHover();if(measureMode&&measurePoints.length===1)previewMeasure(null,e.clientX,e.clientY);return;}
+ if(desktopOrbit?.id===e.pointerId){e.preventDefault();e.stopImmediatePropagation();const d=desktopOrbit;if(!d.drag&&Math.hypot(e.clientX-d.startX,e.clientY-d.startY)>4)d.drag=true;if(d.drag){rotateDesktop(e.clientX-d.x,e.clientY-d.y,d.pivot);d.x=e.clientX;d.y=e.clientY}hideMeasureHover();if(measureMode&&measurePoints.length===1)previewMeasure(null,e.clientX,e.clientY);return;}
  if(!measureMode)return;
  if(measurePress&&measurePress.id===e.pointerId&&Math.hypot(e.clientX-measurePress.x,e.clientY-measurePress.y)>5){measurePress.drag=true;hideMeasureHover()}
  if(e.pointerType==='touch'||e.buttons)return;
@@ -2218,7 +2243,7 @@ try{
     const job=await findJob();if(!job)throw Error('Trabajo no asignado');
     distributedModel={meta:job.model,url:new URL(job.model.archivo,location.href).href};
     setInterval(async()=>{if(document.hidden)return;try{if(!await findJob())location.replace(EskalaTaller.link(key))}catch(e){console.warn(e)}},30000);
-    const item=distributedModel.meta;orientation.value='z';appearance.value='library';models.add(new Option(item.nombre,item.id));presentationTitle.textContent=item.nombre+' · Taller v4.2';document.title=item.nombre+' · ESKALA Taller';await openModel();
+    const item=distributedModel.meta;orientation.value='z';appearance.value='library';models.add(new Option(item.nombre,item.id));presentationTitle.textContent=item.nombre+' · Taller v4.3';document.title=item.nombre+' · ESKALA Taller';await openModel();
   }else{
   const catalogURL=new URL('catalogo.json',location.href);
   catalogURL.searchParams.set('refresh',String(Date.now()));
