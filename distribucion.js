@@ -39,10 +39,15 @@
    const now=Date.now(),key='third:'+thirdPath,snapshot=snapshots.get(key);
    if(!force&&snapshot&&now-snapshot.at<5000)return snapshot.data;
    let data;
-   try{data=await request(raw+thirdPath+'?revision='+Math.floor(now/5000))}
-   catch{
+   if(force){
      const result=await request(api+'/contents/'+thirdPath+'?ref='+branch+'&_='+now,{headers:readHeaders});
      data=decode(result.content);
+   }else{
+     try{data=await request(raw+thirdPath+'?revision='+Math.floor(now/5000))}
+     catch{
+       const result=await request(api+'/contents/'+thirdPath+'?ref='+branch+'&_='+now,{headers:readHeaders});
+       data=decode(result.content);
+     }
    }
    if(data?.version!==1||!Array.isArray(data?.accesses))throw Error('Registro de accesos a terceros no válido');
    snapshots.set(key,{at:now,data});
@@ -111,6 +116,27 @@
    let s='';for(const b of bytes)s+=String.fromCharCode(b);
    return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
  }
+ function shortenExternal(longUrl){
+   return new Promise((resolve,reject)=>{
+     const callback='eskalaShort_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);
+     const script=document.createElement('script');
+     const timer=setTimeout(()=>finish(null,Error('El acortador no respondió.')),9000);
+     function finish(value,error){
+       clearTimeout(timer);
+       try{delete window[callback]}catch{}
+       script.remove();
+       if(error)reject(error);else resolve(value);
+     }
+     window[callback]=data=>{
+       const short=data&&typeof data.shorturl==='string'?data.shorturl:'';
+       if(/^https:\/\/is\.gd\/[A-Za-z0-9_]{5,30}$/.test(short))finish(short);
+       else finish(null,Error(data?.errormessage||'No se pudo crear el enlace corto.'));
+     };
+     script.onerror=()=>finish(null,Error('No se pudo conectar con el acortador.'));
+     script.src='https://is.gd/create.php?format=json&callback='+encodeURIComponent(callback)+'&url='+encodeURIComponent(longUrl);
+     document.head.append(script);
+   });
+ }
  async function shareBase(id){
    const [model,manifest]=await Promise.all([
      catalogModel(id,true),
@@ -167,14 +193,17 @@
    const clean=String(recipient||automaticRecipient(channel)).trim().slice(0,80);
    const base=await shareBase(designId);
    const secret=randomToken(),hash=await tokenHash(secret),nowMs=Date.now(),now=new Date(nowMs).toISOString();
+   base.searchParams.set('share',secret);
+   const longUrl=base.href;
+   let shortUrl=longUrl;
+   try{shortUrl=await shortenExternal(longUrl)}catch(error){console.warn('ESKALA: enlace corto no disponible, se usa el enlace completo.',error)}
    const access={id:'acc_'+nowMs.toString(36)+'_'+Math.random().toString(36).slice(2,8),designId,recipient:clean,contact:maskContact(contact),channel,tokenHash:hash,status:'active',createdAt:now,updatedAt:now};
    await writeThird(data=>{
      const hours=Math.max(1,Math.min(24*30,Math.round(Number(data.defaultTtlHours)||24)));
      access.expiresAt=new Date(nowMs+hours*3600000).toISOString();
      data.accesses.push(access);
    });
-   base.searchParams.set('share',secret);
-   return {access:{...access,effectiveStatus:'active',remaining:thirdPartyRemaining(access)},url:base.href};
+   return {access:{...access,effectiveStatus:'active',remaining:thirdPartyRemaining(access)},url:shortUrl};
  }
  async function setThirdPartyStatus(accessId,status){
    if(!['active','revoked'].includes(status))throw Error('Estado de acceso no válido');
@@ -268,5 +297,5 @@
    window.addEventListener('pageshow',check);
  }
  function removalUrl(m){const u=new URL('https://github.com/'+repo+'/issues/new');u.searchParams.set('title','[Dirección] Retirar diseño '+m.id);u.searchParams.set('body','Solicito retirar de la biblioteca de dirección el diseño '+m.nombre+'.\n\nIdentificador: '+m.id+'\nVersión: '+m.updated);return u.href}
- window.FusionDistribution={version:8,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,loadViewer,watchViewer,refreshInterval,hide,removalUrl};
+ window.FusionDistribution={version:9,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,loadViewer,watchViewer,refreshInterval,hide,removalUrl};
 })();
