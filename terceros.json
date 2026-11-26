@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-11-26T12:57:23.989Z",
+  "updated": "2026-11-26T12:57:32.473Z",
   "accesses": [
     {
       "id": "acc_mwxjqwmb_llywux",
@@ -14,19 +14,6 @@
       "createdAt": "2026-11-26T12:46:36.707Z",
       "updatedAt": "2026-11-26T12:46:36.707Z",
       "expiresAt": "2026-11-29T12:46:36.707Z"
-    },
-    {
-      "id": "acc_mwxk4rrh_v22zgd",
-      "designId": "puerta-zona-generador-mwvotkdj",
-      "recipient": "roman",
-      "contact": "",
-      "channel": "whatsapp",
-      "origin": "central",
-      "tokenHash": "021ac12cbcd6ff43f09bd959dca04c94f437578ffab2409ed77eff4ac65f2a8a",
-      "status": "active",
-      "createdAt": "2026-11-26T12:57:23.597Z",
-      "updatedAt": "2026-11-26T12:57:23.597Z",
-      "expiresAt": "2026-11-27T12:57:23.597Z"
     }
   ],
   "defaultTtlHours": 24
