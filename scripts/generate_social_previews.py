@@ -188,7 +188,9 @@ noscript a{{display:block;padding:1rem;color:#73daf0}}
 <div id="eskalaDenied" hidden style="padding:2rem;font:16px system-ui;color:#eef7fa;background:#151e26">Este enlace necesita un acceso individual activo.</div>
 <script>
 (function(){{
-  const token=new URLSearchParams(location.search).get('share')||'';
+  const queryToken=new URLSearchParams(location.search).get('share')||'';
+  const hashToken=new URLSearchParams(location.hash.replace(/^#/,'')).get('share')||'';
+  const token=queryToken||hashToken;
   const frame=document.getElementById('eskalaViewer');
   if(!token){{frame.remove();document.getElementById('eskalaDenied').hidden=false;return;}}
   const target=new URL({json.dumps(viewer,ensure_ascii=False)});
