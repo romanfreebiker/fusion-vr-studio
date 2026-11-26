@@ -14,20 +14,33 @@
  async function publicRead(file,force=false){
    const now=Date.now(),snapshot=snapshots.get(file);
    if(!force&&snapshot&&now-snapshot.at<12000)return snapshot.data;
-   if(pending.has(file))return pending.get(file);
+   const pendingKey=(force?'fresh:':'')+file;
+   if(pending.has(pendingKey))return pending.get(pendingKey);
    const task=(async()=>{
      let data;
-     try{data=await request(raw+file+'?revision='+Math.floor(now/10000))}
-     catch{
-       const result=await request(api+'/contents/'+file+'?ref='+branch+'&_='+now,{headers:readHeaders});
-       data=decode(result.content);
+     const token=adminToken?.()||storedAdminToken();
+     if(force||token){
+       try{
+         const headers=token?{...readHeaders,Authorization:'Bearer '+token}:readHeaders;
+         const result=await request(api+'/contents/'+file+'?ref='+branch+'&_='+now,{headers});
+         data=decode(result.content);
+       }catch(error){
+         console.warn('ESKALA: lectura API no disponible; se usa lectura pública directa.',error);
+       }
+     }
+     if(!data){
+       try{data=await request(raw+file+'?revision='+now)}
+       catch{
+         const result=await request(api+'/contents/'+file+'?ref='+branch+'&_='+now,{headers:readHeaders});
+         data=decode(result.content);
+       }
      }
      if(!Array.isArray(data?.modelos))throw Error('Catálogo no válido: '+file);
      snapshots.set(file,{at:now,data});
      return data;
    })();
-   pending.set(file,task);
-   try{return await task}finally{pending.delete(file)}
+   pending.set(pendingKey,task);
+   try{return await task}finally{pending.delete(pendingKey)}
  }
  async function readForWrite(token){
    const f=await request(api+'/contents/'+path+'?ref='+branch+'&_='+Date.now(),{headers:{...readHeaders,Authorization:'Bearer '+token}});
@@ -333,5 +346,5 @@
    window.addEventListener('focus',check);
    window.addEventListener('pageshow',check);
  }
- window.FusionDistribution={version:18,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
+ window.FusionDistribution={version:19,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
 })();
