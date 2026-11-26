@@ -1,19 +1,7 @@
 {
   "version": 1,
-  "updated": "2026-11-26T11:55:45.111Z",
+  "updated": "2026-11-26T11:55:48.078Z",
   "accesses": [
-    {
-      "id": "acc_mwxhs3cz_wwl0ls",
-      "designId": "puerta-zona-generador-mwvotkdj",
-      "recipient": "WhatsApp · 26/11/2026 12:51",
-      "contact": "",
-      "channel": "whatsapp",
-      "tokenHash": "0053183850d801e3fc1a35f82375d36c429ee753cb7f253dfc6254e4518a0e39",
-      "status": "active",
-      "createdAt": "2026-11-26T11:51:32.867Z",
-      "updatedAt": "2026-11-26T11:51:32.867Z",
-      "expiresAt": "2026-11-26T12:51:32.867Z"
-    },
     {
       "id": "acc_mwxhtvmi_0acwhi",
       "designId": "puerta-zona-generador-abierta-mwvp69l8",
