@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado": "2026-11-26T10:39:08.301Z",
+  "actualizado": "2026-11-26T10:44:31.380Z",
   "modelos": [
     {
       "id": "puerta-zona-generador-abierta-mwvp69l8",
@@ -71,16 +71,6 @@
       "miniatura": "miniaturas/garaje2-mws3nfb6.jpg",
       "bytes": 15663528,
       "fecha": "2026-11-22T17:17:34.798Z"
-    },
-    {
-      "id": "cocina2-mwrxuhz5",
-      "nombre": "cocina2",
-      "categoria": "Viviendas",
-      "descripcion": "",
-      "archivo": "modelos/cocina2-mwrxuhz5.glb",
-      "miniatura": "miniaturas/cocina2-mwrxuhz5.jpg",
-      "bytes": 15768864,
-      "fecha": "2026-11-22T14:35:09.957Z"
     },
     {
       "id": "cocina-mwrtyb5r",
