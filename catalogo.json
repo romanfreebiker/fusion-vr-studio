@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado": "2026-11-26T10:50:39.214Z",
+  "actualizado": "2026-11-26T10:50:47.373Z",
   "modelos": [
     {
       "id": "puerta-zona-generador-abierta-mwvp69l8",
@@ -25,7 +25,7 @@
     {
       "id": "escalera-bascula-mwswzrjg",
       "nombre": "escalera bascula",
-      "categoria": "",
+      "categoria": "Escaleras",
       "descripcion": "",
       "archivo": "modelos/escalera-bascula-mwswzrjg.glb",
       "miniatura": "miniaturas/escalera-bascula-mwswzrjg.jpg",
