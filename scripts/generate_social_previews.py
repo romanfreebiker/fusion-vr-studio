@@ -189,7 +189,9 @@ noscript a{{display:block;padding:1rem;color:#73daf0}}
 <script>
 (function(){{
   const queryToken=new URLSearchParams(location.search).get('share')||'';
-  const hashToken=new URLSearchParams(location.hash.replace(/^#/,'')).get('share')||'';
+  const rawHash=location.hash.replace(/^#/,'');
+  const hashParams=new URLSearchParams(rawHash);
+  const hashToken=hashParams.get('share')||hashParams.get('s')||(!rawHash.includes('=')?rawHash:'');
   const token=queryToken||hashToken;
   const frame=document.getElementById('eskalaViewer');
   if(!token){{frame.remove();document.getElementById('eskalaDenied').hidden=false;return;}}
