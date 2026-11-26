@@ -8,8 +8,8 @@
       "categoria": "Viviendas",
       "archivo": "modelos/escalera-falsa-escuadra-olaso-mwvvfm5e.glb",
       "miniatura": "miniaturas/escalera-falsa-escuadra-olaso-mwvvfm5e.jpg",
-      "status": "active",
-      "updated": "2026-11-25T21:11:26.132Z"
+      "status": "inactive",
+      "updated": "2026-11-26T12:30:06.600Z"
     },
     {
       "id": "puerta-zona-generador-abierta-mwvp69l8",
@@ -18,8 +18,8 @@
       "categoria": "Viviendas",
       "archivo": "modelos/puerta-zona-generador-abierta-mwvp69l8.glb",
       "miniatura": "miniaturas/puerta-zona-generador-abierta-mwvp69l8.jpg",
-      "status": "active",
-      "updated": "2026-11-25T21:15:07.459Z"
+      "status": "inactive",
+      "updated": "2026-11-26T12:30:06.600Z"
     },
     {
       "id": "mesa-empaquetado-completa-mwstduga",
@@ -28,8 +28,8 @@
       "categoria": "Viviendas",
       "archivo": "modelos/mesa-empaquetado-completa-mwstduga.glb",
       "miniatura": "miniaturas/mesa-empaquetado-completa-mwstduga.jpg",
-      "status": "active",
-      "updated": "2026-11-26T06:27:41.250Z"
+      "status": "inactive",
+      "updated": "2026-11-26T12:30:06.600Z"
     },
     {
       "id": "garaje2-mws3nfb6",
@@ -38,8 +38,8 @@
       "categoria": "Viviendas",
       "archivo": "modelos/garaje2-mws3nfb6.glb",
       "miniatura": "miniaturas/garaje2-mws3nfb6.jpg",
-      "status": "active",
-      "updated": "2026-11-26T06:27:53.765Z"
+      "status": "inactive",
+      "updated": "2026-11-26T12:30:06.600Z"
     },
     {
       "id": "barbacoa-mwrq7qbe",
@@ -48,8 +48,8 @@
       "categoria": "Viviendas",
       "archivo": "modelos/barbacoa-mwrq7qbe.glb",
       "miniatura": "miniaturas/barbacoa-mwrq7qbe.jpg",
-      "status": "active",
-      "updated": "2026-11-26T06:27:56.516Z"
+      "status": "inactive",
+      "updated": "2026-11-26T12:30:06.600Z"
     },
     {
       "id": "escalera-falsa-escuadra-olaso-mwxejuyt",
@@ -58,8 +58,8 @@
       "categoria": "Estructuras",
       "archivo": "modelos/escalera-falsa-escuadra-olaso-mwxejuyt.glb",
       "miniatura": "miniaturas/escalera-falsa-escuadra-olaso-mwxejuyt.jpg",
-      "status": "active",
-      "updated": "2026-11-26T10:34:28.135Z"
+      "status": "inactive",
+      "updated": "2026-11-26T12:30:06.600Z"
     },
     {
       "id": "escalera-bascula-mwswzrjg",
@@ -68,8 +68,8 @@
       "categoria": "Escaleras",
       "archivo": "modelos/escalera-bascula-mwswzrjg.glb",
       "miniatura": "miniaturas/escalera-bascula-mwswzrjg.jpg",
-      "status": "active",
-      "updated": "2026-11-26T11:31:47.189Z"
+      "status": "inactive",
+      "updated": "2026-11-26T12:30:06.600Z"
     }
   ]
 }
