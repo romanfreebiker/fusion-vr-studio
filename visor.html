@@ -65,7 +65,7 @@ window.presentationProgress=function(message,percent,error=false){
 window.addEventListener('error',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo iniciar el visor. Comprueba la conexión.',null,true);});
 window.addEventListener('unhandledrejection',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo cargar el proyecto.',null,true);});
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=24"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=27"></script>
 <header>
 <h1>ESKALA Viewer</h1><span class="eskala-sign">by Roman · <b>62</b> SESENTA&amp;DOS</span>
 <label for="models">Diseño</label><select id="models" disabled></select>
@@ -226,7 +226,7 @@ if(presentation){
  const full=button('Pantalla completa',()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{});});
  document.addEventListener('fullscreenchange',()=>{full.setAttribute('aria-pressed',String(!!document.fullscreenElement));full.textContent=document.fullscreenElement?'Salir de pantalla completa':'Pantalla completa';});
  if(access==='director'){
-   button('Mi biblioteca',()=>location.assign('direccion.html?v=124'));
+   button('Mi biblioteca',()=>location.assign('direccion.html?v=125'));
    function askExposureHours(){
      const value=prompt('Tiempo de exposición del enlace (horas).\n\nDéjalo vacío para 24 horas.','');
      if(value===null)return null;
@@ -1998,7 +1998,7 @@ for(const control of [models,orientation,appearance])control.addEventListener('c
 function exitWithdrawnDesign(){
   generation++;
   renderer.setAnimationLoop(null);
-  const destination=access==='director'?'direccion.html?v=124':'retirado.html';
+  const destination=access==='director'?'direccion.html?v=125':'retirado.html';
   location.replace(new URL(destination,location.href).href);
 }
 
