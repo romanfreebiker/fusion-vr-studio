@@ -83,10 +83,10 @@ def make_cover(model, brand):
     draw.line((0, 612, 1199, 612), fill=CYAN, width=4)
     return dest
 
-def short_page(model, slug):
+def short_page(model, slug, area='v'):
     name = str(model.get("nombre") or "Diseño 3D").strip()
     ident = str(model["id"])
-    link = HOST + "v/" + slug + "/"
+    link = HOST + area + "/" + slug + "/"
     image = HOST + "social/" + slug + ".jpg"
     viewer = "../../visor.html?modo=presentacion&diseno=" + quote(ident, safe="") + "&acceso=invitado&v=100"
     page_title = "ESKALA | " + name
@@ -161,9 +161,12 @@ def main():
         seen.add(slug)
         image_path = SOCIAL / (slug + ".jpg")
         make_cover(m, brand).save(image_path, "JPEG", quality=88, optimize=True, subsampling=0)
-        short_dir = ROOT / "v" / slug
-        short_dir.mkdir(parents=True, exist_ok=True)
-        (short_dir / "index.html").write_text(short_page(m, slug), encoding="utf-8")
+        # Mantener /v/ como enlace de compatibilidad para mensajes antiguos.
+        # /p/ es el enlace actualizado, con URL OG independiente.
+        for area in ("v", "p"):
+            short_dir = ROOT / area / slug
+            short_dir.mkdir(parents=True, exist_ok=True)
+            (short_dir / "index.html").write_text(short_page(m, slug, area), encoding="utf-8")
         print("Vista previa:", ident, "=>", image_path.relative_to(ROOT))
         done += 1
     print("Total de enlaces activos actualizados:", done)
