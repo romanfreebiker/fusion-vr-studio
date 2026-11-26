@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-11-26T11:27:00.310Z",
+  "updated": "2026-11-26T11:28:08.185Z",
   "accesses": [
     {
       "id": "acc_mwxgve7k_owcajz",
@@ -24,6 +24,18 @@
       "createdAt": "2026-11-26T11:26:59.857Z",
       "updatedAt": "2026-11-26T11:26:59.857Z",
       "expiresAt": "2026-11-27T11:26:59.857Z"
+    },
+    {
+      "id": "acc_mwxgxyxb_ax5bft",
+      "designId": "puerta-zona-generador-mwvotkdj",
+      "recipient": "WhatsApp · 26/11/2026 12:28",
+      "contact": "",
+      "channel": "whatsapp",
+      "tokenHash": "655a9e16bb577b9bf34c178b8885cc13eef1120cbf25ffb83078f2bd07a139a2",
+      "status": "active",
+      "createdAt": "2026-11-26T11:28:07.439Z",
+      "updatedAt": "2026-11-26T11:28:07.439Z",
+      "expiresAt": "2026-11-27T11:28:07.439Z"
     }
   ],
   "defaultTtlHours": 24
