@@ -1,7 +1,17 @@
 {
   "version": 1,
-  "actualizado": "2026-11-25T21:13:35.204Z",
+  "actualizado": "2026-11-26T10:21:17.109Z",
   "modelos": [
+    {
+      "id": "escalera-falsa-escuadra-olaso-mwxejuyt",
+      "nombre": "ESCALERA FALSA ESCUADRA OLASO",
+      "categoria": "Estructuras",
+      "descripcion": "",
+      "archivo": "modelos/escalera-falsa-escuadra-olaso-mwxejuyt.glb",
+      "miniatura": "miniaturas/escalera-falsa-escuadra-olaso-mwxejuyt.jpg",
+      "bytes": 4323288,
+      "fecha": "2026-11-26T10:21:17.109Z"
+    },
     {
       "id": "puerta-zona-generador-abierta-mwvp69l8",
       "nombre": "puerta zona generador abierta",
