@@ -184,8 +184,19 @@ noscript a{{display:block;padding:1rem;color:#73daf0}}
 </style>
 </head>
 <body>
-<iframe src="{target}" title="Visor ESKALA · {title}" allowfullscreen></iframe>
-<noscript><a href="{target}">Abrir diseño en ESKALA Studio</a></noscript>
+<iframe id="eskalaViewer" title="Visor ESKALA · {title}" allowfullscreen></iframe>
+<div id="eskalaDenied" hidden style="padding:2rem;font:16px system-ui;color:#eef7fa;background:#151e26">Este enlace necesita un acceso individual activo.</div>
+<script>
+(function(){{
+  const token=new URLSearchParams(location.search).get('share')||'';
+  const frame=document.getElementById('eskalaViewer');
+  if(!token){{frame.remove();document.getElementById('eskalaDenied').hidden=false;return;}}
+  const target=new URL({json.dumps(viewer,ensure_ascii=False)});
+  target.searchParams.set('share',token);
+  frame.src=target.href;
+}})();
+</script>
+<noscript><a href="{target}">Activa JavaScript para abrir el diseño en ESKALA Studio</a></noscript>
 </body>
 </html>
 """
