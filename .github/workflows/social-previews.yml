@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'visor.html'
       - 'catalogo.json'
       - 'distribucion.json'
       - 'miniaturas/**'
@@ -49,7 +50,7 @@ jobs:
           if ! git diff --cached --quiet; then
             git commit -m "Generar miniaturas ESKALA para compartir"
             git push origin HEAD:main
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent
           else
             echo "Sin cambios en las vistas previas."
           fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent
