@@ -26,7 +26,7 @@
  async function list(role,force=false){const {data}=await read(force);return role==='director'?data.modelos.filter(m=>m.status==='active'&&!isHidden(m)):data.modelos}
  async function send(m){await write(rows=>{const next={...safe(m),status:'active',updated:new Date().toISOString()};const i=rows.findIndex(x=>x.id===m.id);if(i<0)rows.push(next);else rows[i]=next})}
  async function setStatus(id,status,role){if(role!=='admin')throw Error('La retirada global debe confirmarse desde la central.');await write(rows=>{const i=rows.findIndex(x=>x.id===id);if(i<0)return;if(status==='revoked')rows.splice(i,1);else rows[i]={...rows[i],status,updated:new Date().toISOString()}})}
- function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','104');return u}
+ function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','105');return u}
  async function share(id){
    const manifestUrl=new URL('social/shares.json',location.href);
    const [rows,manifest]=await Promise.all([
@@ -36,10 +36,14 @@
    const model=rows.find(item=>item.id===id&&item.status==='active');
    if(!model)throw Error('Este diseño ya no está disponible para compartir.');
    const entry=manifest?.version===1&&manifest.designs?.[id];
-   const slug=id.split('-').at(-1);
-   const prefix='p/'+slug+'/';
-   if(entry&&entry.updated===model.updated&&typeof entry.path==='string'&&entry.path.startsWith(prefix)&&/^[a-f0-9]{12}\/$/.test(entry.path.slice(prefix.length))){
-     return new URL(entry.path,location.href).href;
+   if(entry&&entry.updated===model.updated){
+     if(typeof entry.shortPath==='string'&&/^s\/[a-z2-7]{8}\/$/.test(entry.shortPath)){
+       return new URL(entry.shortPath,location.href).href;
+     }
+     const prefix='p/'+id.split('-').at(-1)+'/';
+     if(typeof entry.path==='string'&&entry.path.startsWith(prefix)&&/^[a-f0-9]{12}\/$/.test(entry.path.slice(prefix.length))){
+       return new URL(entry.path,location.href).href;
+     }
    }
    throw Error('La tarjeta ESKALA de este diseño aún no está publicada. Vuelve a intentarlo cuando esté disponible.');
  }

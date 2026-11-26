@@ -2,6 +2,7 @@
 """Create branded ESKALA WhatsApp/email link previews from active shared designs."""
 from __future__ import annotations
 
+from base64 import b32encode
 import hashlib
 import html
 import json
@@ -85,17 +86,16 @@ def make_cover(model, brand):
     draw.line((0, 612, 1199, 612), fill=CYAN, width=4)
     return dest
 
-def short_page(model, slug, area='v', revision=None):
+def short_page(model, slug, area='v', branded_path=None):
     name = str(model.get("nombre") or "Diseño 3D").strip()
     ident = str(model["id"])
     link = HOST + area + "/" + slug + "/"
     image = HOST + "social/" + slug + ".jpg"
     image_src = "../../social/" + slug + ".jpg"
     viewer_src = "../../visor.html"
-    if revision:
-        link += revision + "/"
+    if branded_path:
         viewer = HOST + "visor.html?modo=presentacion&diseno=" + quote(ident, safe="") + "&acceso=invitado&v=104"
-        return branded_viewer_page(name, link, viewer)
+        return branded_viewer_page(name, HOST + branded_path, viewer)
     viewer = viewer_src + "?modo=presentacion&diseno=" + quote(ident, safe="") + "&acceso=invitado&v=100"
     page_title = "ESKALA | " + name
     desc = "Explora " + name + " en 3D. Vista interactiva y recorrido virtual en ESKALA."
@@ -224,7 +224,7 @@ def main():
             (short_dir / "index.html").write_text(short_page(m, slug, area), encoding="utf-8")
         # Keep each shared URL stable until its card or distribution revision changes.
         digest = hashlib.sha256()
-        digest.update(short_page(m, slug, "p", "000000000000").encode("utf-8"))
+        digest.update(short_page(m, slug, branded_path=f"p/{slug}/000000000000/").encode("utf-8"))
         digest.update(image_path.read_bytes())
         digest.update(str(m.get("updated", "")).encode("utf-8"))
         revision = digest.hexdigest()[:12]
@@ -232,9 +232,21 @@ def main():
         folder = ROOT / path
         folder.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(image_path, folder / "preview.jpg")
-        (folder / "index.html").write_text(short_page(m, slug, "p", revision), encoding="utf-8")
-        shares[ident] = {"path": path, "updated": m.get("updated")}
-        print("Vista previa:", ident, "=>", path)
+        (folder / "index.html").write_text(short_page(m, slug, branded_path=path), encoding="utf-8")
+        alias = b32encode(digest.digest()[:5]).decode("ascii").lower()
+        short_path = f"s/{alias}/"
+        short_dir = ROOT / short_path
+        short_index = short_dir / "index.html"
+        short_image = short_dir / "preview.jpg"
+        short_html = short_page(m, slug, branded_path=short_path)
+        if ((short_index.exists() and short_index.read_text(encoding="utf-8") != short_html)
+                or (short_image.exists() and short_image.read_bytes() != image_path.read_bytes())):
+            raise ValueError("El enlace corto ya corresponde a otra tarjeta: " + alias)
+        short_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(image_path, short_image)
+        short_index.write_text(short_html, encoding="utf-8")
+        shares[ident] = {"path": path, "shortPath": short_path, "updated": m.get("updated")}
+        print("Vista previa:", ident, "=>", short_path)
     manifest = json.dumps({"version": 1, "designs": shares}, ensure_ascii=False, indent=2, sort_keys=True)
     (SOCIAL / "shares.json").write_text(manifest + "\n", encoding="utf-8")
     print("Total de enlaces preparados:", len(shares))

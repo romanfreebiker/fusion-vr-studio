@@ -2,18 +2,22 @@
   "designs": {
     "barbacoa-mwrq7qbe": {
       "path": "p/mwrq7qbe/b00b7a0bc2cd/",
+      "shortPath": "s/wafxuc6c/",
       "updated": "2026-11-26T06:27:56.516Z"
     },
     "garaje2-mws3nfb6": {
       "path": "p/mws3nfb6/e84150a3e8f9/",
+      "shortPath": "s/5bavbi7i/",
       "updated": "2026-11-26T06:27:53.765Z"
     },
     "mesa-empaquetado-completa-mwstduga": {
       "path": "p/mwstduga/f136832c7fdf/",
+      "shortPath": "s/6e3igld7/",
       "updated": "2026-11-26T06:27:41.250Z"
     },
     "puerta-zona-generador-abierta-mwvp69l8": {
       "path": "p/mwvp69l8/3ea4e4d653ca/",
+      "shortPath": "s/h2sojvst/",
       "updated": "2026-11-25T21:15:07.459Z"
     }
   },
