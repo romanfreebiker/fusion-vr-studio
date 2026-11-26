@@ -199,7 +199,7 @@ renderer.xr.setFramebufferScaleFactor(.85);
 const pmrem=new THREE.PMREMGenerator(renderer);
 const room=new RoomEnvironment();
 scene.environment=pmrem.fromScene(room,.04).texture;
-scene.environmentIntensity=.68;
+scene.environmentIntensity=.88;
 room.dispose();pmrem.dispose();
 document.body.append(renderer.domElement);
 const controls=new OrbitControls(camera,renderer.domElement);
@@ -404,20 +404,65 @@ ground.rotation.x=-Math.PI/2;
 ground.position.y=-.012;
 ground.receiveShadow=false;
 scene.add(ground);
-// Menor relleno ambiental: recuperar sombras y lectura de bordes.
-scene.add(new THREE.HemisphereLight(0xf0f7ff,0x7c8795,.78));
-// Dirección dominante suave para separar visualmente aristas y caras.
-const sun=new THREE.DirectionalLight(0xfff1d9,1.50);
-sun.position.set(8,16,10);
+// La cuadrícula conserva su color. Una capa transparente recibe solo la sombra.
+const groundShadow=new THREE.Mesh(
+  new THREE.PlaneGeometry(1,1),
+  new THREE.ShadowMaterial({color:0x15283d,opacity:.32,depthWrite:false})
+);
+groundShadow.receiveShadow=true;
+groundShadow.visible=false;
+ground.add(groundShadow);
+
+scene.add(new THREE.HemisphereLight(0xf4f8ff,0x8a929c,.92));
+const sun=new THREE.DirectionalLight(0xfff4e7,2.05);
+const sunDirection=new THREE.Vector3(8,16,10).normalize();
 sun.castShadow=true;
-sun.shadow.mapSize.set(1024,1024);
-sun.shadow.camera.left=-24;sun.shadow.camera.right=24;
-sun.shadow.camera.top=24;sun.shadow.camera.bottom=-24;
-sun.shadow.camera.near=.5;sun.shadow.camera.far=90;
-sun.shadow.bias=-.00008;
-sun.shadow.normalBias=.025;
-sun.shadow.radius=2;
-scene.add(sun);
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.bias=-.00012;
+sun.shadow.normalBias=.008;
+sun.shadow.autoUpdate=false;
+scene.add(sun,sun.target);
+const fill=new THREE.DirectionalLight(0xe3efff,.42);
+fill.position.set(-7,6,-8);
+scene.add(fill);
+
+function fitModelShadows(size){
+  // Ajustar el mapa al diseño centrado y a su proyección sobre el suelo.
+  const margin=Math.max(.18,size.length()*.035);
+  const minX=-size.x/2-size.y*sunDirection.x/sunDirection.y-margin;
+  const maxX=size.x/2+margin;
+  const minZ=-size.z/2-size.y*sunDirection.z/sunDirection.y-margin;
+  const maxZ=size.z/2+margin;
+  groundShadow.position.set((minX+maxX)/2,-(minZ+maxZ)/2,.002);
+  groundShadow.scale.set(maxX-minX,maxZ-minZ,1);
+
+  // Usar el mismo volumen para encuadrar el modelo y toda su sombra.
+  sun.target.position.set(0,size.y/2,0);
+  sun.position.copy(sun.target.position).addScaledVector(sunDirection,size.length()*2+1);
+  sun.target.updateMatrixWorld();
+  sun.updateMatrixWorld();
+  sun.shadow.updateMatrices(sun);
+  const shadowCamera=sun.shadow.camera;
+  const lightBounds=new THREE.Box3();
+  const corner=new THREE.Vector3();
+  for(const x of [minX,maxX]){
+    for(const y of [ground.position.y,size.y]){
+      for(const z of [minZ,maxZ]){
+        lightBounds.expandByPoint(corner.set(x,y,z).applyMatrix4(shadowCamera.matrixWorldInverse));
+      }
+    }
+  }
+  shadowCamera.left=lightBounds.min.x-margin;
+  shadowCamera.right=lightBounds.max.x+margin;
+  shadowCamera.bottom=lightBounds.min.y-margin;
+  shadowCamera.top=lightBounds.max.y+margin;
+  shadowCamera.near=Math.max(.01,-lightBounds.max.z-margin);
+  shadowCamera.far=-lightBounds.min.z+margin;
+  shadowCamera.updateProjectionMatrix();
+  // Los diseños son estáticos. Orbitar o caminar no invalida el mapa.
+  sun.shadow.needsUpdate=true;
+  groundShadow.visible=true;
+}
 const loader=new GLTFLoader();
 // Biblioteca propia de materiales, sin adivinar materiales según la posición de la pieza.
 const surfaceTextures=new Map();
@@ -1614,6 +1659,7 @@ async function openModel(){
       if(presentation)window.presentationProgress('Preparando texturas y acabados…',null);
       await globalThis.FusionMaterialLib.prepare();
     }
+    if(load!==generation){dispose(next);return}
     const applied=appearance.value==='library'?applyLibrary(next):0;
     if(appearance.value==='diagnostic')applyMaterialDiagnostic(next);
     if(appearance.value==='clear'){
@@ -1658,6 +1704,7 @@ async function openModel(){
     height=size.y;
     scene.add(model);
     model.updateMatrixWorld(true);
+    fitModelShadows(size);
     // Una estructura espacial creada desde TODAS las mallas del diseño,
     // independientemente de sus materiales, nombres o tamaños.
     worldOctree=new Octree();
