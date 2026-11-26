@@ -289,6 +289,80 @@ if(presentation){
  presentationHint=document.createElement('div');presentationHint.id='presentationHint';document.body.append(presentationHint);updateMouseGuide();
  presentationStatus=document.getElementById('presentationBoot');window.presentationProgress('Preparando el proyecto…',null);
  const canvas=renderer.domElement;
+ // Medición táctil: pulsación prolongada, cursor elevado y un solo candidato.
+ const measureButton=button('Medir',toggleTouchMeasure);
+ let measuring=false, first=null, second=null, candidate=null, gesture=null, holdTimer=0;
+ const activeTouches=new Set();
+ const ray=new THREE.Raycaster(), ndc=new THREE.Vector2();
+ const marker=document.createElement('div'), readout=document.createElement('div');
+ Object.assign(marker.style,{position:'fixed',width:'20px',height:'20px',border:'2px solid #55efab',borderRadius:'50%',transform:'translate(-50%,-50%)',pointerEvents:'none',zIndex:'9000',display:'none',boxShadow:'0 0 0 1px #132333'});
+ Object.assign(readout.style,{position:'fixed',left:'50%',bottom:'12px',transform:'translateX(-50%)',background:'#142236ed',color:'#fff',padding:'10px 15px',borderRadius:'10px',font:'600 14px system-ui',textAlign:'center',pointerEvents:'none',zIndex:'9000',display:'none',maxWidth:'90vw'});
+ document.body.append(marker,readout);
+ const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),new THREE.LineBasicMaterial({color:0x55efab,depthTest:false}));
+ line.frustumCulled=false;line.renderOrder=999;line.visible=false;scene.add(line);
+ const fixedMarker=document.createElement('div');
+ Object.assign(fixedMarker.style,{position:'fixed',width:'12px',height:'12px',background:'#55efab',border:'2px solid white',borderRadius:'50%',transform:'translate(-50%,-50%)',pointerEvents:'none',zIndex:'8999',display:'none'});
+ document.body.append(fixedMarker);
+ function toggleTouchMeasure(){measuring=!measuring;measureButton.setAttribute('aria-pressed',String(measuring));first=second=candidate=null;line.visible=false;marker.style.display=fixedMarker.style.display='none';readout.style.display=measuring?'block':'none';readout.textContent=touchGuide?'Mantén pulsado para marcar un punto':'Pulsa un punto del modelo';}
+ function projectPoint(p){const q=p.clone().project(camera);return {x:(q.x+1)*innerWidth/2,y:(1-q.y)*innerHeight/2,z:q.z};}
+ function pickPoint(x,y){
+   if(!model)return null;
+   camera.updateMatrixWorld(true);model.updateMatrixWorld(true);
+   let best=null, score=Infinity;
+   for(const [dx,dy] of [[0,0],[-12,0],[12,0],[0,-12],[0,12],[-12,-12],[12,12]]){
+     ndc.set((x+dx)/innerWidth*2-1,1-(y+dy)/innerHeight*2);ray.setFromCamera(ndc,camera);
+     const hit=ray.intersectObject(model,true).find(h=>h.object.isMesh&&h.face);
+     if(!hit)continue;
+     const pos=hit.object.geometry.attributes.position;
+     for(const index of [hit.face.a,hit.face.b,hit.face.c]){
+       const p=new THREE.Vector3().fromBufferAttribute(pos,index).applyMatrix4(hit.object.matrixWorld);
+       const s=projectPoint(p), d=Math.hypot(s.x-x,s.y-y);
+       if(s.z>=-1&&s.z<=1&&d<30&&d<score){best=p;score=d;}
+     }
+     if(dx===0&&dy===0&&!best){best=hit.point.clone();score=31;}
+   }
+   return best;
+ }
+ function preview(x,y){candidate=pickPoint(x,y);const p=candidate?projectPoint(candidate):{x,y};marker.style.left=p.x+'px';marker.style.top=p.y+'px';marker.style.borderColor=candidate?'#55efab':'#ffffff';marker.style.display='block';}
+ function commitPoint(){if(!candidate)return;if(!first||second){first=candidate.clone();second=null;}else{second=candidate.clone();}candidate=null;marker.style.display='none';if(navigator.vibrate&&touchGuide)navigator.vibrate(18);}
+ function cancelHold(){clearTimeout(holdTimer);holdTimer=0;}
+ function stopGesture(){cancelHold();gesture=null;candidate=null;marker.style.display='none';}
+ canvas.addEventListener('pointerdown',e=>{
+   if(!measuring||walkingMode)return;
+   if(e.pointerType==='touch'){
+     activeTouches.add(e.pointerId);
+     if(activeTouches.size!==1){stopGesture();return;}
+     gesture={id:e.pointerId,x:e.clientX,y:e.clientY,held:false};
+     holdTimer=setTimeout(()=>{if(!gesture||activeTouches.size!==1)return;gesture.held=true;controls.enabled=false;preview(gesture.x,Math.max(8,gesture.y-52));},420);
+   }else if(e.button===0){gesture={id:e.pointerId,x:e.clientX,y:e.clientY,held:false};}
+ },true);
+ canvas.addEventListener('pointermove',e=>{
+   if(!gesture||gesture.id!==e.pointerId)return;
+   if(gesture.held){e.preventDefault();e.stopImmediatePropagation();preview(e.clientX,Math.max(8,e.clientY-52));}
+   else if(Math.hypot(e.clientX-gesture.x,e.clientY-gesture.y)>8){cancelHold();gesture=null;}
+ },true);
+ function finishMeasure(e){
+   activeTouches.delete(e.pointerId);
+   if(!gesture||gesture.id!==e.pointerId)return;
+   cancelHold();
+   if(e.type==='pointerup'&&(gesture.held||e.pointerType==='mouse')){
+     if(!gesture.held)preview(e.clientX,e.clientY);
+     commitPoint();
+   }
+   stopGesture();controls.enabled=!walkingMode;
+ }
+ for(const type of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(type,finishMeasure,true);
+ canvas.addEventListener('pointerdown',e=>{if(activeTouches.size>1)controls.enabled=!walkingMode;},true);
+ window.addEventListener('blur',()=>{activeTouches.clear();stopGesture();controls.enabled=!walkingMode;});
+ window.eskalaMeasureFrame=()=>{
+   if(!measuring)return;
+   const end=second||candidate;
+   line.visible=!!(first&&end);
+   if(first){const p=projectPoint(first);fixedMarker.style.left=p.x+'px';fixedMarker.style.top=p.y+'px';fixedMarker.style.display=p.z>=-1&&p.z<=1?'block':'none';}
+   if(first&&end){const a=line.geometry.attributes.position;a.setXYZ(0,first.x,first.y,first.z);a.setXYZ(1,end.x,end.y,end.z);a.needsUpdate=true;readout.textContent=Math.round(first.distanceTo(end)*1000).toLocaleString('es-ES')+' mm'+(second?' · Marca otro punto para medir de nuevo':'');}
+   else readout.textContent=walkingMode?'Vuelve a Vista 3D para medir':first?'Marca el segundo punto':touchGuide?'Mantén pulsado para marcar un punto':'Pulsa un punto del modelo';
+ };
+
  // Adaptación al dispositivo real, incluso en equipos híbridos.
  canvas.addEventListener('pointerdown',e=>{
    const next=e.pointerType==='touch';
@@ -1985,6 +2059,7 @@ renderer.setAnimationLoop(time=>{
     controls.update();
   }
   if(presentation)ground.visible=walkingMode||camera.getWorldPosition(new THREE.Vector3()).y>=ground.position.y;
+  window.eskalaMeasureFrame?.();
   renderer.render(scene,camera);
   if(!meterStart)meterStart=time;
   if(meterLast){
