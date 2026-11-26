@@ -26,7 +26,7 @@
  async function list(role,force=false){const {data}=await read(force);return role==='director'?data.modelos.filter(m=>m.status==='active'&&!isHidden(m)):data.modelos}
  async function send(m){await write(rows=>{const next={...safe(m),status:'active',updated:new Date().toISOString()};const i=rows.findIndex(x=>x.id===m.id);if(i<0)rows.push(next);else rows[i]=next})}
  async function setStatus(id,status,role){if(role!=='admin')throw Error('La retirada global debe confirmarse desde la central.');await write(rows=>{const i=rows.findIndex(x=>x.id===id);if(i<0)return;if(status==='revoked')rows.splice(i,1);else rows[i]={...rows[i],status,updated:new Date().toISOString()}})}
- function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','106');return u}
+ function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','107');return u}
  async function share(id){
    const manifestUrl=new URL('social/shares.json',location.href);
    const [rows,manifest]=await Promise.all([
@@ -50,7 +50,23 @@
    }
    throw Error('La tarjeta ESKALA de este diseño aún no está publicada. Vuelve a intentarlo cuando esté disponible.');
  }
+ async function shareWhatsApp(id,name){
+   const page=window.open('about:blank','_blank');
+   try{
+     const url=await share(id);
+     const message='ESKALA Studio · '+(name||'Diseño 3D')+'\n'+url;
+     const target='https://wa.me/?text='+encodeURIComponent(message);
+     if(page){page.opener=null;page.location.replace(target);}else window.location.assign(target);
+   }catch(error){if(page)page.close();throw error}
+ }
+ async function shareEmail(id,name){
+   const url=await share(id);
+   const title=name||'Diseño 3D';
+   const subject='ESKALA Studio · '+title;
+   const body='Te comparto «'+title+'» para que puedas verlo y recorrerlo en 3D con ESKALA Studio.\n\n'+url;
+   location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+ }
  async function loadViewer(access,id){if(!['director','invitado','demo-invitado'].includes(access))throw Error('Acceso no válido');const m=(await list(access==='director'?'director':'admin',true)).find(x=>x.id===id&&x.status==='active');if(!m)throw Error('Este diseño ya no está disponible.');return {meta:m,url:new URL(m.archivo,location.href).href}}
  function removalUrl(m){const u=new URL('https://github.com/'+repo+'/issues/new');u.searchParams.set('title','[Dirección] Retirar diseño '+m.id);u.searchParams.set('body','Solicito retirar de la biblioteca de dirección el diseño '+m.nombre+'.\n\nIdentificador: '+m.id+'\nVersión: '+m.updated);return u.href}
- window.FusionDistribution={version:4,demo:false,publicFiles:true,configureAdmin,list,send,setStatus,viewer,share,loadViewer,hide,removalUrl};
+ window.FusionDistribution={version:4,demo:false,publicFiles:true,configureAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,loadViewer,hide,removalUrl};
 })();

@@ -13,7 +13,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=6"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=11"></script>
 <script>
 /* Three.js
 The MIT License
@@ -3959,6 +3959,18 @@ three/examples/jsm/libs/fflate.module.js:
 @media(max-width:1180px){.eskala-corpbar{justify-content:center;gap:3px;padding:8px 12px}.eskala-corp-identity{flex:0 1 640px}.eskala-corpnav{flex:1 1 100%;justify-content:center;padding:3px 0 4px}}
 @media(max-width:600px){.eskala-corpbar{position:sticky;padding:5px 8px}.eskala-corp-identity{flex:0 1 100%;justify-content:center}.eskala-corp-identity img{width:min(334px,100%);max-width:100%;max-height:none}.eskala-corpnav{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;scrollbar-width:thin;padding:4px 2px}.eskala-corpnav button{font-size:11px;padding:8px 10px;flex:0 0 auto}.app>.main{padding-top:18px}}
 </style>
+<style>
+#familyDialog{width:min(520px,calc(100% - 28px));max-height:82vh;overflow:auto;padding:22px;border:1px solid #36617e;border-radius:14px;background:#142034;color:#f4f7fd}
+#familyDialog::backdrop{background:#080e18b8}
+#familyDialog header,.family-row,.family-form{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+#familyDialog header h2{margin:0}
+.family-form .input{flex:1;min-width:160px}
+#familyList{display:grid;gap:8px;margin-top:14px}
+.family-row{padding:8px 0;border-bottom:1px solid #284058}
+.tile-family{display:grid;gap:4px;margin:6px 0 10px}
+.share-controls{display:flex;flex-wrap:wrap;gap:6px;flex-basis:100%}
+.share-controls strong{flex-basis:100%}
+</style>
 </head>
 <body>
 <!-- ESKALA: cabecera corporativa compartida. Los controles conservan data-view. -->
@@ -3988,8 +4000,9 @@ three/examples/jsm/libs/fflate.module.js:
     <div class="top"><div><div class="kicker">Tu espacio de proyectos 3D</div><h1 id="pageTitle">Biblioteca de diseños</h1><div class="muted" id="pageSubtitle">Un lugar para todos tus proyectos 3D</div></div><div class="top-right"><span class="pill" id="connectionPill">○ Sin conectar</span><button class="button secondary small" id="refreshBtn" type="button">↻ Actualizar</button></div></div>
     <section id="view-biblioteca">
       <div class="hero"><div><div class="kicker">ESKALA · HOME + WORK</div><h2>Diseña donde quieras.<br>Visítalo en realidad virtual.</h2><p>Guarda tus diseños en una biblioteca común y accede desde cualquier ordenador mediante el mismo enlace.</p><button class="button" type="button" data-goto="subir" style="margin-top:14px">＋ Añadir diseño</button></div><div class="hero-art" aria-hidden="true">◈</div></div>
-      <div class="stats"><div class="stat"><div class="number" id="statCount">0</div><div class="muted">Diseños guardados</div></div><div class="stat"><div class="number" id="statCategories">0</div><div class="muted">Categorías</div></div><div class="stat"><div class="number" id="statSize">0 MB</div><div class="muted">Tamaño de modelos</div></div></div>
+      <div class="stats"><div class="stat"><div class="number" id="statCount">0</div><div class="muted">Diseños guardados</div></div><div class="stat"><div class="number" id="statCategories">0</div><div class="muted">Familias</div></div><div class="stat"><div class="number" id="statSize">0 MB</div><div class="muted">Tamaño de modelos</div></div></div>
       <div class="toolbar"><div><h2 style="margin:0">Todos los proyectos</h2><div class="muted tiny" id="repoLabel">Configura tu repositorio para ver la biblioteca</div></div><div class="filters"><input class="input search" id="searchInput" placeholder="Buscar por nombre..." aria-label="Buscar diseños"><select class="select" id="categoryFilter" aria-label="Filtrar categoría"><option value="">Todas las categorías</option></select></div></div>
+      <button id="manageFamilies" class="button secondary small" type="button" style="margin:0 0 12px">Gestionar familias</button>
       <div id="gallery" class="gallery"></div>
       <div id="emptyLibrary" class="empty"><div class="symbol">⬡</div><strong>Tu biblioteca está lista para empezar</strong><p>Conecta GitHub y sube tu primer diseño GLB.</p><button class="button secondary" data-goto="configuracion" type="button">Configurar GitHub</button></div>
     </section>
@@ -3998,7 +4011,7 @@ three/examples/jsm/libs/fflate.module.js:
       <div class="two"><div class="panel"><div class="panel-head"><h2>Nuevo diseño</h2><p>Completa los datos y súbelos directamente al repositorio.</p></div>
         <form id="uploadForm">
           <label class="field"><span>Nombre del diseño *</span><input class="input" name="title" id="modelTitle" maxlength="90" placeholder="Ej. Cocina western" required></label>
-          <label class="field"><span>Categoría</span><select class="input" id="modelCategory"><option>Viviendas</option><option>Garajes</option><option>Cocinas</option><option>Estructuras</option><option>Taller</option><option>Mobiliario</option><option>Otros</option></select></label>
+          <label class="field"><span>Familia</span><select class="input" id="modelCategory"></select></label>
           <label class="field"><span>Descripción (opcional)</span><textarea class="textarea" id="modelDescription" rows="3" maxlength="500" placeholder="Detalles que quieras recordar del proyecto"></textarea></label>
           <div class="field"><span>Archivo 3D FBX o GLB *</span><div class="drop" id="modelDrop"><div class="symbol">⬡</div><strong>Arrastra aquí tu archivo .fbx o .glb</strong><input id="modelFile" type="file" aria-label="Seleccionar archivo FBX o GLB" aria-describedby="modelInfo" accept=".fbx,.glb,model/gltf-binary" required></div><div id="modelInfo" class="file-info" role="status">Ningún modelo seleccionado</div></div>
           <div class="field"><span>Portada opcional (si no añades una, se genera automáticamente)</span><input class="input" id="thumbFile" type="file" accept="image/jpeg,image/png,image/webp"><div class="hint">Si la dejas vacía, ESKALA Studio creará una miniatura del GLB.</div></div>
@@ -4029,12 +4042,23 @@ three/examples/jsm/libs/fflate.module.js:
     <footer class="footer"><span>ESKALA Studio · Versión 0.1</span><span>Biblioteca pública de modelos</span></footer>
   </main>
 </div>
+<dialog id="familyDialog" aria-labelledby="familyDialogTitle">
+  <header><h2 id="familyDialogTitle">Familias de diseños</h2><form method="dialog"><button class="button ghost small">Cerrar</button></form></header>
+  <form id="familyForm" class="family-form" style="margin-top:14px">
+    <input id="familyName" class="input" maxlength="60" placeholder="Ej. Viviendas" aria-label="Nombre de la nueva familia" required>
+    <button class="button small" type="submit">Crear familia</button>
+  </form>
+  <div id="familyStatus" role="status" aria-live="polite"></div>
+  <div id="familyList"></div>
+</dialog>
 <div class="toast hidden" id="toast" role="status"></div>
 <script>
 (()=>{'use strict';
 const $=id=>document.getElementById(id);
 const views={biblioteca:['Biblioteca de diseños','Un lugar para todos tus proyectos 3D'],subir:['Añadir nuevo diseño','Sube un GLB y su miniatura a GitHub'],configuracion:['Conexión con GitHub','Gestiona el repositorio y los permisos de escritura'],materiales:['Biblioteca de materiales','Nuestros acabados automáticos para los modelos de Fusion 360']};
-const state={owner:'',repo:'',branch:'main',token:'',models:[],repoPrivate:false,activeView:'biblioteca',catalogSha:null,thumbUrls:new Map(),busy:false};
+const defaultFamilies=['Viviendas','Garajes','Cocinas','Estructuras','Taller','Mobiliario','Otros'];
+const familyKey=name=>String(name??'').trim().replace(/\s+/g,' ').normalize('NFD').replace(/\p{M}/gu,'').toLocaleLowerCase('es');
+const state={owner:'',repo:'',branch:'main',token:'',models:[],families:defaultFamilies,repoPrivate:false,activeView:'biblioteca',catalogSha:null,thumbUrls:new Map(),busy:false};
 let thumbPreviewUrl=null,toastTimeout=null;
 const encPath=p=>p.split('/').map(encodeURIComponent).join('/');
 const humanSize=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/1024)+' KB':n+' B';
@@ -4237,10 +4261,108 @@ async function loadCatalog(){
   if(result.content&&result.encoding==='base64')return b64ToJson(result.content);
   throw Error('El catálogo no tiene el formato esperado.');
 }
+function catalogFamilies(catalog){
+  const labels=[...(Array.isArray(catalog.familias)?catalog.familias:defaultFamilies),...(catalog.modelos||[]).map(m=>m.categoria)];
+  const families=new Map();
+  for(const label of labels){
+    const key=familyKey(label);
+    if(typeof label==='string'&&key&&!families.has(key))families.set(key,label.trim().replace(/\s+/g,' '));
+  }
+  return [...families.values()].sort((a,b)=>a.localeCompare(b,'es'));
+}
+function fillFamilyChoices(select,families,selected,emptyLabel){
+  select.replaceChildren(new Option(emptyLabel,''));
+  for(const family of families)select.add(new Option(family,family));
+  select.value=families.find(f=>familyKey(f)===familyKey(selected))||'';
+}
+function updateCatalogState(catalog){
+  state.models=Array.isArray(catalog.modelos)?catalog.modelos:[];
+  state.families=catalogFamilies({...catalog,modelos:state.models});
+}
+async function saveFamilyChange(message,change){
+  if(state.busy)return false;
+  if(!state.token){
+    $('familyDialog').close();
+    postAuthView='biblioteca';nav('configuracion');
+    status('settingsStatus','Conecta con GitHub para gestionar las familias.');
+    return false;
+  }
+  state.busy=true;
+  $('familyStatus').textContent='Guardando en GitHub…';
+  try{
+    const fresh=await loadCatalog();
+    const models=Array.isArray(fresh.modelos)?fresh.modelos:[];
+    const families=catalogFamilies({...fresh,modelos:models});
+    const updated=change(models,families);
+    if(!updated){$('familyStatus').textContent='';return false;}
+    const payload={message,content:jsonToB64({...fresh,...updated,actualizado:new Date().toISOString()}),branch:state.branch};
+    if(state.catalogSha)payload.sha=state.catalogSha;
+    await request('PUT','catalogo.json',payload);
+    updateCatalogState({...fresh,...updated});
+    $('familyStatus').textContent='Cambios guardados.';
+    toast('Familias actualizadas');
+    return true;
+  }catch(error){
+    $('familyStatus').textContent=error.message;
+    toast('No se pudo guardar: '+error.message,true);
+    return false;
+  }finally{
+    state.busy=false;
+    render();
+  }
+}
+function renderFamilies(){
+  const list=$('familyList');
+  if(!$('familyDialog').open)return;
+  list.replaceChildren();
+  if(!state.families.length)list.textContent='Todavía no hay familias.';
+  for(const family of state.families){
+    const key=familyKey(family);
+    const count=state.models.filter(m=>familyKey(m.categoria)===key).length;
+    const row=document.createElement('div');row.className='family-row';
+    row.append(textNode('span',family+' · '+count+' '+(count===1?'diseño':'diseños')));
+    const remove=textNode('button','Eliminar','button secondary small');remove.type='button';
+    remove.setAttribute('aria-label','Eliminar familia '+family);
+    remove.onclick=()=>saveFamilyChange('Eliminar familia: '+family,(modelos,familias)=>{
+      if(!familias.some(f=>familyKey(f)===key))throw Error('La familia ya no está en el catálogo. Actualiza la biblioteca.');
+      const affected=modelos.filter(m=>familyKey(m.categoria)===key).length;
+      const detail=affected?' '+affected+' '+(affected===1?'diseño pasará':'diseños pasarán')+' a Sin familia.':'';
+      if(!confirm('¿Eliminar la familia «'+family+'»?'+detail))return null;
+      return {familias:familias.filter(f=>familyKey(f)!==key),modelos:modelos.map(m=>familyKey(m.categoria)===key?{...m,categoria:''}:m)};
+    });
+    row.append(remove);list.append(row);
+  }
+}
+$('manageFamilies').onclick=()=>{
+  $('familyStatus').textContent='';
+  $('familyDialog').showModal();
+  renderFamilies();
+};
+$('familyForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const input=$('familyName'), name=input.value.trim().replace(/\s+/g,' ');
+  if(!familyKey(name)){input.focus();return}
+  const saved=await saveFamilyChange('Crear familia: '+name,(modelos,familias)=>{
+    if(familyKey(name)===familyKey('Sin familia'))throw Error('«Sin familia» identifica los diseños sin asignar.');
+    if(familias.some(f=>familyKey(f)===familyKey(name)))throw Error('Ya existe una familia con ese nombre.');
+    return {modelos,familias:[...familias,name]};
+  });
+  if(saved)input.value='';
+});
+function changeDesignFamily(id,family){
+  return saveFamilyChange('Cambiar familia del diseño',(modelos,familias)=>{
+    const current=modelos.find(m=>m.id===id);
+    if(!current)throw Error('El diseño ya no está en el catálogo.');
+    const next=familias.find(f=>familyKey(f)===familyKey(family))||'';
+    if(family&&!next)throw Error('La familia ya no está disponible. Actualiza la biblioteca.');
+    if((current.categoria||'')===next)return null;
+    return {familias,modelos:modelos.map(m=>m.id===id?{...m,categoria:next}:m)};
+  });
+}
 async function refresh(){
   if(!state.owner||!state.repo){setConnection('Sin conectar');render();return}
   setConnection('Consultando...');$('refreshBtn').disabled=true;
-  try{const result=await loadCatalog();state.models=Array.isArray(result.modelos)?result.modelos:[];setConnection(state.token?'GitHub autorizado':'Biblioteca disponible · sin autorización',!!state.token);$('repoLabel').textContent=state.owner+'/'+state.repo+' · '+state.branch;render();}
+  try{const result=await loadCatalog();updateCatalogState(result);setConnection(state.token?'GitHub autorizado':'Biblioteca disponible · sin autorización',!!state.token);$('repoLabel').textContent=state.owner+'/'+state.repo+' · '+state.branch;render();}
   catch(e){setConnection('Error de conexión');toast(e.message,true);render()}
   finally{$('refreshBtn').disabled=false}
 }
@@ -4257,21 +4379,26 @@ function render(){
     panel.append(copy,link,note);$('gallery').before(panel);
   }
   $('statCount').textContent=state.models.length;
-  $('statCategories').textContent=new Set(state.models.map(x=>x.categoria).filter(Boolean)).size;
+  $('statCategories').textContent=state.families.length;
+  fillFamilyChoices($('modelCategory'),state.families,$('modelCategory').value,'Sin familia');
+  renderFamilies();
   $('statSize').textContent=((state.models.reduce((n,m)=>n+(Number(m.bytes)||0),0)/1048576)||0).toFixed(1)+' MB';
-  const cats=Array.from(new Set(state.models.map(m=>m.categoria).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'es'));
-  const selected=$('categoryFilter').value;$('categoryFilter').replaceChildren(new Option('Todas las categorías',''));cats.forEach(c=>$('categoryFilter').add(new Option(c,c)));if(cats.includes(selected))$('categoryFilter').value=selected;
-  const q=$('searchInput').value.trim().toLocaleLowerCase('es');const category=$('categoryFilter').value;
-  const shown=state.models.filter(m=>(!q||(m.nombre||'').toLocaleLowerCase('es').includes(q))&&(!category||m.categoria===category));
+  const filter=$('categoryFilter'), previousFilter=filter.value;
+  filter.replaceChildren(new Option('Todas las familias',''));
+  for(const family of state.families)filter.add(new Option(family,'family:'+familyKey(family)));
+  if(state.models.some(m=>!familyKey(m.categoria)))filter.add(new Option('Sin familia','family:'));
+  if([...filter.options].some(o=>o.value===previousFilter))filter.value=previousFilter;
+  const q=$('searchInput').value.trim().toLocaleLowerCase('es'), family=filter.value;
+  const shown=state.models.filter(m=>(!q||(m.nombre||'').toLocaleLowerCase('es').includes(q))&&(!family||'family:'+familyKey(m.categoria)===family));
   $('gallery').replaceChildren();$('emptyLibrary').classList.toggle('hidden',shown.length>0);
-  if(!shown.length){$('emptyLibrary').querySelector('strong').textContent=state.models.length?'No hay diseños con ese filtro':'Todavía no hay diseños publicados';$('emptyLibrary').querySelector('p').textContent=state.models.length?'Prueba otra búsqueda o categoría.':'Conecta tu repositorio y sube un archivo GLB.';return}
+  if(!shown.length){$('emptyLibrary').querySelector('strong').textContent=state.models.length?'No hay diseños con ese filtro':'Todavía no hay diseños publicados';$('emptyLibrary').querySelector('p').textContent=state.models.length?'Prueba otra búsqueda o familia.':'Conecta tu repositorio y sube un archivo GLB.';return}
   for(const m of shown){
     const tile=document.createElement('article');tile.className='tile';
     const cover=document.createElement('div');cover.className='cover';
     if(m.miniatura){const img=document.createElement('img');img.alt='Miniatura de '+m.nombre;img.loading='lazy';cover.append(img);attachImage(img,m.miniatura)}else{cover.append(textNode('span','◈','fallback'))}
     cover.append(textNode('span','GLB · 3D','type-chip'));tile.append(cover);
     const body=document.createElement('div');body.className='tile-body';body.append(textNode('h3',m.nombre||'Diseño sin nombre'));
-    body.append(textNode('div',(m.categoria||'Sin categoría')+' · '+humanSize(Number(m.bytes)||0),'muted tiny'));
+    body.append(textNode('div',humanSize(Number(m.bytes)||0),'muted tiny'));
     const uploaded=new Date(m.fecha);
     if(m.fecha&&Number.isFinite(uploaded.getTime())){
       const date=textNode('time','Subido el '+dateLabel.format(uploaded),'muted tiny');
@@ -4279,15 +4406,50 @@ function render(){
       body.append(date);
     }
     body.append(textNode('p',m.descripcion||'Listo para explorar en realidad virtual.','tile-desc'));
+    const familyLabel=textNode('label','Familia','tile-family muted tiny');
+    const familySelect=document.createElement('select');familySelect.className='select';
+    familySelect.setAttribute('aria-label','Familia de '+m.nombre);
+    fillFamilyChoices(familySelect,state.families,m.categoria,'Sin familia');
+    familySelect.disabled=state.busy;
+    familySelect.onchange=async()=>{
+      familySelect.disabled=true;
+      const saved=await changeDesignFamily(m.id,familySelect.value);
+      if(!saved&&familySelect.isConnected){
+        fillFamilyChoices(familySelect,state.families,m.categoria,'Sin familia');
+        familySelect.disabled=false;
+      }
+    };
+    familyLabel.append(familySelect);body.append(familyLabel);
     const foot=document.createElement('div');foot.className='tile-foot';
     const distribution=textNode('div','Consultando distribución…','muted tiny');distribution.style.flexBasis='100%';foot.append(distribution);
     const send=textNode('button','Enviar a dirección','button secondary small');send.type='button';foot.append(send);
     const revoke=textNode('button','Retirar de dirección','button ghost small');revoke.hidden=true;foot.append(revoke);
+    const shareControls=document.createElement('div');shareControls.className='share-controls';
+    shareControls.append(textNode('strong','Enviar a terceros','muted tiny'));
+    const shareActions=[
+      ['Copiar enlace',async()=>{
+        const url=await FusionDistribution.share(m.id);
+        try{await navigator.clipboard.writeText(url);toast('Enlace para terceros copiado');}
+        catch{prompt('Enlace para terceros',url)}
+      }],
+      ['WhatsApp',()=>FusionDistribution.shareWhatsApp(m.id,m.nombre)],
+      ['Correo',()=>FusionDistribution.shareEmail(m.id,m.nombre)]
+    ];
+    const shareButtons=shareActions.map(([label,action])=>{
+      const button=textNode('button',label,'button secondary small');button.type='button';
+      button.onclick=async()=>{try{await action()}catch(e){toast(e.message,true)}};
+      shareControls.append(button);return button;
+    });
+    foot.append(shareControls);
     function displayDistribution(d){
       const active=d?.status==='active';
       distribution.textContent=active?'Activo en dirección':d?.status==='inactive'?'Desactivado por dirección':'No enviado a dirección';
       send.textContent=active?'Enviado a dirección':d?.status==='inactive'?'Reactivar en dirección':'Enviar a dirección';
       send.disabled=active;revoke.hidden=!active;
+      for(const button of shareButtons){
+        button.disabled=!active;
+        button.title=active?'':'Activa el diseño en Dirección para compartirlo.';
+      }
     }
     const updateDistribution=async()=>{try{const d=(await FusionDistribution.list('admin')).find(x=>x.id===m.id);displayDistribution(d)}catch(e){distribution.textContent='Distribución: '+e.message}};
     send.onclick=async()=>{send.disabled=true;try{await FusionDistribution.send(m);toast('Diseño enviado a dirección');await updateDistribution()}catch(e){toast(e.message,true);send.disabled=false}};
@@ -4421,7 +4583,7 @@ function fileToB64(file){return new Promise((resolve,reject)=>{const reader=new 
 function progress(n,msg){$('uploadProgress').style.display='block';$('uploadBar').style.width=n+'%';status('uploadStatus',msg)}
 $('uploadForm').addEventListener('submit',async e=>{
  e.preventDefault();if(state.busy)return;
- const f=$('modelFile').files?.[0],img=$('thumbFile').files?.[0],name=$('modelTitle').value.trim();
+ const f=$('modelFile').files?.[0],img=$('thumbFile').files?.[0],name=$('modelTitle').value.trim(),family=$('modelCategory').value;
  if(!state.owner||!state.repo||!state.token){postAuthView='subir';nav('configuracion');status('settingsStatus','Conecta con GitHub para guardar el diseño seleccionado.');return}
  if(!f||!name){status('uploadStatus','Faltan el nombre o el archivo 3D.','bad');return}
  const isFbx=/\.fbx$/i.test(f.name);
@@ -4468,8 +4630,9 @@ $('uploadForm').addEventListener('submit',async e=>{
    progress(75,'Actualizando catálogo de proyectos...');
    // Refrescar el SHA evita sobrescribir accidentalmente el catálogo al usar varios ordenadores.
    const fresh=await loadCatalog();const items=Array.isArray(fresh.modelos)?fresh.modelos:[];
-   const item={id,nombre:name,categoria:$('modelCategory').value,descripcion:$('modelDescription').value.trim(),archivo:modelPath,miniatura:imagePath,bytes:model.size,fecha:new Date().toISOString()};
-   items.unshift(item);const payload={message:'Actualizar catálogo VR: '+name,content:jsonToB64({version:1,actualizado:new Date().toISOString(),modelos:items}),branch:state.branch};if(state.catalogSha)payload.sha=state.catalogSha;
+   const category=catalogFamilies({...fresh,modelos:items}).find(f=>familyKey(f)===familyKey(family))||'';
+   const item={id,nombre:name,categoria:category,descripcion:$('modelDescription').value.trim(),archivo:modelPath,miniatura:imagePath,bytes:model.size,fecha:new Date().toISOString()};
+   items.unshift(item);const payload={message:'Actualizar catálogo VR: '+name,content:jsonToB64({...fresh,actualizado:new Date().toISOString(),modelos:items}),branch:state.branch};if(state.catalogSha)payload.sha=state.catalogSha;
    await request('PUT','catalogo.json',payload);progress(100,'¡Diseño publicado correctamente en GitHub!');$('uploadStatus').classList.add('good');$('uploadForm').reset();fileSelected();if(thumbPreviewUrl)URL.revokeObjectURL(thumbPreviewUrl);$('thumbPreview').replaceChildren(textNode('span','◈','fallback'));await refresh();toast('Diseño guardado: '+name);
  }catch(err){status('uploadStatus','No se completó la publicación: '+err.message+'\nSi el modelo se subió pero falló el catálogo, puede haber un archivo pendiente en GitHub.','bad');toast('Error al subir el diseño',true)}
  finally{state.busy=false;$('uploadBtn').disabled=false;render();setTimeout(()=>{$('uploadProgress').style.display='none';$('uploadBar').style.width='0%'},1200)}

@@ -65,7 +65,7 @@ window.presentationProgress=function(message,percent,error=false){
 window.addEventListener('error',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo iniciar el visor. Comprueba la conexión.',null,true);});
 window.addEventListener('unhandledrejection',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo cargar el proyecto.',null,true);});
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=10"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=11"></script>
 <header>
 <h1>ESKALA Viewer</h1><span class="eskala-sign">by Roman · <b>62</b> SESENTA&amp;DOS</span>
 <label for="models">Diseño</label><select id="models" disabled></select>
@@ -227,28 +227,13 @@ if(presentation){
  if(access==='director'){
    button('Mi biblioteca',()=>location.assign('direccion.html?v=95'));
    const share=button('Copiar enlace para terceros',async()=>{if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}share.disabled=true;try{const url=await FusionDistribution.share(params.get('diseno'));try{await navigator.clipboard.writeText(url);share.textContent='¡Enlace copiado!';share.classList.add('confirmed');setTimeout(()=>{share.textContent='Copiar enlace para terceros';share.classList.remove('confirmed')},1600)}catch{prompt('Enlace individual para terceros',url)}}catch(e){alert(e.message)}finally{share.disabled=false}});
-   // Compartir siempre el enlace corto: su imagen de vista previa combina el diseño y ESKALA.
-   button('WhatsApp',async()=>{
-     if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}
-     const page=window.open('about:blank','_blank');
-     try{
-       const url=await FusionDistribution.share(params.get('diseno'));
-       const title=distributedModel.meta.nombre||'Diseño 3D';
-       const message='ESKALA Studio · '+title+'\n'+url;
-       const target='https://wa.me/?text='+encodeURIComponent(message);
-       if(page)page.location.replace(target);else window.location.assign(target);
-     }catch(e){if(page)page.close();alert(e.message)}
-   });
-   button('Correo',async()=>{
-     if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}
-     try{
-       const url=await FusionDistribution.share(params.get('diseno'));
-       const title=distributedModel.meta.nombre||'Diseño 3D';
-       const subject='ESKALA Studio · '+title;
-       const body='Te comparto «'+title+'» para que puedas verlo y recorrerlo en 3D con ESKALA Studio.'+'\n\n'+url;
-       location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
-     }catch(e){alert(e.message)}
-   });
+   for(const [label,action] of [['WhatsApp','shareWhatsApp'],['Correo','shareEmail']]){
+     button(label,async()=>{
+       if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}
+       try{await FusionDistribution[action](params.get('diseno'),distributedModel.meta.nombre);}
+       catch(e){alert(e.message)}
+     });
+   }
  }
 
  document.body.append(bar);
@@ -370,14 +355,30 @@ applyQuality();
 // antialias con desvanecimiento progresivo. Las líneas finas desaparecen
 // antes de llegar al horizonte para evitar el moiré ("fila de hormigas").
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.ShaderMaterial({
+  lights:true,
+  uniforms:{
+    ...THREE.UniformsUtils.clone(THREE.UniformsLib.lights),
+    floorShadowsReady:{value:false}
+  },
   vertexShader:`
+    #include <common>
+    #include <shadowmap_pars_vertex>
     varying vec3 vGridWorld;
     void main(){
-      vec4 world=modelMatrix*vec4(position,1.0);
-      vGridWorld=world.xyz;
-      gl_Position=projectionMatrix*viewMatrix*world;
+      vec4 worldPosition=modelMatrix*vec4(position,1.0);
+      vGridWorld=worldPosition.xyz;
+      vec3 transformedNormal=normalMatrix*normal;
+      #include <shadowmap_vertex>
+      gl_Position=projectionMatrix*viewMatrix*worldPosition;
     }`,
   fragmentShader:`
+    #include <common>
+    #include <packing>
+    #include <bsdfs>
+    #include <lights_pars_begin>
+    #include <shadowmap_pars_fragment>
+    #include <shadowmask_pars_fragment>
+    uniform bool floorShadowsReady;
     varying vec3 vGridWorld;
     float lineCoverage(vec2 uv,float width){
       vec2 cells=abs(fract(uv-.5)-.5);
@@ -396,22 +397,18 @@ const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.ShaderMat
       // Inversión de prueba: fondo azul luminoso y líneas oscuras.
       vec3 base=vec3(.36,.59,.80);
       vec3 color=mix(base,vec3(.075,.145,.235),max(minor*.45,major*.60)*fade);
+      // Sombra y cuadrícula comparten fragmento y profundidad.
+      if(floorShadowsReady){
+        color=mix(color,vec3(.082,.157,.239),(1.0-getShadowMask())*.32);
+      }
       gl_FragColor=vec4(color,1.0);
     }`,
   side:THREE.DoubleSide,depthWrite:true
 }));
 ground.rotation.x=-Math.PI/2;
 ground.position.y=-.012;
-ground.receiveShadow=false;
+ground.receiveShadow=true;
 scene.add(ground);
-// La cuadrícula conserva su color. Una capa transparente recibe solo la sombra.
-const groundShadow=new THREE.Mesh(
-  new THREE.PlaneGeometry(1,1),
-  new THREE.ShadowMaterial({color:0x15283d,opacity:.32,depthWrite:false})
-);
-groundShadow.receiveShadow=true;
-groundShadow.visible=false;
-ground.add(groundShadow);
 
 scene.add(new THREE.HemisphereLight(0xf4f8ff,0x8a929c,.92));
 const sun=new THREE.DirectionalLight(0xfff4e7,2.05);
@@ -433,8 +430,6 @@ function fitModelShadows(size){
   const maxX=size.x/2+margin;
   const minZ=-size.z/2-size.y*sunDirection.z/sunDirection.y-margin;
   const maxZ=size.z/2+margin;
-  groundShadow.position.set((minX+maxX)/2,-(minZ+maxZ)/2,.002);
-  groundShadow.scale.set(maxX-minX,maxZ-minZ,1);
 
   // Usar el mismo volumen para encuadrar el modelo y toda su sombra.
   sun.target.position.set(0,size.y/2,0);
@@ -461,7 +456,7 @@ function fitModelShadows(size){
   shadowCamera.updateProjectionMatrix();
   // Los diseños son estáticos. Orbitar o caminar no invalida el mapa.
   sun.shadow.needsUpdate=true;
-  groundShadow.visible=true;
+  ground.material.uniforms.floorShadowsReady.value=true;
 }
 const loader=new GLTFLoader();
 // Biblioteca propia de materiales, sin adivinar materiales según la posición de la pieza.
