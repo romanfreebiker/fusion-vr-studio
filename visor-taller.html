@@ -3,7 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <script>if(new URLSearchParams(location.search).get("modo")==="presentacion")document.documentElement.classList.add("presentation-boot");</script>
-<title>ESKALA Taller · Visor</title><script src='taller.js'></script><style>.eskala-bar-brand{display:flex;flex-direction:column;white-space:nowrap;color:#fff;padding:4px 10px;border-right:1px solid #49c9e8}.eskala-bar-brand b{font-size:20px;letter-spacing:3px}.eskala-bar-brand small{font-size:9px;color:#9edff1}#presentationBar{border-bottom:1px solid #49c9e8}</style><style>.eskala-sign{display:block;font:italic 11px system-ui;color:#aabbd1;letter-spacing:.3px;margin-top:4px}.eskala-sign b{color:#ff6900;font-style:normal}.eskala-cube{color:#49c9e8}</style>
+<title>ESKALA Taller · Visor</title><script src='taller.js'></script><style>.eskala-bar-brand{display:flex;flex-direction:column;white-space:nowrap;color:#fff;padding:4px 10px;border-right:1px solid #49c9e8}.eskala-bar-brand b{font-size:20px;letter-spacing:3px}.eskala-bar-brand small{font-size:9px;color:#9edff1}#presentationBar{border-bottom:1px solid #49c9e8} .dimension-label{position:absolute;transform:translate(-50%,-100%);white-space:nowrap;background:#f7fcff;color:#005d91;border:1px solid #0078b8;border-radius:4px;padding:3px 6px;font:600 13px system-ui;box-shadow:0 1px 3px #0003}.technical .measure-snap{border-color:#ff7900;color:#b85000;text-shadow:0 0 2px white;box-shadow:0 0 0 1px #fff}.technical .measure-snap.free{border-color:#0078b8}</style><style>.eskala-sign{display:block;font:italic 11px system-ui;color:#aabbd1;letter-spacing:.3px;margin-top:4px}.eskala-sign b{color:#ff6900;font-style:normal}.eskala-cube{color:#49c9e8}</style>
 <style>
 body{margin:0;background:#142034;color:#f4f7fd;font:16px system-ui}canvas{display:block}[hidden]{display:none!important}
 header{position:absolute;z-index:1;top:16px;left:16px;max-width:min(440px,calc(100vw - 72px));padding:14px 18px;background:#131e30ee;border:1px solid #42536f;border-radius:12px}
@@ -225,7 +225,7 @@ if(presentation){
  presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
  button('Mis trabajos',()=>{const u=new URL(EskalaTaller.link(location.hash.slice(1)));if(params.get('adminWorker'))u.searchParams.set('adminWorker',params.get('adminWorker'));location.assign(u.href)});
- const measureBtn=button('Medir',()=>toggleMeasure(measureBtn));button('Borrar cotas',()=>clearMeasures());projectionButton=button('Perspectiva',()=>setProjection(!camera.isOrthographicCamera));const viewSelect=document.createElement('select');viewSelect.setAttribute('aria-label','Vistas normalizadas');for(const [label,val] of [['Vistas',''],['Frontal','0,0,1'],['Posterior','0,0,-1'],['Izquierda','-1,0,0'],['Derecha','1,0,0'],['Superior','0,1,0'],['Inferior','0,-1,0'],['Isométrica','1,1,1']])viewSelect.add(new Option(label,val));viewSelect.onchange=()=>{if(viewSelect.value)standardView(...viewSelect.value.split(',').map(Number));viewSelect.value=''};bar.append(viewSelect);
+ const measureBtn=button('Medir',()=>toggleMeasure(measureBtn));button('Borrar cotas',()=>clearMeasures());button('Modo papel',()=>setTechnicalMode(!technicalMode));projectionButton=button('Perspectiva',()=>setProjection(!camera.isOrthographicCamera));const viewSelect=document.createElement('select');viewSelect.setAttribute('aria-label','Vistas normalizadas');for(const [label,val] of [['Vistas',''],['Frontal','0,0,1'],['Posterior','0,0,-1'],['Izquierda','-1,0,0'],['Derecha','1,0,0'],['Superior','0,1,0'],['Inferior','0,-1,0'],['Isométrica','1,1,1']])viewSelect.add(new Option(label,val));viewSelect.onchange=()=>{if(viewSelect.value)standardView(...viewSelect.value.split(',').map(Number));viewSelect.value=''};bar.append(viewSelect);
  orbitButton=button('Vista 3D',()=>setPresentationMode(false));walkButton=button('Recorrer a pie',()=>setPresentationMode(true));
  orbitButton.setAttribute('aria-pressed','true');walkButton.setAttribute('aria-pressed','false');
  button('Inicio',()=>desktopView());
@@ -1225,18 +1225,53 @@ const versionLabel=document.createElement('div');
 versionLabel.textContent='Visor VR 0.81 · A Rescate en mando derecho';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 // El cartel de diagnóstico no se muestra en ningún modo.
+let technicalMode=false, technicalOriginals=[], technicalEdges=[], technicalMaterial=null, technicalLineMaterial=null, dimensionLayer=null, dimensions=[];
 let measureMode=false,measurePoints=[],measureMarks=null,measureLabel=null,measureHover=null,measureEvent=null,measureFrame=0, snapLayer=null;
 const featureCache=new WeakMap();
 const measurementRay=new THREE.Raycaster(),measurementPointer=new THREE.Vector2();
 const SNAP_RADIUS=15, PREVIEW_RADIUS=58;
+function setTechnicalMode(active){
+ if(active===technicalMode||!model)return;
+ technicalMode=active;document.body.classList.toggle('technical',active);
+ const b=[...document.querySelectorAll('#presentationBar button')].find(b=>b.textContent==='Modo papel'||b.textContent==='Realista');
+ if(b){b.textContent=active?'Realista':'Modo papel';b.setAttribute('aria-pressed',String(active))}
+ scene.background.set(active?0xf2f1ed:0xa9bdcf);
+ if(active){
+ technicalMaterial=new THREE.MeshStandardMaterial({color:0xd7d9da,roughness:.95,metalness:0,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1});
+ technicalLineMaterial=new THREE.LineBasicMaterial({color:0x48545e,transparent:true,opacity:.65});
+ const meshes=[];model.traverse(o=>{if(o.isMesh&&o.geometry)meshes.push(o)});
+ for(const mesh of meshes){technicalOriginals.push([mesh,mesh.material]);mesh.material=technicalMaterial;const edge=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry,15),technicalLineMaterial);edge.raycast=()=>{};mesh.add(edge);technicalEdges.push(edge)}
+ }else{
+ for(const [mesh,material] of technicalOriginals)mesh.material=material;
+ for(const edge of technicalEdges){edge.removeFromParent();edge.geometry.dispose()}
+ technicalOriginals=[];technicalEdges=[];technicalMaterial?.dispose();technicalLineMaterial?.dispose();technicalMaterial=null;technicalLineMaterial=null;
+ }
+}
+function addDimension(a,b,value){
+ if(!dimensionLayer){dimensionLayer=document.createElement('div');dimensionLayer.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:22';document.body.append(dimensionLayer)}
+ const label=document.createElement('span');label.className='dimension-label';label.textContent=value+' mm';dimensionLayer.append(label);
+ dimensions.push({a:a.clone(),b:b.clone(),label});
+}
+function updateDimensions(){
+ if(!dimensions.length)return;
+ const r=renderer.domElement.getBoundingClientRect();
+ camera.updateMatrixWorld(true);
+ for(const d of dimensions){
+ const a=projectMeasure(d.a,r),b=projectMeasure(d.b,r);
+ const x=(a.x+b.x)/2,y=(a.y+b.y)/2;
+ d.label.hidden=a.z<-1||a.z>1||b.z<-1||b.z>1||x<0||x>innerWidth||y<0||y>innerHeight;
+ d.label.style.left=x+'px';d.label.style.top=(y-10)+'px';
+ }
+}
 function clearMeasures(){
+ if(dimensionLayer)dimensionLayer.replaceChildren();dimensions=[];
  if(measureMarks){scene.remove(measureMarks);measureMarks.traverse(o=>{o.geometry?.dispose();o.material?.dispose()});measureMarks=null}
  measurePoints=[];if(measureLabel)measureLabel.textContent=measureMode?'Selecciona dos puntos. Acerca el cursor a una arista o vértice.':'';
 }
 function hideMeasureHover(){if(measureHover)measureHover.hidden=true;if(snapLayer)snapLayer.replaceChildren();measureEvent=null}
 function setMeasureMode(active,btn){
  measureMode=active;controls.enabled=!active&&!walkingMode;btn?.setAttribute('aria-pressed',String(active));
- document.body.classList.toggle('measuring',active);
+ document.body.classList.toggle('measuring',active);setTechnicalMode(active);
  if(!measureLabel){measureLabel=document.createElement('div');measureLabel.style.cssText='position:fixed;bottom:12px;left:12px;z-index:30;max-width:calc(100% - 24px);background:#142034ed;color:#7eeaff;padding:10px;border-radius:8px;pointer-events:none;font:13px system-ui';document.body.append(measureLabel)}
  if(!measureHover){measureHover=document.createElement('div');measureHover.className='measure-snap';measureHover.hidden=true;document.body.append(measureHover)}
  if(!snapLayer){snapLayer=document.createElement('div');snapLayer.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:24';document.body.append(snapLayer)}
@@ -1315,11 +1350,12 @@ renderer.domElement.addEventListener('pointerdown',e=>{
  const target=measureTarget(e.clientX,e.clientY,e.pointerType);previewMeasure(target);if(!target?.p)return;
  const p=target.p;
  if(!measureMarks){measureMarks=new THREE.Group();scene.add(measureMarks)}
- const marker=new THREE.Points(new THREE.BufferGeometry().setFromPoints([p]),new THREE.PointsMaterial({color:0x00e5ff,size:2,sizeAttenuation:false,depthTest:false,depthWrite:false}));marker.renderOrder=999;measureMarks.add(marker);
+ const marker=new THREE.Points(new THREE.BufferGeometry().setFromPoints([p]),new THREE.PointsMaterial({color:0xff8300,size:2,sizeAttenuation:false,depthTest:false,depthWrite:false}));marker.renderOrder=999;measureMarks.add(marker);
  measurePoints.push(p);
  if(measurePoints.length===1){measureLabel.textContent=target.kind+' seleccionado. Selecciona el segundo punto.';return}
- const [a,b]=measurePoints;const delta=b.clone().sub(a);const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),new THREE.LineBasicMaterial({color:0x00e5ff,depthTest:false,depthWrite:false}));line.renderOrder=999;measureMarks.add(line);
+ const [a,b]=measurePoints;const delta=b.clone().sub(a);const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),new THREE.LineBasicMaterial({color:0x0078b8,depthTest:false,depthWrite:false}));line.renderOrder=999;measureMarks.add(line);
  const fmt=x=>Math.round(Math.abs(x)*1000).toLocaleString('es-ES');
+ addDimension(a,b,fmt(delta.length()));
  measureLabel.textContent='Distancia: '+fmt(delta.length())+' mm · X: '+fmt(delta.x)+' · Altura: '+fmt(delta.y)+' · Z: '+fmt(delta.z)+' mm';
  measurePoints=[];
 },true);
@@ -1843,7 +1879,7 @@ async function openModel(){
     const bounds=new THREE.Box3().setFromObject(next,true);
     if(bounds.isEmpty()){dispose(next);throw Error('El archivo está vacío.')}
     const center=bounds.getCenter(new THREE.Vector3()), size=bounds.getSize(new THREE.Vector3());
-    if(model){clearMeasures();hideMeasureHover();scene.remove(model);dispose(model)}
+    if(model){setTechnicalMode(false);clearMeasures();hideMeasureHover();scene.remove(model);dispose(model)}
     model=next;
     model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
     model.position.x-=center.x;
@@ -2092,8 +2128,8 @@ renderer.setAnimationLoop(time=>{
     }
     controls.update();
   }
-  if(presentation)ground.visible=walkingMode||camera.getWorldPosition(new THREE.Vector3()).y>=ground.position.y;
-  renderer.render(scene,camera);
+  if(presentation)ground.visible=!technicalMode&&(walkingMode||camera.getWorldPosition(new THREE.Vector3()).y>=ground.position.y);
+  renderer.render(scene,camera);updateDimensions();
   if(!meterStart)meterStart=time;
   if(meterLast){
     const frameMs=time-meterLast;
