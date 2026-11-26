@@ -164,10 +164,15 @@
    if(!model)throw Error('Este diseño ya no está disponible para compartir.');
    const entry=manifest?.version===1&&manifest.designs?.[id];
    if(!entry||entry.updated!==shareVersion(model))throw Error('La tarjeta ESKALA de este diseño aún no está publicada.');
-   if(typeof entry.shortPath==='string'&&/^s\/[a-z2-7]{8}\/$/.test(entry.shortPath))return new URL(entry.shortPath,location.href);
-   const prefix='p/'+id.split('-').at(-1)+'/';
-   if(typeof entry.path==='string'&&entry.path.startsWith(prefix)&&/^[a-f0-9]{12}\/$/.test(entry.path.slice(prefix.length)))return new URL(entry.path,location.href);
-   throw Error('No se encuentra el enlace ESKALA publicado.');
+   let base=null;
+   if(typeof entry.shortPath==='string'&&/^s\/[a-z2-7]{8}\/$/.test(entry.shortPath))base=new URL(entry.shortPath,location.href);
+   if(!base){
+     const prefix='p/'+id.split('-').at(-1)+'/';
+     if(typeof entry.path==='string'&&entry.path.startsWith(prefix)&&/^[a-f0-9]{12}\/$/.test(entry.path.slice(prefix.length)))base=new URL(entry.path,location.href);
+   }
+   if(!base)throw Error('No se encuentra el enlace ESKALA publicado.');
+   const shortUrl=typeof entry.shortUrl==='string'&&/^https:\/\/is\.gd\/[A-Za-z0-9_]{5,30}$/.test(entry.shortUrl)?entry.shortUrl:'';
+   return {base,shortUrl};
  }
  function thirdPartyState(row,now=Date.now()){
    if(!row)return 'expired';
@@ -214,13 +219,15 @@
  }
  async function createThirdPartyAccess(designId,recipient='',contact='',channel='link',ttlHours=24,origin='central'){
    const clean=String(recipient||automaticRecipient(channel)).trim().slice(0,80);
-   const base=await shareBase(designId);
+   const published=await shareBase(designId);
+   const base=published.base;
    const secret=randomToken(),hash=await tokenHash(secret),nowMs=Date.now(),now=new Date(nowMs).toISOString();
    base.searchParams.set('share',secret);
    const longUrl=base.href;
-   // Usar directamente la pagina ESKALA con Open Graph. Los acortadores externos
-   // pueden interponer su propia pagina y hacer que WhatsApp pierda la miniatura.
-   const shareUrl=longUrl;
+   // El is.gd publicado apunta siempre a la pagina estatica ESKALA con sus OG.
+   // El token individual viaja en el fragmento: no lo ve el crawler de WhatsApp,
+   // pero el navegador lo conserva al seguir la redireccion.
+   const shareUrl=published.shortUrl?published.shortUrl+'#share='+encodeURIComponent(secret):longUrl;
    const hours=Math.max(1,Math.min(24*30,Number(ttlHours)||24));
    const access={id:'acc_'+nowMs.toString(36)+'_'+Math.random().toString(36).slice(2,8),designId,recipient:clean,contact:maskContact(contact),channel,origin:origin==='direction'?'direction':'central',tokenHash:hash,status:'active',createdAt:now,updatedAt:now,expiresAt:new Date(nowMs+hours*3600000).toISOString()};
    await writeThird(data=>data.accesses.push(access));
@@ -360,5 +367,5 @@
    window.addEventListener('focus',check);
    window.addEventListener('pageshow',check);
  }
- window.FusionDistribution={version:22,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
+ window.FusionDistribution={version:23,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
 })();
