@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado": "2026-11-26T10:50:35.073Z",
+  "actualizado": "2026-11-26T10:50:39.214Z",
   "modelos": [
     {
       "id": "puerta-zona-generador-abierta-mwvp69l8",
@@ -15,7 +15,7 @@
     {
       "id": "puerta-zona-generador-mwvotkdj",
       "nombre": "puerta zona generador",
-      "categoria": "",
+      "categoria": "Vallas perimetro naves",
       "descripcion": "",
       "archivo": "modelos/puerta-zona-generador-mwvotkdj.glb",
       "miniatura": "miniaturas/puerta-zona-generador-mwvotkdj.jpg",
