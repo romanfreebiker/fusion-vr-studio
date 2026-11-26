@@ -1377,8 +1377,8 @@ function rotateDesktop(dx,dy,pivot){
  const p=pivot||controls.target.clone(),offset=camera.position.clone().sub(p),viewOffset=controls.target.clone().sub(p);
  const scale=worldPerPixel()*innerHeight;
  const sensitivity=THREE.MathUtils.clamp(scale/Math.max(distance,.01),.22,1);
- const theta=-dx*2*Math.PI/Math.max(1,innerHeight)*sensitivity;
- const phi=-dy*2*Math.PI/Math.max(1,innerHeight)*sensitivity;
+ const theta=dx*2*Math.PI/Math.max(1,innerHeight)*sensitivity;
+ const phi=dy*2*Math.PI/Math.max(1,innerHeight)*sensitivity;
  const direction=camera.getWorldDirection(new THREE.Vector3());
  const polar=Math.acos(THREE.MathUtils.clamp(-direction.y,-1,1));
  const pitch=THREE.MathUtils.clamp(phi,.005-polar,Math.PI-.005-polar);
@@ -2243,7 +2243,7 @@ try{
     const job=await findJob();if(!job)throw Error('Trabajo no asignado');
     distributedModel={meta:job.model,url:new URL(job.model.archivo,location.href).href};
     setInterval(async()=>{if(document.hidden)return;try{if(!await findJob())location.replace(EskalaTaller.link(key))}catch(e){console.warn(e)}},30000);
-    const item=distributedModel.meta;orientation.value='z';appearance.value='library';models.add(new Option(item.nombre,item.id));presentationTitle.textContent=item.nombre+' · Taller v4.3';document.title=item.nombre+' · ESKALA Taller';await openModel();
+    const item=distributedModel.meta;orientation.value='z';appearance.value='library';models.add(new Option(item.nombre,item.id));presentationTitle.textContent=item.nombre+' · Taller v4.4';document.title=item.nombre+' · ESKALA Taller';await openModel();
   }else{
   const catalogURL=new URL('catalogo.json',location.href);
   catalogURL.searchParams.set('refresh',String(Date.now()));
