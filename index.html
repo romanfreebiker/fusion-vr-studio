@@ -13,7 +13,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=11"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=12"></script>
 <script>
 /* Three.js
 The MIT License
@@ -4475,18 +4475,25 @@ async function deleteDesign(model){
     status('settingsStatus','Conecta con GitHub para eliminar diseños.');
     return;
   }
-  if(!confirm('¿Eliminar «'+model.nombre+'» del catálogo y quitar sus archivos de la versión pública del repositorio?'))return;
+  if(!confirm('¿Eliminar «'+model.nombre+'» del catálogo? También se retirará de Dirección y dejarán de abrir sus enlaces para terceros.'))return;
   state.busy=true;
   render();
   try{
     const branch=encPath(state.branch);
     const ref=await githubRequest('GET','/git/ref/heads/'+branch);
     const head=ref.object.sha;
-    const file=await request('GET','catalogo.json',null,false,false,head);
+    const [file,distributionFile]=await Promise.all([
+      request('GET','catalogo.json',null,false,false,head),
+      request('GET','distribucion.json',null,true,false,head)
+    ]);
     const catalog=b64ToJson(file.content);
     const target=catalog.modelos.find(item=>item.id===model.id);
     if(!target){await refresh();toast('El diseño ya no está en el catálogo.');return}
     const remaining=catalog.modelos.filter(item=>item.id!==target.id);
+    const distribution=distributionFile?b64ToJson(distributionFile.content):null;
+    const distributionRows=distribution?.modelos;
+    if(distribution&&!Array.isArray(distributionRows))throw Error('El catálogo de Dirección no tiene un formato válido.');
+    const updatedDistribution=distributionRows?.filter(item=>item.id!==target.id);
     const paths=[target.archivo,target.miniatura].filter(path=>
       /^(modelos\/[a-zA-Z0-9_-]+\.glb|miniaturas\/[a-zA-Z0-9_-]+\.(jpg|jpeg|png|webp))$/.test(path||'')
       && !remaining.some(item=>item.archivo===path||item.miniatura===path));
@@ -4496,6 +4503,10 @@ async function deleteDesign(model){
       base_tree:commit.tree.sha,
       tree:[
         {path:'catalogo.json',mode:'100644',type:'blob',content:JSON.stringify({...catalog,actualizado:new Date().toISOString(),modelos:remaining},null,2)+'\n'},
+        ...(updatedDistribution&&updatedDistribution.length!==distributionRows.length?[{
+          path:'distribucion.json',mode:'100644',type:'blob',
+          content:JSON.stringify({...distribution,modelos:updatedDistribution},null,2)+'\n'
+        }]:[]),
         ...paths.filter((_,i)=>assets[i]?.type==='file').map(path=>({path,mode:'100644',type:'blob',sha:null})),
       ],
     });
