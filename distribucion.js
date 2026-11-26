@@ -195,7 +195,7 @@
    const label=channel==='whatsapp'?'WhatsApp':channel==='email'?'Correo':'Enlace';
    return label+' · '+date+' '+time;
  }
- async function createThirdPartyAccess(designId,recipient='',contact='',channel='link',ttlHours=24){
+ async function createThirdPartyAccess(designId,recipient='',contact='',channel='link',ttlHours=24,origin='central'){
    const clean=String(recipient||automaticRecipient(channel)).trim().slice(0,80);
    const base=await shareBase(designId);
    const secret=randomToken(),hash=await tokenHash(secret),nowMs=Date.now(),now=new Date(nowMs).toISOString();
@@ -205,7 +205,7 @@
    try{shortUrl=await shortenExternal(longUrl)}
    catch(error){throw Error('No se pudo crear el enlace corto de ESKALA. Vuelve a intentarlo.')}
    const hours=Math.max(1,Math.min(24*30,Number(ttlHours)||24));
-   const access={id:'acc_'+nowMs.toString(36)+'_'+Math.random().toString(36).slice(2,8),designId,recipient:clean,contact:maskContact(contact),channel,tokenHash:hash,status:'active',createdAt:now,updatedAt:now,expiresAt:new Date(nowMs+hours*3600000).toISOString()};
+   const access={id:'acc_'+nowMs.toString(36)+'_'+Math.random().toString(36).slice(2,8),designId,recipient:clean,contact:maskContact(contact),channel,origin:origin==='direction'?'direction':'central',tokenHash:hash,status:'active',createdAt:now,updatedAt:now,expiresAt:new Date(nowMs+hours*3600000).toISOString()};
    await writeThird(data=>data.accesses.push(access));
    return {access:{...access,effectiveStatus:'active',remaining:thirdPartyRemaining(access)},url:shortUrl};
  }
@@ -246,22 +246,22 @@
  async function list(role,force=false){const rows=await published(force);return role==='director'?rows.filter(m=>m.status==='active'&&!isHidden(m)):rows}
  async function send(m){await write(rows=>{const next={...safe(m),status:'active',updated:new Date().toISOString()};const i=rows.findIndex(x=>x.id===m.id);if(i<0)rows.push(next);else rows[i]=next})}
  async function setStatus(id,status,role){if(role!=='admin')throw Error('La retirada global debe confirmarse desde la central.');await write(rows=>{const i=rows.findIndex(x=>x.id===id);if(i<0)return;if(status==='revoked')rows.splice(i,1);else rows[i]={...rows[i],status,updated:new Date().toISOString()}})}
- function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','120');return u}
- async function share(id){
-   return (await createThirdPartyAccess(id,'','', 'link')).url;
+ function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','121');return u}
+ async function share(id,origin='central'){
+   return (await createThirdPartyAccess(id,'','', 'link',24,origin)).url;
  }
- async function shareWhatsApp(id,name,ttlHours=24){
+ async function shareWhatsApp(id,name,ttlHours=24,origin='central'){
    const page=window.open('about:blank','_blank');
    try{
-     const {url}=await createThirdPartyAccess(id,'','', 'whatsapp',ttlHours);
+     const {url}=await createThirdPartyAccess(id,'','', 'whatsapp',ttlHours,origin);
      const message='ESKALA Studio · '+(name||'Diseño 3D')+'\n'+url;
      const target='https://wa.me/?text='+encodeURIComponent(message);
      if(page){page.opener=null;page.location.replace(target);}else window.location.assign(target);
      return url;
    }catch(error){if(page)page.close();throw error}
  }
- async function shareEmail(id,name){
-   const {url}=await createThirdPartyAccess(id,'','', 'email');
+ async function shareEmail(id,name,origin='central'){
+   const {url}=await createThirdPartyAccess(id,'','', 'email',24,origin);
    const title=name||'Diseño 3D';
    const subject='ESKALA Studio · '+title;
    const body='Te comparto «'+title+'» para que puedas verlo y recorrerlo en 3D con ESKALA Studio.\n\n'+url;
@@ -304,5 +304,5 @@
    window.addEventListener('pageshow',check);
  }
  function removalUrl(m){const u=new URL('https://github.com/'+repo+'/issues/new');u.searchParams.set('title','[Dirección] Retirar diseño '+m.id);u.searchParams.set('body','Solicito retirar de la biblioteca de dirección el diseño '+m.nombre+'.\n\nIdentificador: '+m.id+'\nVersión: '+m.updated);return u.href}
- window.FusionDistribution={version:14,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,hide,removalUrl};
+ window.FusionDistribution={version:15,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,hide,removalUrl};
 })();
