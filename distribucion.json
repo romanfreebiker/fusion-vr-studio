@@ -40,6 +40,16 @@
       "miniatura": "miniaturas/garaje2-mws3nfb6.jpg",
       "status": "active",
       "updated": "2026-11-26T06:27:53.765Z"
+    },
+    {
+      "id": "barbacoa-mwrq7qbe",
+      "nombre": "barbacoa",
+      "descripcion": "",
+      "categoria": "Viviendas",
+      "archivo": "modelos/barbacoa-mwrq7qbe.glb",
+      "miniatura": "miniaturas/barbacoa-mwrq7qbe.jpg",
+      "status": "active",
+      "updated": "2026-11-26T06:27:56.516Z"
     }
   ]
 }
