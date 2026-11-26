@@ -50,6 +50,16 @@
       "miniatura": "miniaturas/barbacoa-mwrq7qbe.jpg",
       "status": "active",
       "updated": "2026-11-26T06:27:56.516Z"
+    },
+    {
+      "id": "escalera-falsa-escuadra-olaso-mwxejuyt",
+      "nombre": "ESCALERA FALSA ESCUADRA OLASO",
+      "descripcion": "",
+      "categoria": "Estructuras",
+      "archivo": "modelos/escalera-falsa-escuadra-olaso-mwxejuyt.glb",
+      "miniatura": "miniaturas/escalera-falsa-escuadra-olaso-mwxejuyt.jpg",
+      "status": "active",
+      "updated": "2026-11-26T10:34:28.135Z"
     }
   ]
 }
