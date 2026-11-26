@@ -13,7 +13,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=22"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=23"></script>
 <script>
 /* Three.js
 The MIT License
@@ -4452,7 +4452,8 @@ function render(){
         accessList.replaceChildren();
         for(const row of rows){
           const line=document.createElement('div');line.className='third-access-row';
-          const who=textNode('span',row.recipient+(row.contact?' · '+row.contact:''),'who');
+          const originLabel=row.origin==='direction'?'Desde Dirección':row.origin==='central'?'Desde Central':'Origen anterior';
+          const who=textNode('span',row.recipient+(row.contact?' · '+row.contact:'')+' · '+originLabel,'who');
           const stateLabel=textNode('span','ACTIVO · '+(row.remaining||''),'state active');
           const disable=textNode('button','Desactivar a terceros','button ghost small');
           disable.onclick=async()=>{try{await FusionDistribution.deactivateThirdPartyAccess(row.id);await updateThirdPartyAccesses();toast('Acceso a terceros desactivado')}catch(e){toast(e.message,true)}};
@@ -4463,13 +4464,13 @@ function render(){
     }
     const shareActions=[
       ['Copiar enlace',async()=>{
-        const url=await FusionDistribution.share(m.id);
+        const url=await FusionDistribution.share(m.id,'central');
         try{await navigator.clipboard.writeText(url);toast('Enlace individual copiado');}
         catch{prompt('Enlace individual',url)}
         await updateThirdPartyAccesses();
       }],
-      ['WhatsApp',async()=>{const hours=askExposureHours();if(hours===null)return;await FusionDistribution.shareWhatsApp(m.id,m.nombre,hours);await updateThirdPartyAccesses()}],
-      ['Correo',async()=>{await FusionDistribution.shareEmail(m.id,m.nombre);await updateThirdPartyAccesses()}]
+      ['WhatsApp',async()=>{const hours=askExposureHours();if(hours===null)return;await FusionDistribution.shareWhatsApp(m.id,m.nombre,hours,'central');await updateThirdPartyAccesses()}],
+      ['Correo',async()=>{await FusionDistribution.shareEmail(m.id,m.nombre,'central');await updateThirdPartyAccesses()}]
     ];
     const shareButtons=shareActions.map(([label,action])=>{
       const button=textNode('button',label,'button secondary small');button.type='button';
