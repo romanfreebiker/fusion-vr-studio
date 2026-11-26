@@ -13,7 +13,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=27"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=28"></script>
 <script>
 /* Three.js
 The MIT License
@@ -4482,8 +4482,8 @@ function render(){
     updateThirdPartyAccesses();
     function displayDistribution(d){
       const active=d?.status==='active';
-      distribution.textContent=active?'Activo en dirección':d?.status==='inactive'?'Desactivado por dirección':'No enviado a dirección';
-      send.textContent=active?'Enviado a dirección':d?.status==='inactive'?'Reactivar en dirección':'Enviar a dirección';
+      distribution.textContent=active?'Activo en dirección':'No enviado a dirección';
+      send.textContent=active?'Enviado a dirección':'Enviar a dirección';
       send.disabled=active;revoke.hidden=!active;
       for(const button of shareButtons){
         button.disabled=false;
