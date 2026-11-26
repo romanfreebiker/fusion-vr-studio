@@ -19,22 +19,22 @@ html.presentation-boot header,body.presentation header{display:none}body.present
 /* Cabecera corporativa visible incluso antes de cargar Three.js. */
 html.presentation-boot #presentationBoot:not([hidden]){grid-template-rows:auto minmax(0,1fr);place-items:stretch;align-items:stretch}
 .eskala-boot-band{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:92px;padding:7px clamp(10px,1.7vw,30px);background:#03070c;border-bottom:1px solid #00b8e5;box-shadow:0 4px 24px #02080e44}
-.eskala-boot-band img{width:min(530px,100%);height:auto;max-height:77px;object-fit:contain;object-position:left center;display:block}
+.eskala-boot-band img{width:min(515px,100%);height:auto;max-height:none;object-fit:contain;object-position:left center;display:block}
 .eskala-boot-label{color:#b8d4e5;white-space:nowrap;font:600 12px system-ui}
 #presentationBoot .boot-panel{align-self:center;justify-self:center;margin:0 auto 96px}
-@media(max-width:600px){.eskala-boot-band{min-height:68px;gap:5px;flex-wrap:wrap;padding:5px 8px}.eskala-boot-band img{width:100%;max-height:53px}.eskala-boot-label{display:none}#presentationBoot .boot-panel{margin-bottom:68px}}
+@media(max-width:600px){.eskala-boot-band{min-height:68px;gap:5px;flex-wrap:wrap;padding:5px 8px}.eskala-boot-band img{width:min(268px,100%);max-height:none}.eskala-boot-label{display:none}#presentationBoot .boot-panel{margin-bottom:68px}}
 </style>
 <style id="eskala-presentation-brand-v1">
 /* Banda corporativa compartida para Direccion y enlaces de terceros. */
 #presentationBar{top:0;left:0;right:0;gap:7px 10px;align-items:center;padding:7px clamp(10px,1.7vw,30px);background:#03070cf5;border-bottom:1px solid #00b8e5;box-shadow:0 4px 24px #02080e44;pointer-events:auto}
 #presentationBar>.eskala-presentation-identity{flex:0 1 530px;min-width:200px;padding:0;border:0;border-radius:0;background:transparent}
-.eskala-presentation-identity img{display:block;width:100%;height:auto;max-height:77px;object-fit:contain;object-position:left center}
+.eskala-presentation-identity img{display:block;width:min(510px,100%);height:auto;max-height:none;object-fit:contain;object-position:left center}
 #presentationBar>strong{flex:1 1 110px;min-width:0;margin:0;background:transparent;border:0;padding:0 5px;color:#b8d4e5;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #presentationBar>button{flex:0 0 auto;background:#10202d;border:1px solid #22647b;border-radius:9px;color:#e4f5ff;padding:10px 12px;font-size:12px;font-weight:700;min-height:38px}
 #presentationBar>button:hover{background:#12384c;border-color:#18d9ff}
 #presentationBar>button[aria-pressed=true],#presentationBar>button.confirmed{background:#12445a;border-color:#18d9ff;box-shadow:inset 0 0 0 1px #00bbeb24}
 @media(max-width:1100px){#presentationBar>.eskala-presentation-identity{flex-basis:100%;max-width:500px}#presentationBar>strong{flex:1 1 auto}#presentationBar>button{padding:8px 10px;font-size:11px}}
-@media(max-width:600px){#presentationBar{top:0;left:0;right:0;gap:5px;padding:5px 8px;justify-content:flex-start}#presentationBar>.eskala-presentation-identity{flex:1 1 100%;min-width:0;max-width:100%;padding:0}#presentationBar>.eskala-presentation-identity img{max-height:53px}#presentationBar>strong{flex:1 1 100%;font-size:11px}#presentationBar>button{font-size:10px;padding:7px 8px;min-height:32px}}
+@media(max-width:600px){#presentationBar{top:0;left:0;right:0;gap:5px;padding:5px 8px;justify-content:flex-start}#presentationBar>.eskala-presentation-identity{flex:1 1 100%;min-width:0;max-width:100%;padding:0}#presentationBar>.eskala-presentation-identity img{width:min(268px,100%);max-height:none}#presentationBar>strong{flex:1 1 100%;font-size:11px}#presentationBar>button{font-size:10px;padding:7px 8px;min-height:32px}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
@@ -42,7 +42,7 @@ html.presentation-boot #presentationBoot:not([hidden]){grid-template-rows:auto m
 <body>
 <div id="presentationBoot" role="status" aria-live="polite">
  <div class="eskala-boot-band" aria-label="Cabecera corporativa ESKALA">
-  <img src="./assets/eskala-corporativa.webp?v=1" width="640" height="77" alt="ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos">
+  <img src="./assets/eskala-corporativa.webp?v=2" width="640" height="77" alt="ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos">
   <span class="eskala-boot-label">Preparando visor 3D</span>
  </div>
  <div class="boot-panel">
