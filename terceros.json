@@ -1,6 +1,20 @@
 {
   "version": 1,
-  "updated": "2026-11-26T12:43:56.855Z",
-  "accesses": [],
+  "updated": "2026-11-26T12:46:37.319Z",
+  "accesses": [
+    {
+      "id": "acc_mwxjqwmb_llywux",
+      "designId": "puerta-zona-generador-abierta-mwvp69l8",
+      "recipient": "Manolo",
+      "contact": "",
+      "channel": "whatsapp",
+      "origin": "central",
+      "tokenHash": "15fd408f64074b8c1bc08a5946ee389877d0f5e563903c0cec81ebfb5650664e",
+      "status": "active",
+      "createdAt": "2026-11-26T12:46:36.707Z",
+      "updatedAt": "2026-11-26T12:46:36.707Z",
+      "expiresAt": "2026-11-29T12:46:36.707Z"
+    }
+  ],
   "defaultTtlHours": 24
 }
