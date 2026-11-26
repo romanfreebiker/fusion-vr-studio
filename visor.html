@@ -11,24 +11,24 @@ h1{font-size:19px;margin:0 0 10px}label{display:block;margin-bottom:5px}select{f
 p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-variant-numeric:tabular-nums;margin-top:8px}details{margin-top:12px;border-top:1px solid #42536f;padding-top:9px}summary{cursor:pointer;font-weight:600;color:#b9d9f7}#detectedMaterials{max-height:160px;overflow:auto;font-size:12px;line-height:1.65;white-space:pre-wrap;color:#d5e0f0;margin-top:7px}
 html.presentation-boot header,body.presentation header{display:none}body.presentation #VRButton{display:none!important}body.presentation canvas{touch-action:none;cursor:grab}body.presentation canvas:active{cursor:grabbing}
 #presentationBar{position:fixed;z-index:20;top:14px;left:14px;right:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;pointer-events:none}#presentationBar>*{pointer-events:auto;background:#142034eb;border:1px solid #52647b;border-radius:9px;color:white;padding:10px 13px;font:14px system-ui}#presentationBar strong{margin-right:auto}#presentationBar button{cursor:pointer;transition:background .12s,border-color .12s,transform .12s}#presentationBar button:hover{background:#36516d;border-color:#a6c5e4}#presentationBar button:active{background:#80c8ff;color:#0b1625;transform:translateY(2px)}#presentationBar button[aria-pressed=true],#presentationBar button.confirmed{background:#2378b9;border-color:#9ed8ff;color:white;box-shadow:0 0 0 1px #9ed8ff}#presentationBar button:focus-visible{outline:2px solid #b8e6ff;outline-offset:3px}#presentationHint{position:fixed;bottom:16px;right:16px;z-index:20;background:#142034b8;color:white;border-radius:10px;padding:8px 11px;font:12px system-ui;text-align:left;pointer-events:none;display:flex;align-items:center;gap:9px;max-width:90vw}.mouseLegend{display:grid;gap:5px}.mouseLegend span{display:flex;align-items:center;gap:6px;white-space:nowrap}.mouseLegend i{width:8px;height:8px;border-radius:2px;display:inline-block}.mouseLegend small{color:#b7c9dd;font-size:11px}#presentationStatus{position:fixed;z-index:21;top:50%;left:50%;transform:translate(-50%,-50%);background:#142034e8;padding:18px;border-radius:12px;text-align:center}
-#presentationBoot{display:none}html.presentation-boot #presentationBoot:not([hidden]){display:grid;position:fixed;inset:0;z-index:100;place-items:center;background:radial-gradient(ellipse at 50% 38%,#233a53,#101a29 65%);color:#eef6ff;font:15px system-ui}
+#presentationBoot{display:none}html.presentation-boot #presentationBoot:not([hidden]){display:grid;position:fixed;inset:0;z-index:100;place-items:center;background:linear-gradient(180deg,#151e26,#101820);color:#eef6ff;font:15px system-ui}
 .boot-panel{width:min(360px,78vw);text-align:center}.boot-logo{margin:0 auto 24px;width:64px;height:64px;display:grid;place-items:center;border:1px solid #7899bb;border-radius:18px;background:#213b55;box-shadow:0 14px 40px #0004}.boot-name{font-size:25px;font-weight:650;letter-spacing:.5px}.boot-sub{margin-top:7px;color:#a7bed4;font-size:13px}.boot-track{height:5px;background:#31465e;border-radius:99px;margin-top:30px;overflow:hidden}.boot-fill{height:100%;width:5%;background:#73c4ff;border-radius:99px;transition:width .25s ease}.boot-step{margin-top:15px;color:#bad0e6;font-size:13px;min-height:36px}.boot-panel button{font:inherit;color:white;background:#294766;border:1px solid #7398ba;border-radius:8px;padding:8px 14px;cursor:pointer}.boot-track.indeterminate .boot-fill{width:30%!important;animation:boot-scan 1.4s ease-in-out infinite}@keyframes boot-scan{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
 #presentationHint.touchGuide{bottom:max(10px,env(safe-area-inset-bottom));right:10px;padding:6px 9px}.touchLegend{gap:2px}.touchLegend svg{flex:none}.touchLegend span{white-space:nowrap}@media(max-width:600px){#presentationBar{top:8px;left:8px;right:8px;gap:5px}#presentationBar>*{font-size:12px;padding:7px 9px}#presentationBar strong{flex-basis:100%}#presentationHint.touchGuide{font-size:11px;background:#142034a8}}
 </style>
 <style id="eskala-boot-brand-v1">
 /* Cabecera corporativa visible incluso antes de cargar Three.js. */
 html.presentation-boot #presentationBoot:not([hidden]){grid-template-rows:auto minmax(0,1fr);place-items:stretch;align-items:stretch}
-.eskala-boot-band{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:92px;padding:7px clamp(10px,1.7vw,30px);background:#03070c;border-bottom:1px solid #00b8e5;box-shadow:0 4px 24px #02080e44}
-.eskala-boot-band img{width:min(515px,100%);height:auto;max-height:none;object-fit:contain;object-position:left center;display:block}
+.eskala-boot-band{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:92px;padding:7px clamp(10px,1.7vw,30px);background:#151e26;border-bottom:1px solid #00b8e5;box-shadow:0 4px 24px #02080e44}
+.eskala-boot-band img{width:min(515px,100%);height:auto;max-height:none;object-fit:contain;object-position:left center;display:block;mix-blend-mode:screen}
 .eskala-boot-label{color:#b8d4e5;white-space:nowrap;font:600 12px system-ui}
 #presentationBoot .boot-panel{align-self:center;justify-self:center;margin:0 auto 96px}
 @media(max-width:600px){.eskala-boot-band{min-height:68px;gap:5px;flex-wrap:wrap;padding:5px 8px}.eskala-boot-band img{width:min(268px,100%);max-height:none}.eskala-boot-label{display:none}#presentationBoot .boot-panel{margin-bottom:68px}}
 </style>
 <style id="eskala-presentation-brand-v1">
 /* Banda corporativa compartida para Direccion y enlaces de terceros. */
-#presentationBar{top:0;left:0;right:0;gap:7px 10px;align-items:center;padding:7px clamp(10px,1.7vw,30px);background:#03070cf5;border-bottom:1px solid #00b8e5;box-shadow:0 4px 24px #02080e44;pointer-events:auto}
+#presentationBar{top:0;left:0;right:0;gap:7px 10px;align-items:center;padding:7px clamp(10px,1.7vw,30px);background:#151e26;border-bottom:1px solid #00b8e5;box-shadow:0 4px 24px #02080e44;pointer-events:auto}
 #presentationBar>.eskala-presentation-identity{flex:0 1 530px;min-width:200px;padding:0;border:0;border-radius:0;background:transparent}
-.eskala-presentation-identity img{display:block;width:min(510px,100%);height:auto;max-height:none;object-fit:contain;object-position:left center}
+.eskala-presentation-identity img{display:block;width:min(510px,100%);height:auto;max-height:none;object-fit:contain;object-position:left center;mix-blend-mode:screen}
 #presentationBar>strong{flex:1 1 110px;min-width:0;margin:0;background:transparent;border:0;padding:0 5px;color:#b8d4e5;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #presentationBar>button{flex:0 0 auto;background:#10202d;border:1px solid #22647b;border-radius:9px;color:#e4f5ff;padding:10px 12px;font-size:12px;font-weight:700;min-height:38px}
 #presentationBar>button:hover{background:#12384c;border-color:#18d9ff}
@@ -168,7 +168,7 @@ turnSpeed.addEventListener('change',()=>{
   try{localStorage.setItem('fusionvr-turn-speed',turnSpeed.value)}catch{}
 });
 const scene=new THREE.Scene();
-scene.background=new THREE.Color(0xa9bdcf);
+scene.background=new THREE.Color(0x151e26);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,presentation?.002:.03,500);
 const rig=new THREE.Group();
 rig.add(camera);
