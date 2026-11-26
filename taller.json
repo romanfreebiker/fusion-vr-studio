@@ -8,5 +8,14 @@
       "active": true
     }
   ],
-  "jobs": []
+  "jobs": [
+    {
+      "worker": "50a9fb84-2282-4768-a7f5-19a70f3b3e00",
+      "design": "escalera-bascula-mwswzrjg",
+      "type": "Fabricación e instalación",
+      "priority": "Normal",
+      "phase": "Pendiente",
+      "note": ""
+    }
+  ]
 }
