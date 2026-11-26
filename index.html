@@ -4437,7 +4437,7 @@ async function workshopDialog(model=null){
  const panel=document.createElement('div');panel.style.cssText='border-top:1px solid #456;padding:12px 0;display:grid;gap:8px';panel.append(textNode('strong',w.label));const key=localStorage.getItem(keyName(w.id));
  if(!model){
  const links=document.createElement('div');links.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
- links.append(btn('Entrar en su aplicación',()=>{const u=new URL('taller.html',location.href);u.searchParams.set('adminWorker',w.id);window.open(u.href,'_blank','noopener')}));
+ links.append(btn('Entrar en su aplicación',()=>{const u=new URL('taller.html',location.href);u.searchParams.set('adminWorker',w.id);location.assign(u.href)}));
  links.append(btn('Copiar enlace del operario',async()=>{if(!key){toast('Enlace no guardado en este navegador. Regenera el acceso si es necesario.',true);return}try{await navigator.clipboard.writeText(T.link(key));toast('Enlace copiado')}catch{prompt('Enlace del operario',T.link(key))}}));
  links.append(btn('Regenerar enlace',()=>run(async()=>{if(!confirm('El enlace anterior dejará de funcionar. ¿Continuar?'))return;const k=T.secret(),h=await T.hash(k);await T.change(state.token,x=>{x.workers.find(y=>y.id===w.id).hash=h});localStorage.setItem(keyName(w.id),k)})));
  links.append(btn('Desactivar',()=>run(async()=>{if(confirm('¿Desactivar este operario?'))await T.change(state.token,x=>{x.workers.find(y=>y.id===w.id).active=false})})));panel.append(links);
