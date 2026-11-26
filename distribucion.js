@@ -40,6 +40,11 @@
    const present=new Set(catalog.modelos.map(model=>model.id));
    return distribution.modelos.filter(model=>present.has(model.id));
  }
+ async function catalogModel(id,force=false){
+   const catalog=await publicRead('catalogo.json',force);
+   return catalog.modelos.find(model=>model.id===id)||null;
+ }
+ function shareVersion(model){return String(model&&(model.fecha||model.updated)||'')}
  function configureAdmin(getToken){adminToken=getToken}
  async function write(change){const token=adminToken();if(!token)throw Error('Conecta tu cuenta de GitHub en Configuración para gestionar la distribución.');
    for(let i=0;i<3;i++){const {sha,data}=await readForWrite(token);change(data.modelos);try{await request(api+'/contents/'+path,{method:'PUT',headers:{...readHeaders,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({sha,branch,message:'Actualizar distribución de diseños',content:encode(data)})});snapshots.delete(path);return}catch(e){if(e.status!==409||i===2)throw e}}
@@ -54,14 +59,13 @@
  function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','108');return u}
  async function share(id){
    const manifestUrl=new URL('social/shares.json',location.href);
-   const [rows,manifest]=await Promise.all([
-     list('admin',true),
+   const [model,manifest]=await Promise.all([
+     catalogModel(id,true),
      fetch(manifestUrl,{cache:'no-store'}).then(response=>response.ok?response.json():null).catch(()=>null),
    ]);
-   const model=rows.find(item=>item.id===id&&item.status==='active');
    if(!model)throw Error('Este diseño ya no está disponible para compartir.');
    const entry=manifest?.version===1&&manifest.designs?.[id];
-   if(entry&&entry.updated===model.updated){
+   if(entry&&entry.updated===shareVersion(model)){
      if(typeof entry.shortPath==='string'&&/^s\/[a-z2-7]{8}\/$/.test(entry.shortPath)){
        if(typeof entry.shortUrl==='string'&&/^https:\/\/is\.gd\/[a-zA-Z0-9_]{5,10}$/.test(entry.shortUrl)){
          return entry.shortUrl;
@@ -93,8 +97,8 @@
  }
  async function activeViewerDesign(access,id){
    if(!['director','invitado','demo-invitado'].includes(access))throw Error('Acceso no válido');
-   const role=access==='director'?'director':'admin';
-   return (await list(role,true)).find(m=>m.id===id&&m.status==='active');
+   if(access==='director')return (await list('director',true)).find(m=>m.id===id&&m.status==='active')||null;
+   return await catalogModel(id,true);
  }
  async function loadViewer(access,id){
    const model=await activeViewerDesign(access,id);
@@ -125,5 +129,5 @@
    window.addEventListener('pageshow',check);
  }
  function removalUrl(m){const u=new URL('https://github.com/'+repo+'/issues/new');u.searchParams.set('title','[Dirección] Retirar diseño '+m.id);u.searchParams.set('body','Solicito retirar de la biblioteca de dirección el diseño '+m.nombre+'.\n\nIdentificador: '+m.id+'\nVersión: '+m.updated);return u.href}
- window.FusionDistribution={version:4,demo:false,publicFiles:true,configureAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,loadViewer,watchViewer,refreshInterval,hide,removalUrl};
+ window.FusionDistribution={version:5,demo:false,publicFiles:true,configureAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,loadViewer,watchViewer,refreshInterval,hide,removalUrl};
 })();
