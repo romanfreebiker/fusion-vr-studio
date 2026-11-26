@@ -13,7 +13,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=14"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=15"></script>
 <script>
 /* Three.js
 The MIT License
@@ -4435,13 +4435,6 @@ function render(){
     shareControls.append(textNode('strong','Enviar a terceros','muted tiny'));
     const accessSummary=textNode('div','Consultando accesos…','third-access-summary');
     const accessList=document.createElement('div');accessList.className='third-accesses';
-    function askRecipient(){
-      const recipient=prompt('Nombre o empresa del destinatario.\n\nSe mostrará en la lista de accesos:','');
-      if(recipient===null)return null;
-      if(!recipient.trim()){toast('Indica un nombre o empresa.',true);return null}
-      const contact=prompt('Contacto o referencia opcional.\nSi escribes teléfono o email se guardará enmascarado porque el repositorio es público.','');
-      return {recipient:recipient.trim(),contact:contact||''};
-    }
     async function updateThirdPartyAccesses(){
       try{
         const rows=await FusionDistribution.listThirdParty(m.id,true);
@@ -4452,25 +4445,29 @@ function render(){
           const line=document.createElement('div');line.className='third-access-row';
           const who=textNode('span',row.recipient+(row.contact?' · '+row.contact:''),'who');
           const stateLabel=textNode('span',row.status==='active'?'ACTIVO':'REVOCADO','state '+row.status);
-          const toggle=textNode('button',row.status==='active'?'Desactivar':'Reactivar','button ghost small');
-          toggle.onclick=async()=>{try{await FusionDistribution.setThirdPartyStatus(row.id,row.status==='active'?'revoked':'active');await updateThirdPartyAccesses();toast(row.status==='active'?'Acceso desactivado':'Acceso reactivado')}catch(e){toast(e.message,true)}};
+          if(row.status==='active'){
+            const disable=textNode('button','Desactivar','button ghost small');
+            disable.onclick=async()=>{try{await FusionDistribution.setThirdPartyStatus(row.id,'revoked');await updateThirdPartyAccesses();toast('Acceso desactivado')}catch(e){toast(e.message,true)}};
+            line.append(who,stateLabel,disable);
+          }else{
+            line.append(who,stateLabel);
+          }
           const del=textNode('button','Eliminar','button ghost small');
-          del.onclick=async()=>{if(!confirm('¿Eliminar el registro de acceso de '+row.recipient+'?'))return;try{await FusionDistribution.deleteThirdPartyAccess(row.id);await updateThirdPartyAccesses()}catch(e){toast(e.message,true)}};
-          line.append(who,stateLabel,toggle,del);accessList.append(line);
+          del.onclick=async()=>{if(!confirm('¿Eliminar este acceso?'))return;try{await FusionDistribution.deleteThirdPartyAccess(row.id);await updateThirdPartyAccesses()}catch(e){toast(e.message,true)}};
+          line.append(del);accessList.append(line);
         }
         if(!rows.length)accessList.append(textNode('div','Todavía no hay destinatarios registrados.','muted tiny'));
       }catch(e){accessSummary.textContent='Accesos terceros: '+e.message}
     }
     const shareActions=[
       ['Copiar enlace',async()=>{
-        const details=askRecipient();if(!details)return;
-        const url=await FusionDistribution.share(m.id,details.recipient,details.contact);
-        try{await navigator.clipboard.writeText(url);toast('Enlace individual copiado para '+details.recipient);}
-        catch{prompt('Enlace individual para '+details.recipient,url)}
+        const url=await FusionDistribution.share(m.id);
+        try{await navigator.clipboard.writeText(url);toast('Enlace individual copiado');}
+        catch{prompt('Enlace individual',url)}
         await updateThirdPartyAccesses();
       }],
-      ['WhatsApp',async()=>{const details=askRecipient();if(!details)return;await FusionDistribution.shareWhatsApp(m.id,m.nombre,details.recipient,details.contact);await updateThirdPartyAccesses()}],
-      ['Correo',async()=>{const details=askRecipient();if(!details)return;await FusionDistribution.shareEmail(m.id,m.nombre,details.recipient,details.contact);await updateThirdPartyAccesses()}]
+      ['WhatsApp',async()=>{await FusionDistribution.shareWhatsApp(m.id,m.nombre);await updateThirdPartyAccesses()}],
+      ['Correo',async()=>{await FusionDistribution.shareEmail(m.id,m.nombre);await updateThirdPartyAccesses()}]
     ];
     const shareButtons=shareActions.map(([label,action])=>{
       const button=textNode('button',label,'button secondary small');button.type='button';
