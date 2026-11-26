@@ -15,6 +15,15 @@ html.presentation-boot header,body.presentation header{display:none}body.present
 .boot-panel{width:min(360px,78vw);text-align:center}.boot-logo{margin:0 auto 24px;width:64px;height:64px;display:grid;place-items:center;border:1px solid #7899bb;border-radius:18px;background:#213b55;box-shadow:0 14px 40px #0004}.boot-name{font-size:25px;font-weight:650;letter-spacing:.5px}.boot-sub{margin-top:7px;color:#a7bed4;font-size:13px}.boot-track{height:5px;background:#31465e;border-radius:99px;margin-top:30px;overflow:hidden}.boot-fill{height:100%;width:5%;background:#73c4ff;border-radius:99px;transition:width .25s ease}.boot-step{margin-top:15px;color:#bad0e6;font-size:13px;min-height:36px}.boot-panel button{font:inherit;color:white;background:#294766;border:1px solid #7398ba;border-radius:8px;padding:8px 14px;cursor:pointer}.boot-track.indeterminate .boot-fill{width:30%!important;animation:boot-scan 1.4s ease-in-out infinite}@keyframes boot-scan{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
 #presentationHint.touchGuide{bottom:max(10px,env(safe-area-inset-bottom));right:10px;padding:6px 9px}.touchLegend{gap:2px}.touchLegend svg{flex:none}.touchLegend span{white-space:nowrap}@media(max-width:600px){#presentationBar{top:8px;left:8px;right:8px;gap:5px}#presentationBar>*{font-size:12px;padding:7px 9px}#presentationBar strong{flex-basis:100%}#presentationHint.touchGuide{font-size:11px;background:#142034a8}}
 </style>
+<style id="eskala-boot-brand-v1">
+/* Cabecera corporativa visible incluso antes de cargar Three.js. */
+html.presentation-boot #presentationBoot:not([hidden]){grid-template-rows:auto minmax(0,1fr);place-items:stretch;align-items:stretch}
+.eskala-boot-band{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:92px;padding:7px clamp(10px,1.7vw,30px);background:#03070c;border-bottom:1px solid #00b8e5;box-shadow:0 4px 24px #02080e44}
+.eskala-boot-band img{width:min(530px,100%);height:auto;max-height:77px;object-fit:contain;object-position:left center;display:block}
+.eskala-boot-label{color:#b8d4e5;white-space:nowrap;font:600 12px system-ui}
+#presentationBoot .boot-panel{align-self:center;justify-self:center;margin:0 auto 96px}
+@media(max-width:600px){.eskala-boot-band{min-height:68px;gap:5px;flex-wrap:wrap;padding:5px 8px}.eskala-boot-band img{width:100%;max-height:53px}.eskala-boot-label{display:none}#presentationBoot .boot-panel{margin-bottom:68px}}
+</style>
 <style id="eskala-presentation-brand-v1">
 /* Banda corporativa compartida para Direccion y enlaces de terceros. */
 #presentationBar{top:0;left:0;right:0;gap:7px 10px;align-items:center;padding:7px clamp(10px,1.7vw,30px);background:#03070cf5;border-bottom:1px solid #00b8e5;box-shadow:0 4px 24px #02080e44;pointer-events:auto}
@@ -32,9 +41,12 @@ html.presentation-boot header,body.presentation header{display:none}body.present
 </script>
 <body>
 <div id="presentationBoot" role="status" aria-live="polite">
+ <div class="eskala-boot-band" aria-label="Cabecera corporativa ESKALA">
+  <img src="./assets/eskala-corporativa.webp?v=1" width="640" height="77" alt="ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos">
+  <span class="eskala-boot-label">Preparando visor 3D</span>
+ </div>
  <div class="boot-panel">
-  <div class="boot-logo"><svg width="37" height="37" viewBox="0 0 40 40" fill="none" stroke="#b7ddff" stroke-width="1.8" aria-hidden="true"><path d="M20 3 35 11.5V28.5L20 37 5 28.5V11.5Z M5 11.5 20 20 35 11.5 M20 20V37 M20 3V20"/></svg></div>
-  <div class="boot-name">ESKALA</div><div class="boot-sub">DESIGN BEYOND THE SCREEN</div><span class="eskala-sign">by Roman · <b>62</b> SESENTA&amp;DOS</span><div class="boot-sub">Visualización de proyectos 3D</div>
+  <div class="boot-sub">Visualización de proyectos 3D</div>
   <div class="boot-track indeterminate" id="bootTrack" role="progressbar" aria-label="Carga del diseño"><div class="boot-fill" id="bootFill"></div></div>
   <div class="boot-step" id="bootStep">Iniciando el visor…</div>
   <button id="bootRetry" hidden onclick="location.reload()">Reintentar</button>
