@@ -251,11 +251,31 @@
  }
  const hiddenKey='fusion-direction-hidden-v2';
  function hidden(){try{return JSON.parse(localStorage.getItem(hiddenKey)||'{}')}catch{return {}}}
- function hide(m){try{const h=hidden();h[m.id]=m.updated;localStorage.setItem(hiddenKey,JSON.stringify(h))}catch{}}
- function isHidden(m){return Object.prototype.hasOwnProperty.call(hidden(),m.id)&&hidden()[m.id]===m.updated}
- async function list(role,force=false){const rows=await published(force);return role==='director'?rows.filter(m=>m.status==='active'&&!isHidden(m)):rows}
+ function clearHidden(){try{localStorage.removeItem(hiddenKey)}catch{}}
+ async function list(role,force=false){const rows=await published(force);return role==='director'?rows.filter(m=>m.status==='active'):rows}
  async function send(m){await write(rows=>{const next={...safe(m),status:'active',updated:new Date().toISOString()};const i=rows.findIndex(x=>x.id===m.id);if(i<0)rows.push(next);else rows[i]=next})}
- async function setStatus(id,status,role){if(role!=='admin')throw Error('La retirada global debe confirmarse desde la central.');await write(rows=>{const i=rows.findIndex(x=>x.id===id);if(i<0)return;if(status==='revoked')rows.splice(i,1);else rows[i]={...rows[i],status,updated:new Date().toISOString()}})}
+ async function setStatus(id,status,role){
+   if(role==='director'&&status!=='inactive')throw Error('Dirección solo puede retirar diseños de su biblioteca.');
+   if(!['admin','director'].includes(role))throw Error('Permiso de distribución no válido.');
+   await write(rows=>{
+     const i=rows.findIndex(x=>x.id===id);if(i<0)return;
+     if(status==='revoked'&&role==='admin')rows.splice(i,1);
+     else rows[i]={...rows[i],status,updated:new Date().toISOString()};
+   });
+ }
+ async function migrateLegacyDirectionHidden(){
+   const legacy=hidden(),ids=Object.keys(legacy||{});
+   if(!ids.length)return 0;
+   await write(rows=>{
+     const now=new Date().toISOString();
+     for(const id of ids){
+       const i=rows.findIndex(x=>x.id===id);
+       if(i>=0&&rows[i].status==='active')rows[i]={...rows[i],status:'inactive',updated:now};
+     }
+   });
+   clearHidden();
+   return ids.length;
+ }
  function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','121');return u}
  async function share(id,origin='central'){
    return (await createThirdPartyAccess(id,'','', 'link',24,origin)).url;
@@ -313,5 +333,5 @@
    window.addEventListener('focus',check);
    window.addEventListener('pageshow',check);
  }
- window.FusionDistribution={version:17,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,hide};
+ window.FusionDistribution={version:18,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
 })();
