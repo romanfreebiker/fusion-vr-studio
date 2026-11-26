@@ -13,7 +13,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=16"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=17"></script>
 <script>
 /* Three.js
 The MIT License
@@ -4713,6 +4713,8 @@ $('uploadForm').addEventListener('submit',async e=>{
  }catch(err){status('uploadStatus','No se completó la publicación: '+err.message+'\nSi el modelo se subió pero falló el catálogo, puede haber un archivo pendiente en GitHub.','bad');toast('Error al subir el diseño',true)}
  finally{state.busy=false;$('uploadBtn').disabled=false;render();setTimeout(()=>{$('uploadProgress').style.display='none';$('uploadBar').style.width='0%'},1200)}
 });
+window.addEventListener('focus',()=>{if(state.activeView==='biblioteca')render()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&state.activeView==='biblioteca')render()});
 window.addEventListener('beforeunload',()=>{for(const u of state.thumbUrls.values())URL.revokeObjectURL(u);if(thumbPreviewUrl)URL.revokeObjectURL(thumbPreviewUrl)});
 const authRestored=restoreAuth();
 render();
