@@ -2,10 +2,10 @@
 """Create branded ESKALA WhatsApp/email link previews from active shared designs."""
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import re
-import textwrap
 from pathlib import Path
 from urllib.parse import quote
 
@@ -18,6 +18,7 @@ BASE = (1200, 630)
 BG = "#151e26"
 CYAN = "#21dbf1"
 SLUG = re.compile(r"^[a-zA-Z0-9_-]+$")
+MODEL = re.compile(r"^modelos/[a-zA-Z0-9_-]+\.glb$")
 THUMB = re.compile(r"^miniaturas/[a-zA-Z0-9_-]+\.(?:jpe?g|png|webp)$", re.I)
 
 def font(size: int, bold: bool = False):
@@ -83,13 +84,20 @@ def make_cover(model, brand):
     draw.line((0, 612, 1199, 612), fill=CYAN, width=4)
     return dest
 
-def short_page(model, slug, area='v'):
+def short_page(model, slug, area='v', revision=None):
     name = str(model.get("nombre") or "Diseño 3D").strip()
     ident = str(model["id"])
     link = HOST + area + "/" + slug + "/"
     image = HOST + "social/" + slug + ".jpg"
-    viewer = "../../visor.html?modo=presentacion&diseno=" + quote(ident, safe="") + "&acceso=invitado&v=100"
-    page_title = "ESKALA | " + name
+    image_src = "../../social/" + slug + ".jpg"
+    viewer_src = "../../visor.html"
+    if revision:
+        link += revision + "/"
+        image += "?r=" + revision
+        image_src = image
+        viewer_src = HOST + "visor.html"
+    viewer = viewer_src + "?modo=presentacion&diseno=" + quote(ident, safe="") + "&acceso=invitado&v=100"
+    page_title = ("ESKALA Studio · " if revision else "ESKALA | ") + name
     desc = "Explora " + name + " en 3D. Vista interactiva y recorrido virtual en ESKALA."
     esc = lambda x: html.escape(x, quote=True)
     # JS redirect instead of HTTP/meta-refresh: social preview crawlers must read
@@ -127,7 +135,7 @@ a{{display:inline-block;padding:13px 24px;margin-top:12px;border-radius:9px;back
 </head>
 <body>
 <main>
-<img src="../../social/{esc(slug)}.jpg" alt="{esc('ESKALA: ' + name)}" width="1200" height="630">
+<img src="{esc(image_src)}" alt="{esc('ESKALA: ' + name)}" width="1200" height="630">
 <h1>{esc(name)}</h1>
 <p>Diseño 3D interactivo · ESKALA by Roman</p>
 <a href="{esc(viewer)}">Abrir diseño 3D</a>
@@ -147,7 +155,7 @@ def main():
     with Image.open(brand_file) as im:
         brand = im.convert("RGB")
     seen = set()
-    done = 0
+    shares = {}
     for m in models:
         if m.get("status") != "active":
             continue
@@ -159,6 +167,12 @@ def main():
         if not SLUG.fullmatch(slug) or slug in seen:
             raise ValueError("Identificador corto duplicado o no válido: " + slug)
         seen.add(slug)
+        model_path = str(m.get("archivo") or "")
+        thumb_path = str(m.get("miniatura") or "")
+        if (not MODEL.fullmatch(model_path) or not (ROOT / model_path).is_file()
+                or not THUMB.fullmatch(thumb_path) or not (ROOT / thumb_path).is_file()):
+            print("Sin tarjeta nueva: faltan archivos publicados de", ident)
+            continue
         image_path = SOCIAL / (slug + ".jpg")
         make_cover(m, brand).save(image_path, "JPEG", quality=88, optimize=True, subsampling=0)
         # Mantener /v/ como enlace de compatibilidad para mensajes antiguos.
@@ -167,9 +181,21 @@ def main():
             short_dir = ROOT / area / slug
             short_dir.mkdir(parents=True, exist_ok=True)
             (short_dir / "index.html").write_text(short_page(m, slug, area), encoding="utf-8")
-        print("Vista previa:", ident, "=>", image_path.relative_to(ROOT))
-        done += 1
-    print("Total de enlaces activos actualizados:", done)
+        # Keep each shared URL stable until its card or distribution revision changes.
+        digest = hashlib.sha256()
+        digest.update(short_page(m, slug, "p", "000000000000").encode("utf-8"))
+        digest.update(image_path.read_bytes())
+        digest.update(str(m.get("updated", "")).encode("utf-8"))
+        revision = digest.hexdigest()[:12]
+        path = f"p/{slug}/{revision}/"
+        folder = ROOT / path
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "index.html").write_text(short_page(m, slug, "p", revision), encoding="utf-8")
+        shares[ident] = {"path": path, "updated": m.get("updated")}
+        print("Vista previa:", ident, "=>", path)
+    manifest = json.dumps({"version": 1, "designs": shares}, ensure_ascii=False, indent=2, sort_keys=True)
+    (SOCIAL / "shares.json").write_text(manifest + "\n", encoding="utf-8")
+    print("Total de enlaces preparados:", len(shares))
 
 if __name__ == "__main__":
     main()

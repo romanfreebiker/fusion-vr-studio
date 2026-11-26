@@ -26,9 +26,24 @@
  async function list(role,force=false){const {data}=await read(force);return role==='director'?data.modelos.filter(m=>m.status==='active'&&!isHidden(m)):data.modelos}
  async function send(m){await write(rows=>{const next={...safe(m),status:'active',updated:new Date().toISOString()};const i=rows.findIndex(x=>x.id===m.id);if(i<0)rows.push(next);else rows[i]=next})}
  async function setStatus(id,status,role){if(role!=='admin')throw Error('La retirada global debe confirmarse desde la central.');await write(rows=>{const i=rows.findIndex(x=>x.id===id);if(i<0)return;if(status==='revoked')rows.splice(i,1);else rows[i]={...rows[i],status,updated:new Date().toISOString()}})}
- function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','96');return u}
- async function share(id){const rows=await list('admin',true);if(!rows.some(m=>m.id===id&&m.status==='active'))throw Error('Diseño retirado de dirección');const slug=id.split('-').at(-1);for(const path of ['p/'+slug+'/','v/'+slug+'/']){const short=new URL(path,location.href);try{const r=await fetch(short,{method:'HEAD',cache:'no-store'});if(r.ok)return short.href}catch{}}return viewer(id,'invitado').href}
+ function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','103');return u}
+ async function share(id){
+   const manifestUrl=new URL('social/shares.json',location.href);
+   const [rows,manifest]=await Promise.all([
+     list('admin',true),
+     fetch(manifestUrl,{cache:'no-store'}).then(response=>response.ok?response.json():null).catch(()=>null),
+   ]);
+   const model=rows.find(item=>item.id===id&&item.status==='active');
+   if(!model)throw Error('Este diseño ya no está disponible para compartir.');
+   const entry=manifest?.version===1&&manifest.designs?.[id];
+   const slug=id.split('-').at(-1);
+   const prefix='p/'+slug+'/';
+   if(entry&&entry.updated===model.updated&&typeof entry.path==='string'&&entry.path.startsWith(prefix)&&/^[a-f0-9]{12}\/$/.test(entry.path.slice(prefix.length))){
+     return new URL(entry.path,location.href).href;
+   }
+   throw Error('La tarjeta ESKALA de este diseño aún no está publicada. Vuelve a intentarlo cuando esté disponible.');
+ }
  async function loadViewer(access,id){if(!['director','invitado','demo-invitado'].includes(access))throw Error('Acceso no válido');const m=(await list(access==='director'?'director':'admin',true)).find(x=>x.id===id&&x.status==='active');if(!m)throw Error('Este diseño ya no está disponible.');return {meta:m,url:new URL(m.archivo,location.href).href}}
  function removalUrl(m){const u=new URL('https://github.com/'+repo+'/issues/new');u.searchParams.set('title','[Dirección] Retirar diseño '+m.id);u.searchParams.set('body','Solicito retirar de la biblioteca de dirección el diseño '+m.nombre+'.\n\nIdentificador: '+m.id+'\nVersión: '+m.updated);return u.href}
- window.FusionDistribution={version:3,demo:false,publicFiles:true,configureAdmin,list,send,setStatus,viewer,share,loadViewer,hide,removalUrl};
+ window.FusionDistribution={version:4,demo:false,publicFiles:true,configureAdmin,list,send,setStatus,viewer,share,loadViewer,hide,removalUrl};
 })();
