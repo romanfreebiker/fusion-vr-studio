@@ -12,16 +12,6 @@
       "updated": "2026-11-26T12:30:06.600Z"
     },
     {
-      "id": "puerta-zona-generador-abierta-mwvp69l8",
-      "nombre": "puerta zona generador abierta",
-      "descripcion": "",
-      "categoria": "Vallas perimetro naves",
-      "archivo": "modelos/puerta-zona-generador-abierta-mwvp69l8.glb",
-      "miniatura": "miniaturas/puerta-zona-generador-abierta-mwvp69l8.jpg",
-      "status": "inactive",
-      "updated": "2026-11-26T12:38:18.154Z"
-    },
-    {
       "id": "mesa-empaquetado-completa-mwstduga",
       "nombre": "mesa empaquetado completa",
       "descripcion": "",
