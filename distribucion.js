@@ -26,7 +26,7 @@
  async function list(role,force=false){const {data}=await read(force);return role==='director'?data.modelos.filter(m=>m.status==='active'&&!isHidden(m)):data.modelos}
  async function send(m){await write(rows=>{const next={...safe(m),status:'active',updated:new Date().toISOString()};const i=rows.findIndex(x=>x.id===m.id);if(i<0)rows.push(next);else rows[i]=next})}
  async function setStatus(id,status,role){if(role!=='admin')throw Error('La retirada global debe confirmarse desde la central.');await write(rows=>{const i=rows.findIndex(x=>x.id===id);if(i<0)return;if(status==='revoked')rows.splice(i,1);else rows[i]={...rows[i],status,updated:new Date().toISOString()}})}
- function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','105');return u}
+ function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','106');return u}
  async function share(id){
    const manifestUrl=new URL('social/shares.json',location.href);
    const [rows,manifest]=await Promise.all([
@@ -38,6 +38,9 @@
    const entry=manifest?.version===1&&manifest.designs?.[id];
    if(entry&&entry.updated===model.updated){
      if(typeof entry.shortPath==='string'&&/^s\/[a-z2-7]{8}\/$/.test(entry.shortPath)){
+       if(typeof entry.shortUrl==='string'&&/^https:\/\/is\.gd\/[a-zA-Z0-9_]{5,10}$/.test(entry.shortUrl)){
+         return entry.shortUrl;
+       }
        return new URL(entry.shortPath,location.href).href;
      }
      const prefix='p/'+id.split('-').at(-1)+'/';

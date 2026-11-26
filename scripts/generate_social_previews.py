@@ -2,6 +2,7 @@
 """Create branded ESKALA WhatsApp/email link previews from active shared designs."""
 from __future__ import annotations
 
+import argparse
 from base64 import b32encode
 import hashlib
 import html
@@ -9,7 +10,9 @@ import json
 import shutil
 import re
 from pathlib import Path
-from urllib.parse import quote
+from urllib.error import HTTPError
+from urllib.parse import quote, urlencode
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageOps
 
@@ -19,6 +22,7 @@ SOCIAL = ROOT / "social"
 BASE = (1200, 630)
 BG = "#151e26"
 CYAN = "#21dbf1"
+PUBLIC_SHORT_URL = re.compile(r"https://is\.gd/[a-zA-Z0-9_]{5,10}")
 SLUG = re.compile(r"^[a-zA-Z0-9_-]+$")
 MODEL = re.compile(r"^modelos/[a-zA-Z0-9_-]+\.glb$")
 THUMB = re.compile(r"^miniaturas/[a-zA-Z0-9_-]+\.(?:jpe?g|png|webp)$", re.I)
@@ -186,10 +190,40 @@ noscript a{{display:block;padding:1rem;color:#73daf0}}
 </html>
 """
 
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+def shorten_link(target):
+    opener = build_opener(NoRedirect)
+    data = urlencode({"format": "json", "url": target}).encode("ascii")
+    request = Request("https://is.gd/create.php", data=data, headers={"User-Agent": "ESKALA Studio"})
+    try:
+        with opener.open(request, timeout=10) as response:
+            result = json.load(response)
+        link = result.get("shorturl", "") if isinstance(result, dict) else ""
+        if not isinstance(link, str) or not PUBLIC_SHORT_URL.fullmatch(link):
+            return None
+        try:
+            with opener.open(Request(link, headers={"User-Agent": "WhatsApp/2.2236.3 N"}), timeout=10):
+                return None
+        except HTTPError as redirect:
+            with redirect:
+                if redirect.code in (301, 302, 303, 307, 308) and redirect.headers.get("Location") == target:
+                    return link
+    except (OSError, ValueError):
+        return None
+    return None
+
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--shorten", action="store_true", help="Crear enlaces is.gd para las tarjetas nuevas")
+    args = parser.parse_args()
     data = json.loads((ROOT / "distribucion.json").read_text(encoding="utf-8"))
     models = data.get("modelos", [])
     SOCIAL.mkdir(exist_ok=True)
+    manifest_path = SOCIAL / "shares.json"
+    previous = json.loads(manifest_path.read_text(encoding="utf-8")).get("designs", {}) if manifest_path.is_file() else {}
     brand_file = ROOT / "assets" / "eskala-corporativa.webp"
     if not brand_file.exists():
         raise SystemExit("No se encuentra el diseño maestro ESKALA.")
@@ -245,10 +279,19 @@ def main():
         short_dir.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(image_path, short_image)
         short_index.write_text(short_html, encoding="utf-8")
-        shares[ident] = {"path": path, "shortPath": short_path, "updated": m.get("updated")}
+        entry = {"path": path, "shortPath": short_path, "updated": m.get("updated")}
+        old = previous.get(ident, {})
+        short_url = old.get("shortUrl", "")
+        if old.get("shortPath") != short_path or not isinstance(short_url, str) or not PUBLIC_SHORT_URL.fullmatch(short_url):
+            short_url = shorten_link(HOST + short_path) if args.shorten else None
+        if short_url:
+            entry["shortUrl"] = short_url
+        elif args.shorten:
+            print("Sin enlace externo, se conserva la ruta ESKALA:", short_path)
+        shares[ident] = entry
         print("Vista previa:", ident, "=>", short_path)
     manifest = json.dumps({"version": 1, "designs": shares}, ensure_ascii=False, indent=2, sort_keys=True)
-    (SOCIAL / "shares.json").write_text(manifest + "\n", encoding="utf-8")
+    manifest_path.write_text(manifest + "\n", encoding="utf-8")
     print("Total de enlaces preparados:", len(shares))
 
 if __name__ == "__main__":
