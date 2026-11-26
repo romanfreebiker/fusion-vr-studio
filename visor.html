@@ -65,7 +65,7 @@ window.presentationProgress=function(message,percent,error=false){
 window.addEventListener('error',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo iniciar el visor. Comprueba la conexión.',null,true);});
 window.addEventListener('unhandledrejection',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo cargar el proyecto.',null,true);});
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=14"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=15"></script>
 <header>
 <h1>ESKALA Viewer</h1><span class="eskala-sign">by Roman · <b>62</b> SESENTA&amp;DOS</span>
 <label for="models">Diseño</label><select id="models" disabled></select>
@@ -227,19 +227,11 @@ if(presentation){
  document.addEventListener('fullscreenchange',()=>{full.setAttribute('aria-pressed',String(!!document.fullscreenElement));full.textContent=document.fullscreenElement?'Salir de pantalla completa':'Pantalla completa';});
  if(access==='director'){
    button('Mi biblioteca',()=>location.assign('direccion.html?v=95'));
-   function askRecipient(){
-     const recipient=prompt('Nombre o empresa del destinatario:','');
-     if(recipient===null)return null;
-     if(!recipient.trim()){alert('Indica un nombre o empresa.');return null}
-     const contact=prompt('Contacto o referencia opcional. Teléfono/email se guardará enmascarado:','');
-     return {recipient:recipient.trim(),contact:contact||''};
-   }
-   const share=button('Copiar enlace para terceros',async()=>{if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}const details=askRecipient();if(!details)return;share.disabled=true;try{const url=await FusionDistribution.share(params.get('diseno'),details.recipient,details.contact);try{await navigator.clipboard.writeText(url);share.textContent='¡Enlace copiado!';share.classList.add('confirmed');setTimeout(()=>{share.textContent='Copiar enlace para terceros';share.classList.remove('confirmed')},1600)}catch{prompt('Enlace individual para '+details.recipient,url)}}catch(e){alert(e.message)}finally{share.disabled=false}});
+   const share=button('Copiar enlace para terceros',async()=>{if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}share.disabled=true;try{const url=await FusionDistribution.share(params.get('diseno'));try{await navigator.clipboard.writeText(url);share.textContent='¡Enlace copiado!';share.classList.add('confirmed');setTimeout(()=>{share.textContent='Copiar enlace para terceros';share.classList.remove('confirmed')},1600)}catch{prompt('Enlace individual',url)}}catch(e){alert(e.message)}finally{share.disabled=false}});
    for(const [label,action] of [['WhatsApp','shareWhatsApp'],['Correo','shareEmail']]){
      button(label,async()=>{
        if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}
-       const details=askRecipient();if(!details)return;
-       try{await FusionDistribution[action](params.get('diseno'),distributedModel.meta.nombre,details.recipient,details.contact);}
+       try{await FusionDistribution[action](params.get('diseno'),distributedModel.meta.nombre);}
        catch(e){alert(e.message)}
      });
    }
@@ -260,8 +252,10 @@ if(presentation){
        for(const row of rows){
          const line=document.createElement('div');Object.assign(line.style,{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap',padding:'10px 0',borderBottom:'1px solid #31465e'});
          const label=document.createElement('span');label.textContent=row.recipient+(row.contact?' · '+row.contact:'')+' · '+(row.status==='active'?'ACTIVO':'REVOCADO');label.style.flex='1';line.append(label);
-         const toggle=document.createElement('button');toggle.textContent=row.status==='active'?'Desactivar':'Reactivar';toggle.onclick=async()=>{try{await FusionDistribution.setThirdPartyStatus(row.id,row.status==='active'?'revoked':'active');await draw()}catch(e){alert(e.message)}};line.append(toggle);
-         const del=document.createElement('button');del.textContent='Eliminar';del.onclick=async()=>{if(!confirm('¿Eliminar el acceso de '+row.recipient+'?'))return;try{await FusionDistribution.deleteThirdPartyAccess(row.id);await draw()}catch(e){alert(e.message)}};line.append(del);
+         if(row.status==='active'){
+           const disable=document.createElement('button');disable.textContent='Desactivar';disable.onclick=async()=>{try{await FusionDistribution.setThirdPartyStatus(row.id,'revoked');await draw()}catch(e){alert(e.message)}};line.append(disable);
+         }
+         const del=document.createElement('button');del.textContent='Eliminar';del.onclick=async()=>{if(!confirm('¿Eliminar este acceso?'))return;try{await FusionDistribution.deleteThirdPartyAccess(row.id);await draw()}catch(e){alert(e.message)}};line.append(del);
          list.append(line);
        }
      }
