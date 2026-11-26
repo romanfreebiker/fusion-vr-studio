@@ -168,7 +168,7 @@ turnSpeed.addEventListener('change',()=>{
   try{localStorage.setItem('fusionvr-turn-speed',turnSpeed.value)}catch{}
 });
 const scene=new THREE.Scene();
-scene.background=new THREE.Color(0x151e26);
+scene.background=new THREE.Color(0xa9bdcf);
 const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,presentation?.002:.03,500);
 const rig=new THREE.Group();
 rig.add(camera);
