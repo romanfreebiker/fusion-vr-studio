@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "actualizado": "2026-11-26T10:49:15.515Z",
+  "actualizado": "2026-11-26T10:49:28.273Z",
   "modelos": [
     {
       "id": "puerta-zona-generador-abierta-mwvp69l8",
       "nombre": "puerta zona generador abierta",
-      "categoria": "Viviendas",
+      "categoria": "",
       "descripcion": "",
       "archivo": "modelos/puerta-zona-generador-abierta-mwvp69l8.glb",
       "miniatura": "miniaturas/puerta-zona-generador-abierta-mwvp69l8.jpg",
@@ -15,7 +15,7 @@
     {
       "id": "puerta-zona-generador-mwvotkdj",
       "nombre": "puerta zona generador",
-      "categoria": "Viviendas",
+      "categoria": "",
       "descripcion": "",
       "archivo": "modelos/puerta-zona-generador-mwvotkdj.glb",
       "miniatura": "miniaturas/puerta-zona-generador-mwvotkdj.jpg",
@@ -25,7 +25,7 @@
     {
       "id": "escalera-bascula-mwswzrjg",
       "nombre": "escalera bascula",
-      "categoria": "Viviendas",
+      "categoria": "",
       "descripcion": "",
       "archivo": "modelos/escalera-bascula-mwswzrjg.glb",
       "miniatura": "miniaturas/escalera-bascula-mwswzrjg.jpg",
@@ -35,7 +35,7 @@
     {
       "id": "garaje2-mws3nfb6",
       "nombre": "garaje2",
-      "categoria": "Viviendas",
+      "categoria": "",
       "descripcion": "",
       "archivo": "modelos/garaje2-mws3nfb6.glb",
       "miniatura": "miniaturas/garaje2-mws3nfb6.jpg",
@@ -48,7 +48,6 @@
     "Garajes",
     "Mobiliario",
     "Otros",
-    "Taller",
-    "Viviendas"
+    "Taller"
   ]
 }
