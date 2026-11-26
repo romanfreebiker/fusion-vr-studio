@@ -1,16 +1,28 @@
 {
   "designs": {
+    "escalera-bascula-mwswzrjg": {
+      "path": "p/mwswzrjg/8d389c3aff93/",
+      "shortPath": "s/ru4jyox7/",
+      "shortUrl": "https://is.gd/CzVRUq",
+      "updated": "2026-11-23T06:58:40.852Z"
+    },
     "garaje2-mws3nfb6": {
-      "path": "p/mws3nfb6/e84150a3e8f9/",
-      "shortPath": "s/5bavbi7i/",
-      "shortUrl": "https://is.gd/asKwFD",
-      "updated": "2026-11-26T06:27:53.765Z"
+      "path": "p/mws3nfb6/14be697c7639/",
+      "shortPath": "s/cs7gs7dw/",
+      "shortUrl": "https://is.gd/SjXofU",
+      "updated": "2026-11-22T17:17:34.798Z"
     },
     "puerta-zona-generador-abierta-mwvp69l8": {
-      "path": "p/mwvp69l8/3ea4e4d653ca/",
-      "shortPath": "s/h2sojvst/",
-      "shortUrl": "https://is.gd/AGSnuZ",
-      "updated": "2026-11-25T21:15:07.459Z"
+      "path": "p/mwvp69l8/260431c1c9c6/",
+      "shortPath": "s/eycddqoj/",
+      "shortUrl": "https://is.gd/lSYQW6",
+      "updated": "2026-11-25T05:43:04.194Z"
+    },
+    "puerta-zona-generador-mwvotkdj": {
+      "path": "p/mwvotkdj/d0e8e0324f06/",
+      "shortPath": "s/2duoamsp/",
+      "shortUrl": "https://is.gd/bB3ICu",
+      "updated": "2026-11-25T05:33:13.195Z"
     }
   },
   "version": 1
