@@ -30,6 +30,16 @@
       "miniatura": "miniaturas/mesa-empaquetado-completa-mwstduga.jpg",
       "status": "active",
       "updated": "2026-11-26T06:27:41.250Z"
+    },
+    {
+      "id": "garaje2-mws3nfb6",
+      "nombre": "garaje2",
+      "descripcion": "",
+      "categoria": "Viviendas",
+      "archivo": "modelos/garaje2-mws3nfb6.glb",
+      "miniatura": "miniaturas/garaje2-mws3nfb6.jpg",
+      "status": "active",
+      "updated": "2026-11-26T06:27:53.765Z"
     }
   ]
 }
