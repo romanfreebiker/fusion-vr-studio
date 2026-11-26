@@ -9,7 +9,7 @@ body{margin:0;background:#142034;color:#f4f7fd;font:16px system-ui}canvas{displa
 header{position:absolute;z-index:1;top:16px;left:16px;max-width:min(440px,calc(100vw - 72px));padding:14px 18px;background:#131e30ee;border:1px solid #42536f;border-radius:12px}
 h1{font-size:19px;margin:0 0 10px}label{display:block;margin-bottom:5px}select{font:inherit;color:inherit;background:#243652;border:1px solid #637a9d;border-radius:6px;padding:7px;max-width:100%}
 p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-variant-numeric:tabular-nums;margin-top:8px}details{margin-top:12px;border-top:1px solid #42536f;padding-top:9px}summary{cursor:pointer;font-weight:600;color:#b9d9f7}#detectedMaterials{max-height:160px;overflow:auto;font-size:12px;line-height:1.65;white-space:pre-wrap;color:#d5e0f0;margin-top:7px}
-html.presentation-boot header,body.presentation header{display:none}body.presentation #VRButton{display:none!important}body.presentation canvas{touch-action:none;cursor:grab}body.presentation canvas:active{cursor:grabbing}
+html.presentation-boot header,body.presentation header{display:none}body.presentation #VRButton{display:none!important}body.presentation canvas{touch-action:none;cursor:grab}body.presentation canvas:active{cursor:grabbing}body.presentation.measuring canvas,body.presentation.measuring canvas:active{cursor:crosshair!important}.measure-snap{position:fixed;z-index:25;pointer-events:none;width:9px;height:9px;border:1px solid #65f6ff;border-radius:2px;transform:translate(-50%,-50%);box-shadow:0 0 0 1px #101d2b;color:#65f6ff;font:11px system-ui;white-space:nowrap;text-indent:14px;line-height:9px;text-shadow:0 1px 3px black}.measure-snap.free{width:5px;height:5px;border-radius:50%;border-color:#fff}
 #presentationBar{position:fixed;z-index:20;top:14px;left:14px;right:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;pointer-events:none}#presentationBar>*{pointer-events:auto;background:#142034eb;border:1px solid #52647b;border-radius:9px;color:white;padding:10px 13px;font:14px system-ui}#presentationBar strong{margin-right:auto}#presentationBar button{cursor:pointer;transition:background .12s,border-color .12s,transform .12s}#presentationBar button:hover{background:#36516d;border-color:#a6c5e4}#presentationBar button:active{background:#80c8ff;color:#0b1625;transform:translateY(2px)}#presentationBar button[aria-pressed=true],#presentationBar button.confirmed{background:#2378b9;border-color:#9ed8ff;color:white;box-shadow:0 0 0 1px #9ed8ff}#presentationBar button:focus-visible{outline:2px solid #b8e6ff;outline-offset:3px}#presentationHint{position:fixed;bottom:16px;right:16px;z-index:20;background:#142034b8;color:white;border-radius:10px;padding:8px 11px;font:12px system-ui;text-align:left;pointer-events:none;display:flex;align-items:center;gap:9px;max-width:90vw}.mouseLegend{display:grid;gap:5px}.mouseLegend span{display:flex;align-items:center;gap:6px;white-space:nowrap}.mouseLegend i{width:8px;height:8px;border-radius:2px;display:inline-block}.mouseLegend small{color:#b7c9dd;font-size:11px}#presentationStatus{position:fixed;z-index:21;top:50%;left:50%;transform:translate(-50%,-50%);background:#142034e8;padding:18px;border-radius:12px;text-align:center}
 #presentationBoot{display:none}html.presentation-boot #presentationBoot:not([hidden]){display:grid;position:fixed;inset:0;z-index:100;place-items:center;background:linear-gradient(180deg,#151e26,#101820);color:#eef6ff;font:15px system-ui}
 .boot-panel{width:min(360px,78vw);text-align:center}.boot-logo{margin:0 auto 24px;width:64px;height:64px;display:grid;place-items:center;border:1px solid #7899bb;border-radius:18px;background:#213b55;box-shadow:0 14px 40px #0004}.boot-name{font-size:25px;font-weight:650;letter-spacing:.5px}.boot-sub{margin-top:7px;color:#a7bed4;font-size:13px}.boot-track{height:5px;background:#31465e;border-radius:99px;margin-top:30px;overflow:hidden}.boot-fill{height:100%;width:5%;background:#73c4ff;border-radius:99px;transition:width .25s ease}.boot-step{margin-top:15px;color:#bad0e6;font-size:13px;min-height:36px}.boot-panel button{font:inherit;color:white;background:#294766;border:1px solid #7398ba;border-radius:8px;padding:8px 14px;cursor:pointer}.boot-track.indeterminate .boot-fill{width:30%!important;animation:boot-scan 1.4s ease-in-out infinite}@keyframes boot-scan{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
@@ -1220,35 +1220,98 @@ const versionLabel=document.createElement('div');
 versionLabel.textContent='Visor VR 0.81 · A Rescate en mando derecho';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 // El cartel de diagnóstico no se muestra en ningún modo.
-let measureMode=false,measurePoints=[],measureMarks=null,measureLabel=null;
+let measureMode=false,measurePoints=[],measureMarks=null,measureLabel=null,measureHover=null,measureEvent=null,measureFrame=0;
+const featureCache=new WeakMap();
+const measurementRay=new THREE.Raycaster(),measurementPointer=new THREE.Vector2();
+const SNAP_RADIUS=13;
 function clearMeasures(){
  if(measureMarks){scene.remove(measureMarks);measureMarks.traverse(o=>{o.geometry?.dispose();o.material?.dispose()});measureMarks=null}
- measurePoints=[];if(measureLabel)measureLabel.textContent=measureMode?'Selecciona dos vértices del modelo.':'';
+ measurePoints=[];if(measureLabel)measureLabel.textContent=measureMode?'Selecciona dos puntos. Acerca el cursor a una arista o vértice.':'';
+}
+function hideMeasureHover(){if(measureHover)measureHover.hidden=true;measureEvent=null}
+function setMeasureMode(active,btn){
+ measureMode=active;controls.enabled=!active&&!walkingMode;btn?.setAttribute('aria-pressed',String(active));
+ document.body.classList.toggle('measuring',active);
+ if(!measureLabel){measureLabel=document.createElement('div');measureLabel.style.cssText='position:fixed;bottom:12px;left:12px;z-index:30;max-width:calc(100% - 24px);background:#142034ed;color:#7eeaff;padding:10px;border-radius:8px;pointer-events:none;font:13px system-ui';document.body.append(measureLabel)}
+ if(!measureHover){measureHover=document.createElement('div');measureHover.className='measure-snap';measureHover.hidden=true;document.body.append(measureHover)}
+ measureLabel.hidden=!active;measureLabel.textContent='Selecciona dos puntos · Imán: vértices, puntos medios y aristas.';
+ if(!active){measurePoints=[];hideMeasureHover()}
 }
 function toggleMeasure(btn){
  if(!model)return;
  if(!measureMode&&walkingMode)setPresentationMode(false);
- measureMode=!measureMode;controls.enabled=!measureMode;btn.setAttribute('aria-pressed',String(measureMode));
- if(!measureLabel){measureLabel=document.createElement('div');measureLabel.style.cssText='position:fixed;bottom:12px;left:12px;z-index:30;max-width:calc(100% - 24px);background:#142034ed;color:#7eeaff;padding:12px;border-radius:8px;pointer-events:none;font:14px system-ui';document.body.append(measureLabel)}
- measureLabel.hidden=!measureMode;measureLabel.textContent='Selecciona dos vértices del modelo. Cotas en mm; verifica escala.';
- if(!measureMode)measurePoints=[];
+ setMeasureMode(!measureMode,btn);
 }
-const measurementRay=new THREE.Raycaster(),measurementPointer=new THREE.Vector2();
+function featureEdges(geometry){
+ if(featureCache.has(geometry))return featureCache.get(geometry);
+ const edges=new THREE.EdgesGeometry(geometry,15);
+ const array=edges.attributes.position.array.slice();edges.dispose();featureCache.set(geometry,array);return array;
+}
+function projectMeasure(p,r){
+ const q=p.clone().project(camera);return {x:r.left+(q.x+1)*r.width/2,y:r.top+(1-q.y)*r.height/2,z:q.z};
+}
+function measureTarget(x,y,pointerType){
+ if(!model)return null;
+ const r=renderer.domElement.getBoundingClientRect(), radius=pointerType==='touch'?22:SNAP_RADIUS;
+ camera.updateMatrixWorld(true);model.updateMatrixWorld(true);
+ const cast=(px,py)=>{measurementPointer.set((px-r.left)/r.width*2-1,-(py-r.top)/r.height*2+1);measurementRay.setFromCamera(measurementPointer,camera);return measurementRay.intersectObject(model,true).find(h=>h.object.visible&&h.face)};
+ const hit=cast(x,y);
+ // Probe near the pointer as well, so exposed corners can be snapped from outside the silhouette.
+ const hits=[hit];if(!hit)for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]])hits.push(cast(x+dx*radius*.7,y+dy*radius*.7));
+ const candidates=new Map();for(const h of hits)if(h&&!candidates.has(h.object))candidates.set(h.object,h);
+ let best=null;
+ function offer(p,kind,penalty=0){
+ const q=projectMeasure(p,r);if(q.z<-1||q.z>1)return;
+ const d=Math.hypot(q.x-x,q.y-y);if(d>radius)return;
+ const score=d+penalty;if(!best||score<best.score)best={p:p.clone(),kind,score,x:q.x,y:q.y};
+ }
+ for(const [mesh,h] of candidates){
+ const edges=featureEdges(mesh.geometry),a=new THREE.Vector3(),b=new THREE.Vector3();
+ // Only actual feature edges, not the internal diagonals of triangulated faces.
+ for(let i=0;i<edges.length;i+=6){
+ a.fromArray(edges,i).applyMatrix4(mesh.matrixWorld);b.fromArray(edges,i+3).applyMatrix4(mesh.matrixWorld);
+ const u=projectMeasure(a,r),v=projectMeasure(b,r);
+ if(Math.min(u.x,v.x)>x+radius||Math.max(u.x,v.x)<x-radius||Math.min(u.y,v.y)>y+radius||Math.max(u.y,v.y)<y-radius)continue;
+ offer(a,'Vértice');offer(b,'Vértice');
+ const mid=a.clone().lerp(b,.5);offer(mid,'Punto medio',3);
+ const dx=v.x-u.x,dy=v.y-u.y,den=dx*dx+dy*dy;
+ if(den>0){const t=THREE.MathUtils.clamp(((x-u.x)*dx+(y-u.y)*dy)/den,0,1);
+ // Convert screen interpolation to perspective-correct world interpolation.
+ const da=-a.clone().applyMatrix4(camera.matrixWorldInverse).z,db=-b.clone().applyMatrix4(camera.matrixWorldInverse).z;
+ const k=(1-t)*db+t*da;if(k>0)offer(a.clone().lerp(b,t*da/k),'Arista',7);}
+ }
+ }
+ if(best){
+ // Reject snaps to hidden geometry behind another visible face.
+ const front=cast(best.x,best.y);
+ if(front&&front.point.distanceTo(camera.position)+Math.max(.002,front.distance*.002)<best.p.distanceTo(camera.position))best=null;
+ }
+ if(best)return best;
+ if(hit){const q=projectMeasure(hit.point,r);return {p:hit.point.clone(),kind:'Superficie libre',x:q.x,y:q.y}}
+ return null;
+}
+function previewMeasure(target){
+ if(!measureHover)return;
+ measureHover.hidden=!target;if(!target)return;
+ measureHover.style.left=target.x+'px';measureHover.style.top=target.y+'px';measureHover.dataset.kind=target.kind;
+ measureHover.textContent=target.kind==='Superficie libre'?'':target.kind;
+ measureHover.classList.toggle('free',target.kind==='Superficie libre');
+}
+renderer.domElement.addEventListener('pointermove',e=>{
+ if(!measureMode||e.pointerType==='touch'||e.buttons)return;
+ measureEvent={x:e.clientX,y:e.clientY,type:e.pointerType};
+ if(!measureFrame)measureFrame=requestAnimationFrame(()=>{measureFrame=0;if(measureMode&&measureEvent)previewMeasure(measureTarget(measureEvent.x,measureEvent.y,measureEvent.type))});
+},true);
+renderer.domElement.addEventListener('pointerleave',hideMeasureHover);
 renderer.domElement.addEventListener('pointerdown',e=>{
- if(!measureMode)return;e.preventDefault();e.stopImmediatePropagation();
- if(!model||e.button!==0)return;
- const r=renderer.domElement.getBoundingClientRect();measurementPointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);
- measurementRay.setFromCamera(measurementPointer,camera);
- const hit=measurementRay.intersectObject(model,true).find(h=>h.object.visible&&h.face);
- if(!hit)return;
- const pos=hit.object.geometry.attributes.position;
- const corners=[hit.face.a,hit.face.b,hit.face.c].map(i=>new THREE.Vector3().fromBufferAttribute(pos,i).applyMatrix4(hit.object.matrixWorld));
- const p=corners.reduce((a,b)=>a.distanceToSquared(hit.point)<b.distanceToSquared(hit.point)?a:b);
+ if(!measureMode||e.button!==0)return;e.preventDefault();e.stopImmediatePropagation();
+ const target=measureTarget(e.clientX,e.clientY,e.pointerType);if(!target)return;previewMeasure(target);
+ const p=target.p;
  if(!measureMarks){measureMarks=new THREE.Group();scene.add(measureMarks)}
- const marker=new THREE.Mesh(new THREE.SphereGeometry(Math.max(.003,distance*.0015),12,8),new THREE.MeshBasicMaterial({color:0x00e5ff,depthTest:false}));marker.position.copy(p);marker.renderOrder=999;measureMarks.add(marker);
+ const marker=new THREE.Points(new THREE.BufferGeometry().setFromPoints([p]),new THREE.PointsMaterial({color:0x00e5ff,size:5,sizeAttenuation:false,depthTest:false,depthWrite:false}));marker.renderOrder=999;measureMarks.add(marker);
  measurePoints.push(p);
- if(measurePoints.length===1){measureLabel.textContent='Primer vértice seleccionado. Selecciona el segundo.';return}
- const [a,b]=measurePoints;const delta=b.clone().sub(a);const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),new THREE.LineBasicMaterial({color:0x00e5ff,depthTest:false}));line.renderOrder=999;measureMarks.add(line);
+ if(measurePoints.length===1){measureLabel.textContent=target.kind+' seleccionado. Selecciona el segundo punto.';return}
+ const [a,b]=measurePoints;const delta=b.clone().sub(a);const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),new THREE.LineBasicMaterial({color:0x00e5ff,depthTest:false,depthWrite:false}));line.renderOrder=999;measureMarks.add(line);
  const fmt=x=>Math.round(Math.abs(x)*1000).toLocaleString('es-ES');
  measureLabel.textContent='Distancia: '+fmt(delta.length())+' mm · X: '+fmt(delta.x)+' · Altura: '+fmt(delta.y)+' · Z: '+fmt(delta.z)+' mm';
  measurePoints=[];
@@ -1673,7 +1736,7 @@ function syncHeadAngles(){
  yaw=walkTargetYaw=headEuler.y;pitch=walkTargetPitch=headEuler.x;
 }
 function setPresentationMode(walk){
- if(measureMode){measureMode=false;controls.enabled=true;measurePoints=[];if(measureLabel)measureLabel.hidden=true;document.querySelectorAll('#presentationBar button').forEach(b=>{if(b.textContent==='Medir')b.setAttribute('aria-pressed','false')});}
+ if(measureMode)setMeasureMode(false,[...document.querySelectorAll('#presentationBar button')].find(b=>b.textContent==='Medir'));
  if(walkingMode===walk)return;
  if(walk){
    const damping=controls.enableDamping;controls.enableDamping=false;controls.update();controls.enableDamping=damping;
@@ -1771,7 +1834,7 @@ async function openModel(){
     const bounds=new THREE.Box3().setFromObject(next,true);
     if(bounds.isEmpty()){dispose(next);throw Error('El archivo está vacío.')}
     const center=bounds.getCenter(new THREE.Vector3()), size=bounds.getSize(new THREE.Vector3());
-    if(model){scene.remove(model);dispose(model)}
+    if(model){clearMeasures();hideMeasureHover();scene.remove(model);dispose(model)}
     model=next;
     model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
     model.position.x-=center.x;
