@@ -1374,7 +1374,7 @@ function selectMeasurePoint(target){
  clearProvisional();
  const p=target.p.clone();
  if(!measureMarks){measureMarks=new THREE.Group();scene.add(measureMarks)}
- if(measurePoints.length===0){const marker=new THREE.Points(new THREE.BufferGeometry().setFromPoints([p]),new THREE.PointsMaterial({color:0x0078b8,size:2,sizeAttenuation:false,depthTest:true,depthWrite:false}));marker.renderOrder=999;measureMarks.add(marker)}else{for(const o of [...measureMarks.children])if(o.isPoints){measureMarks.remove(o);o.geometry.dispose();o.material.dispose()}}
+ const marker=new THREE.Points(new THREE.BufferGeometry().setFromPoints([p]),new THREE.PointsMaterial({color:0x0059a8,size:4,sizeAttenuation:false,depthTest:false,depthWrite:false}));marker.renderOrder=1000;measureMarks.add(marker);
  measurePoints.push(p);
  if(measurePoints.length===1){measureLabel.textContent='Primer punto seleccionado. Puedes girar y acercarte para buscar el segundo.';return}
  const [a,b]=measurePoints,delta=b.clone().sub(a);
@@ -2205,7 +2205,7 @@ try{
     const job=await findJob();if(!job)throw Error('Trabajo no asignado');
     distributedModel={meta:job.model,url:new URL(job.model.archivo,location.href).href};
     setInterval(async()=>{if(document.hidden)return;try{if(!await findJob())location.replace(EskalaTaller.link(key))}catch(e){console.warn(e)}},30000);
-    const item=distributedModel.meta;orientation.value='z';appearance.value='library';models.add(new Option(item.nombre,item.id));presentationTitle.textContent=item.nombre+' · Taller v4';document.title=item.nombre+' · ESKALA Taller';await openModel();
+    const item=distributedModel.meta;orientation.value='z';appearance.value='library';models.add(new Option(item.nombre,item.id));presentationTitle.textContent=item.nombre+' · Taller v4.1';document.title=item.nombre+' · ESKALA Taller';await openModel();
   }else{
   const catalogURL=new URL('catalogo.json',location.href);
   catalogURL.searchParams.set('refresh',String(Date.now()));
