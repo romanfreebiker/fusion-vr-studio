@@ -37,13 +37,19 @@
  }
  async function readThird(force=false){
    const now=Date.now(),key='third:'+thirdPath,snapshot=snapshots.get(key);
-   if(!force&&snapshot&&now-snapshot.at<5000)return snapshot.data;
+   if(snapshot&&now-snapshot.at<5000)return snapshot.data;
    let data;
-   if(force){
-     const result=await request(api+'/contents/'+thirdPath+'?ref='+branch+'&_='+now,{headers:readHeaders});
-     data=decode(result.content);
-   }else{
-     try{data=await request(raw+thirdPath+'?revision='+Math.floor(now/5000))}
+   const token=adminToken?.()||storedAdminToken();
+   if(token){
+     try{
+       const result=await request(api+'/contents/'+thirdPath+'?ref='+branch+'&_='+now,{headers:{...readHeaders,Authorization:'Bearer '+token}});
+       data=decode(result.content);
+     }catch(error){
+       console.warn('ESKALA: lectura autenticada de terceros no disponible; se usa lectura pública.',error);
+     }
+   }
+   if(!data){
+     try{data=await request(raw+thirdPath+'?revision='+now)}
      catch{
        const result=await request(api+'/contents/'+thirdPath+'?ref='+branch+'&_='+now,{headers:readHeaders});
        data=decode(result.content);
@@ -68,7 +74,7 @@
      data.updated=new Date().toISOString();
      try{
        await request(api+'/contents/'+thirdPath,{method:'PUT',headers:{...readHeaders,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({sha,branch,message:'Actualizar accesos ESKALA a terceros',content:encode(data)})});
-       snapshots.delete('third:'+thirdPath);
+       snapshots.set('third:'+thirdPath,{at:Date.now(),data:JSON.parse(JSON.stringify(data))});
        return data;
      }catch(e){if(e.status!==409||i===2)throw e}
    }
@@ -298,5 +304,5 @@
    window.addEventListener('pageshow',check);
  }
  function removalUrl(m){const u=new URL('https://github.com/'+repo+'/issues/new');u.searchParams.set('title','[Dirección] Retirar diseño '+m.id);u.searchParams.set('body','Solicito retirar de la biblioteca de dirección el diseño '+m.nombre+'.\n\nIdentificador: '+m.id+'\nVersión: '+m.updated);return u.href}
- window.FusionDistribution={version:12,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,hide,removalUrl};
+ window.FusionDistribution={version:13,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,hide,removalUrl};
 })();
