@@ -219,7 +219,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--shorten", action="store_true", help="Crear enlaces is.gd para las tarjetas nuevas")
     args = parser.parse_args()
-    data = json.loads((ROOT / "distribucion.json").read_text(encoding="utf-8"))
+    data = json.loads((ROOT / "catalogo.json").read_text(encoding="utf-8"))
     models = data.get("modelos", [])
     SOCIAL.mkdir(exist_ok=True)
     manifest_path = SOCIAL / "shares.json"
@@ -232,8 +232,6 @@ def main():
     seen = set()
     shares = {}
     for m in models:
-        if m.get("status") != "active":
-            continue
         ident = str(m.get("id") or "")
         if not SLUG.fullmatch(ident) or "-" not in ident:
             print("Omitido identificador no válido:", repr(ident))
@@ -260,7 +258,8 @@ def main():
         digest = hashlib.sha256()
         digest.update(short_page(m, slug, branded_path=f"p/{slug}/000000000000/").encode("utf-8"))
         digest.update(image_path.read_bytes())
-        digest.update(str(m.get("updated", "")).encode("utf-8"))
+        version = str(m.get("fecha") or m.get("updated") or "")
+        digest.update(version.encode("utf-8"))
         revision = digest.hexdigest()[:12]
         path = f"p/{slug}/{revision}/"
         folder = ROOT / path
@@ -279,7 +278,7 @@ def main():
         short_dir.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(image_path, short_image)
         short_index.write_text(short_html, encoding="utf-8")
-        entry = {"path": path, "shortPath": short_path, "updated": m.get("updated")}
+        entry = {"path": path, "shortPath": short_path, "updated": version}
         old = previous.get(ident, {})
         short_url = old.get("shortUrl", "")
         if old.get("shortPath") != short_path or not isinstance(short_url, str) or not PUBLIC_SHORT_URL.fullmatch(short_url):
