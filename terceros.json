@@ -1,20 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-11-26T12:39:25.090Z",
-  "accesses": [
-    {
-      "id": "acc_mwxjhn6i_fhyrem",
-      "designId": "puerta-zona-generador-abierta-mwvp69l8",
-      "recipient": "WhatsApp · 26/11/2026 13:39",
-      "contact": "",
-      "channel": "whatsapp",
-      "origin": "central",
-      "tokenHash": "dc5018df03a9d3cfe8f8f2961c483cfc7bb9bae8f881b79a3602d477d74fb3d6",
-      "status": "active",
-      "createdAt": "2026-11-26T12:39:24.570Z",
-      "updatedAt": "2026-11-26T12:39:24.570Z",
-      "expiresAt": "2026-11-27T12:39:24.570Z"
-    }
-  ],
+  "updated": "2026-11-26T12:43:56.855Z",
+  "accesses": [],
   "defaultTtlHours": 24
 }
