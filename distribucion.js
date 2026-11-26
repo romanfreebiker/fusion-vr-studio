@@ -174,9 +174,13 @@
    const days=Math.floor(hours/24),rest=hours%24;
    return days+' d'+(rest?' '+rest+' h':'');
  }
- async function listThirdParty(designId,force=false){
+ async function listThirdParty(designId,force=false,scope='all'){
    const data=await readThird(force),now=Date.now();
-   return data.accesses.filter(a=>a&&a.designId===designId&&thirdPartyState(a,now)==='active').map(a=>({...a,effectiveStatus:'active',remaining:thirdPartyRemaining(a,now)})).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+   return data.accesses
+     .filter(a=>a&&a.designId===designId&&thirdPartyState(a,now)==='active')
+     .filter(a=>scope==='direction'?a.origin==='direction':true)
+     .map(a=>({...a,effectiveStatus:'active',remaining:thirdPartyRemaining(a,now)}))
+     .sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
  }
  async function thirdPartySettings(force=false){
    const data=await readThird(force);
@@ -228,8 +232,14 @@
      data.accesses.splice(i,1);
    });
  }
- async function deactivateThirdPartyAccess(accessId){
-   return deleteThirdPartyAccess(accessId);
+ async function deactivateThirdPartyAccess(accessId,actor='central'){
+   if(actor!=='direction')return deleteThirdPartyAccess(accessId);
+   await writeThird(data=>{
+     const i=data.accesses.findIndex(a=>a.id===accessId);
+     if(i<0)throw Error('Ese acceso ya no existe.');
+     if(data.accesses[i].origin!=='direction')throw Error('Dirección solo puede desactivar accesos creados desde Dirección.');
+     data.accesses.splice(i,1);
+   });
  }
  async function verifyThirdParty(designId,secret,force=false){
    if(!secret)return null;
@@ -304,5 +314,5 @@
    window.addEventListener('pageshow',check);
  }
  function removalUrl(m){const u=new URL('https://github.com/'+repo+'/issues/new');u.searchParams.set('title','[Dirección] Retirar diseño '+m.id);u.searchParams.set('body','Solicito retirar de la biblioteca de dirección el diseño '+m.nombre+'.\n\nIdentificador: '+m.id+'\nVersión: '+m.updated);return u.href}
- window.FusionDistribution={version:15,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,hide,removalUrl};
+ window.FusionDistribution={version:16,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,hide,removalUrl};
 })();
