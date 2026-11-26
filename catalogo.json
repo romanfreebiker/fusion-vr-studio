@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado": "2026-11-26T10:45:16.554Z",
+  "actualizado": "2026-11-26T10:45:28.559Z",
   "modelos": [
     {
       "id": "puerta-zona-generador-abierta-mwvp69l8",
@@ -41,16 +41,6 @@
       "miniatura": "miniaturas/garaje2-mws3nfb6.jpg",
       "bytes": 15663528,
       "fecha": "2026-11-22T17:17:34.798Z"
-    },
-    {
-      "id": "barbacoa-mwrq7qbe",
-      "nombre": "barbacoa",
-      "categoria": "Viviendas",
-      "descripcion": "",
-      "archivo": "modelos/barbacoa-mwrq7qbe.glb",
-      "miniatura": "miniaturas/barbacoa-mwrq7qbe.jpg",
-      "bytes": 10885404,
-      "fecha": "2026-11-22T11:01:18.069Z"
     }
   ]
 }
