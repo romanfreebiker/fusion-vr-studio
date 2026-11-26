@@ -1,0 +1,38 @@
+name: ESKALA - mantenimiento de almacenamiento
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/cleanup_storage.py'
+      - '.github/workflows/storage-maintenance.yml'
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: eskala-storage-maintenance
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Comprobar y limpiar archivos sin referencias
+        run: python3 scripts/cleanup_storage.py --apply
+      - name: Publicar limpieza sin sobrescribir cambios concurrentes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -u -- modelos/ miniaturas/
+          if ! git diff --cached --quiet; then
+            git commit -m "ESKALA: retirar archivos huérfanos"
+            git push origin HEAD:main
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent
+          fi
