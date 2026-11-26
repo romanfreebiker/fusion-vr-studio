@@ -1,0 +1,2089 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script>if(new URLSearchParams(location.search).get("modo")==="presentacion")document.documentElement.classList.add("presentation-boot");</script>
+<title>ESKALA Taller · Visor</title><script src='taller.js'></script><style>.eskala-bar-brand{display:flex;flex-direction:column;white-space:nowrap;color:#fff;padding:4px 10px;border-right:1px solid #49c9e8}.eskala-bar-brand b{font-size:20px;letter-spacing:3px}.eskala-bar-brand small{font-size:9px;color:#9edff1}#presentationBar{border-bottom:1px solid #49c9e8}</style><style>.eskala-sign{display:block;font:italic 11px system-ui;color:#aabbd1;letter-spacing:.3px;margin-top:4px}.eskala-sign b{color:#ff6900;font-style:normal}.eskala-cube{color:#49c9e8}</style>
+<style>
+body{margin:0;background:#142034;color:#f4f7fd;font:16px system-ui}canvas{display:block}[hidden]{display:none!important}
+header{position:absolute;z-index:1;top:16px;left:16px;max-width:min(440px,calc(100vw - 72px));padding:14px 18px;background:#131e30ee;border:1px solid #42536f;border-radius:12px}
+h1{font-size:19px;margin:0 0 10px}label{display:block;margin-bottom:5px}select{font:inherit;color:inherit;background:#243652;border:1px solid #637a9d;border-radius:6px;padding:7px;max-width:100%}
+p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-variant-numeric:tabular-nums;margin-top:8px}details{margin-top:12px;border-top:1px solid #42536f;padding-top:9px}summary{cursor:pointer;font-weight:600;color:#b9d9f7}#detectedMaterials{max-height:160px;overflow:auto;font-size:12px;line-height:1.65;white-space:pre-wrap;color:#d5e0f0;margin-top:7px}
+html.presentation-boot header,body.presentation header{display:none}body.presentation #VRButton{display:none!important}body.presentation canvas{touch-action:none;cursor:grab}body.presentation canvas:active{cursor:grabbing}
+#presentationBar{position:fixed;z-index:20;top:14px;left:14px;right:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;pointer-events:none}#presentationBar>*{pointer-events:auto;background:#142034eb;border:1px solid #52647b;border-radius:9px;color:white;padding:10px 13px;font:14px system-ui}#presentationBar strong{margin-right:auto}#presentationBar button{cursor:pointer;transition:background .12s,border-color .12s,transform .12s}#presentationBar button:hover{background:#36516d;border-color:#a6c5e4}#presentationBar button:active{background:#80c8ff;color:#0b1625;transform:translateY(2px)}#presentationBar button[aria-pressed=true],#presentationBar button.confirmed{background:#2378b9;border-color:#9ed8ff;color:white;box-shadow:0 0 0 1px #9ed8ff}#presentationBar button:focus-visible{outline:2px solid #b8e6ff;outline-offset:3px}#presentationHint{position:fixed;bottom:16px;right:16px;z-index:20;background:#142034b8;color:white;border-radius:10px;padding:8px 11px;font:12px system-ui;text-align:left;pointer-events:none;display:flex;align-items:center;gap:9px;max-width:90vw}.mouseLegend{display:grid;gap:5px}.mouseLegend span{display:flex;align-items:center;gap:6px;white-space:nowrap}.mouseLegend i{width:8px;height:8px;border-radius:2px;display:inline-block}.mouseLegend small{color:#b7c9dd;font-size:11px}#presentationStatus{position:fixed;z-index:21;top:50%;left:50%;transform:translate(-50%,-50%);background:#142034e8;padding:18px;border-radius:12px;text-align:center}
+#presentationBoot{display:none}html.presentation-boot #presentationBoot:not([hidden]){display:grid;position:fixed;inset:0;z-index:100;place-items:center;background:linear-gradient(180deg,#151e26,#101820);color:#eef6ff;font:15px system-ui}
+.boot-panel{width:min(360px,78vw);text-align:center}.boot-logo{margin:0 auto 24px;width:64px;height:64px;display:grid;place-items:center;border:1px solid #7899bb;border-radius:18px;background:#213b55;box-shadow:0 14px 40px #0004}.boot-name{font-size:25px;font-weight:650;letter-spacing:.5px}.boot-sub{margin-top:7px;color:#a7bed4;font-size:13px}.boot-track{height:5px;background:#31465e;border-radius:99px;margin-top:30px;overflow:hidden}.boot-fill{height:100%;width:5%;background:#73c4ff;border-radius:99px;transition:width .25s ease}.boot-step{margin-top:15px;color:#bad0e6;font-size:13px;min-height:36px}.boot-panel button{font:inherit;color:white;background:#294766;border:1px solid #7398ba;border-radius:8px;padding:8px 14px;cursor:pointer}.boot-track.indeterminate .boot-fill{width:30%!important;animation:boot-scan 1.4s ease-in-out infinite}@keyframes boot-scan{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
+#presentationHint.touchGuide{bottom:max(10px,env(safe-area-inset-bottom));right:10px;padding:6px 9px}.touchLegend{gap:2px}.touchLegend svg{flex:none}.touchLegend span{white-space:nowrap}@media(max-width:600px){#presentationBar{top:8px;left:8px;right:8px;gap:5px}#presentationBar>*{font-size:12px;padding:7px 9px}#presentationBar strong{flex-basis:100%}#presentationHint.touchGuide{font-size:11px;background:#142034a8}}
+</style>
+<style id="eskala-boot-brand-v1">
+/* Cabecera corporativa visible incluso antes de cargar Three.js. */
+html.presentation-boot #presentationBoot:not([hidden]){grid-template-rows:auto minmax(0,1fr);place-items:stretch;align-items:stretch}
+.eskala-boot-band{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:92px;padding:7px clamp(10px,1.7vw,30px);background:#151e26;border-bottom:1px solid #00b8e5;box-shadow:0 4px 24px #02080e44}
+.eskala-boot-band img{width:min(515px,100%);height:auto;max-height:none;object-fit:contain;object-position:left center;display:block;mix-blend-mode:screen}
+.eskala-boot-label{color:#b8d4e5;white-space:nowrap;font:600 12px system-ui}
+#presentationBoot .boot-panel{align-self:center;justify-self:center;margin:0 auto 96px}
+@media(max-width:600px){.eskala-boot-band{min-height:68px;gap:5px;flex-wrap:wrap;padding:5px 8px}.eskala-boot-band img{width:min(268px,100%);max-height:none}.eskala-boot-label{display:none}#presentationBoot .boot-panel{margin-bottom:68px}}
+</style>
+<style id="eskala-presentation-brand-v1">
+/* Banda corporativa compartida para Direccion y enlaces de terceros. */
+#presentationBar{top:0;left:0;right:0;gap:7px 10px;align-items:center;padding:7px clamp(10px,1.7vw,30px);background:#151e26;border-bottom:1px solid #00b8e5;box-shadow:0 4px 24px #02080e44;pointer-events:auto}
+#presentationBar>.eskala-presentation-identity{flex:0 1 530px;min-width:200px;padding:0;border:0;border-radius:0;background:transparent}
+.eskala-presentation-identity img{display:block;width:min(510px,100%);height:auto;max-height:none;object-fit:contain;object-position:left center;mix-blend-mode:screen}
+#presentationBar>strong{flex:1 1 110px;min-width:0;margin:0;background:transparent;border:0;padding:0 5px;color:#b8d4e5;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#presentationBar>button{flex:0 0 auto;background:#10202d;border:1px solid #22647b;border-radius:9px;color:#e4f5ff;padding:10px 12px;font-size:12px;font-weight:700;min-height:38px}
+#presentationBar>button:hover{background:#12384c;border-color:#18d9ff}
+#presentationBar>button[aria-pressed=true],#presentationBar>button.confirmed{background:#12445a;border-color:#18d9ff;box-shadow:inset 0 0 0 1px #00bbeb24}
+@media(max-width:1100px){#presentationBar>.eskala-presentation-identity{flex-basis:100%;max-width:500px}#presentationBar>strong{flex:1 1 auto}#presentationBar>button{padding:8px 10px;font-size:11px}}
+@media(max-width:600px){#presentationBar{top:0;left:0;right:0;gap:5px;padding:5px 8px;justify-content:flex-start}#presentationBar>.eskala-presentation-identity{flex:1 1 100%;min-width:0;max-width:100%;padding:0}#presentationBar>.eskala-presentation-identity img{width:min(268px,100%);max-height:none}#presentationBar>strong{flex:1 1 100%;font-size:11px}#presentationBar>button{font-size:10px;padding:7px 8px;min-height:32px}}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
+</script>
+<body>
+<div id="presentationBoot" role="status" aria-live="polite">
+ <div class="eskala-boot-band" aria-label="Cabecera corporativa ESKALA">
+  <img src="./assets/eskala-corporativa.webp?v=2" width="640" height="77" alt="ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos">
+  <span class="eskala-boot-label">Preparando visor 3D</span>
+ </div>
+ <div class="boot-panel">
+  <div class="boot-sub">Visualización de proyectos 3D</div>
+  <div class="boot-track indeterminate" id="bootTrack" role="progressbar" aria-label="Carga del diseño"><div class="boot-fill" id="bootFill"></div></div>
+  <div class="boot-step" id="bootStep">Iniciando el visor…</div>
+  <button id="bootRetry" hidden onclick="location.reload()">Reintentar</button>
+ </div>
+</div>
+<script>
+window.presentationProgress=function(message,percent,error=false){
+ if(!document.documentElement.classList.contains('presentation-boot'))return;
+ const root=document.getElementById('presentationBoot'),track=document.getElementById('bootTrack'),fill=document.getElementById('bootFill');
+ if(!root)return;
+ root.hidden=false;document.getElementById('bootStep').textContent=message;
+ const known=Number.isFinite(percent);track.classList.toggle('indeterminate',!known&&!error);
+ if(known){const p=Math.max(0,Math.min(100,percent));fill.style.width=p+'%';track.setAttribute('aria-valuenow',String(Math.round(p)));}else{track.removeAttribute('aria-valuenow');}
+ document.getElementById('bootRetry').hidden=!error;track.style.visibility=error?'hidden':'visible';
+};
+window.addEventListener('error',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo iniciar el visor. Comprueba la conexión.',null,true);});
+window.addEventListener('unhandledrejection',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo cargar el proyecto.',null,true);});
+</script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=31"></script>
+<header>
+<h1>ESKALA Viewer</h1><span class="eskala-sign">by Roman · <b>62</b> SESENTA&amp;DOS</span>
+<label for="models">Diseño</label><select id="models" disabled></select>
+<label for="orientation">Orientación</label>
+<select id="orientation" disabled>
+<option value="z">Z arriba (Fusion 360)</option><option value="y">Y arriba (solo para archivos ya convertidos)</option><option value="z">Z arriba</option><option value="-z">Z invertido</option><option value="x">X arriba</option><option value="-x">X invertido</option><option value="-y">Y invertido</option>
+</select>
+<label for="appearance">Materiales</label>
+<select id="appearance" disabled><option value="library">Biblioteca realista automática</option><option value="diagnostic">Diagnóstico: resaltar madera</option><option value="original">Originales del GLB</option><option value="clear">Realzar zonas oscuras (originales)</option></select>
+<p style="font-size:12px;color:#a6bbd2">Acabados propios por nombre del material en Fusion: hormigón, madera, inox, acero y pintura.</p>
+<p id="status" role="status">Cargando el visor…</p>
+<label for="quality">Calidad de visualización</label>
+<select id="quality" aria-label="Calidad gráfica">
+ <option value="optimized">Optimizada · más FPS (VR 70%)</option>
+ <option value="balanced" selected>Equilibrada · VR 85%</option>
+ <option value="high">Alta resolución · VR 105%</option>
+</select>
+<p id="qualityNote" style="font-size:12px;color:#a6e1f6">El modo elegido se aplicará al entrar en VR.</p>
+<p id="performance" role="status">Midiendo rendimiento…</p>
+<details><summary>Materiales y cuerpos detectados</summary><div id="detectedMaterials">Se mostrarán al abrir un diseño.</div></details>
+<p>En el ordenador, arrastra para girar y usa la rueda para acercarte.</p>
+<label for="turnMode">Tipo de giro en VR</label>
+<select id="turnMode" aria-label="Tipo de giro en realidad virtual">
+<option value="smooth">Suave y continuo</option>
+<option value="snap">Por pasos de 30°</option>
+</select>
+<label for="turnSpeed">Velocidad del giro suave</label>
+<select id="turnSpeed" aria-label="Velocidad del giro en realidad virtual">
+<option value="40">Lenta · 40°/s</option>
+<option value="65" selected>Normal · 65°/s</option>
+<option value="100">Rápida · 100°/s</option>
+</select>
+<p>En VR verás ambos mandos con etiquetas: X Biblioteca, Y Config. suelo, joystick izquierdo Caminar y derecho Girar. Usa el mando izquierdo para caminar y la palanca derecha para girar. <strong>Pulsa B para salir al catálogo y cambiar de diseño; pulsa Y para ajustar el suelo dentro de VR.</strong> Apunta al ajuste y pulsa el gatillo. Si notas mareo, cambia a giro por pasos.</p>
+<a href="./quest.html">Volver a la biblioteca</a>
+</header>
+<script>
+window.__vrBootStarted=false;
+window.__vrBootFailure='';
+window.addEventListener('error',event=>{
+ const detail=event.message||'Fallo al descargar librerías';
+ window.__vrBootFailure=detail;
+ const el=document.getElementById('status');
+ if(el)el.textContent='Error de inicio: '+detail+' · V0.24';
+});
+window.addEventListener('unhandledrejection',event=>{
+ const detail=String(event.reason?.message||event.reason||'Error no identificado');
+ window.__vrBootFailure=detail;
+ const el=document.getElementById('status');
+ if(el)el.textContent='Error al cargar: '+detail+' · V0.24';
+});
+window.addEventListener('DOMContentLoaded',()=>{
+ const el=document.getElementById('status');
+ if(!el)return;
+ const label=document.createElement('div');
+ label.textContent='VR Studio 0.24 · diagnóstico de arranque';
+ label.style.cssText='position:fixed;right:12px;bottom:12px;z-index:9;background:#18344a;color:#9ef3e2;padding:8px;border-radius:7px;font:14px system-ui';
+ if(new URLSearchParams(location.search).get('modo')!=='presentacion')document.body.append(label);
+ setTimeout(()=>{
+   if(!window.__vrBootStarted && !window.__vrBootFailure){
+     el.textContent='El motor 3D no inició. Comprueba si el navegador permite cargar módulos Three.js. V0.24';
+     window.presentationProgress?.('El motor 3D no ha podido iniciarse. Comprueba la conexión.',null,true);
+   }
+ },9000);
+});
+</script>
+<script type="module">
+window.__vrBootStarted=true;
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {VRButton} from 'three/addons/webxr/VRButton.js';
+import {XRControllerModelFactory} from 'three/addons/webxr/XRControllerModelFactory.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {Octree} from 'three/addons/math/Octree.js';
+import {Capsule} from 'three/addons/math/Capsule.js';
+
+const params=new URLSearchParams(location.search), access=params.get('acceso'), shareSecret=params.get('share')||'';
+const presentation=true;let distributedModel=null;
+FusionDistribution.configureStoredAdmin?.();
+document.body.classList.toggle('presentation',presentation);
+const status=document.querySelector('#status'), models=document.querySelector('#models');
+const orientation=document.querySelector('#orientation'), appearance=document.querySelector('#appearance');
+const detectedMaterials=document.querySelector('#detectedMaterials');
+const quality=document.querySelector('#quality');
+const qualityNote=document.querySelector('#qualityNote');
+const performanceLabel=document.querySelector('#performance');
+const turnMode=document.querySelector('#turnMode');
+const turnSpeed=document.querySelector('#turnSpeed');
+// Guardar únicamente preferencias de confort en este navegador.
+try{
+ const selectedMode=localStorage.getItem('fusionvr-turn-mode');
+ const selectedSpeed=localStorage.getItem('fusionvr-turn-speed');
+ if(['smooth','snap'].includes(selectedMode))turnMode.value=selectedMode;
+ if(['40','65','100'].includes(selectedSpeed))turnSpeed.value=selectedSpeed;
+}catch{}
+turnMode.addEventListener('change',()=>{
+  smoothTurnAxis=0;canTurn=true;
+  try{localStorage.setItem('fusionvr-turn-mode',turnMode.value)}catch{}
+});
+turnSpeed.addEventListener('change',()=>{
+  try{localStorage.setItem('fusionvr-turn-speed',turnSpeed.value)}catch{}
+});
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0xa9bdcf);
+const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,presentation?.002:.03,500);
+const rig=new THREE.Group();
+rig.add(camera);
+scene.add(rig);
+let renderer;
+try {
+  renderer=new THREE.WebGLRenderer({antialias:true});
+} catch (error) {
+  status.textContent='Este navegador tiene WebGL desactivado. Abre el visor en el navegador de las Quest 2.';
+  throw error;
+}
+renderer.setSize(innerWidth,innerHeight);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.00;
+// El zoom en pantallas HiDPI puede forzar muchos píxeles por fotograma.
+// Predeterminado a 1x, sin reducir calidad de los mapas de materiales.
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,1));
+renderer.xr.enabled=true;
+renderer.xr.setReferenceSpaceType('local-floor');
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+// Perfil de prueba Quest 2: controla el coste de renderizado estéreo.
+// Debe establecerse ANTES de entrar en la sesión WebXR.
+// El factor real se establece por applyQuality() antes de iniciar WebXR.
+renderer.xr.setFramebufferScaleFactor(.85);
+// Reflejos PBR suaves: el inoxidable y el acero no parecen negros sin entorno.
+const pmrem=new THREE.PMREMGenerator(renderer);
+const room=new RoomEnvironment();
+scene.environment=pmrem.fromScene(room,.04).texture;
+scene.environmentIntensity=.88;
+room.dispose();pmrem.dispose();
+document.body.append(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);
+let mouseButtons=0, wheelDistance=0, yaw=0,pitch=0, walkingMode=false, verticalDrag=false, verticalLastY=0, panLastX=0, orbitZoomPending=0;
+let walkTargetYaw=0,walkTargetPitch=0,walkSpeed=0,walkSideSpeed=0;
+const keys=new Set();
+let headDrag=false,headX=0,headY=0;
+const touchPoints=new Map();let touchSnapshot=null;
+let touchGuide=matchMedia('(pointer: coarse)').matches||(navigator.maxTouchPoints>0&&matchMedia('(hover: none)').matches);
+const headEuler=new THREE.Euler(0,0,0,'YXZ');
+let presentationStatus,presentationTitle,presentationHint,orbitButton,walkButton;
+if(presentation){
+ renderer.xr.enabled=false;
+ controls.enabled=true;
+ controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;controls.mouseButtons.RIGHT=null;controls.mouseButtons.MIDDLE=THREE.MOUSE.PAN;
+ controls.touches.ONE=THREE.TOUCH.ROTATE;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;
+ const bar=document.createElement('div');bar.id='presentationBar';
+ presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
+ function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
+ button('Mis trabajos',()=>location.assign(EskalaTaller.link(location.hash.slice(1))));
+ const measureBtn=button('Medir',()=>toggleMeasure(measureBtn));button('Borrar cotas',()=>clearMeasures());
+ orbitButton=button('Vista 3D',()=>setPresentationMode(false));walkButton=button('Recorrer a pie',()=>setPresentationMode(true));
+ orbitButton.setAttribute('aria-pressed','true');walkButton.setAttribute('aria-pressed','false');
+ button('Inicio',()=>desktopView());
+ const full=button('Pantalla completa',()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{});});
+ document.addEventListener('fullscreenchange',()=>{full.setAttribute('aria-pressed',String(!!document.fullscreenElement));full.textContent=document.fullscreenElement?'Salir de pantalla completa':'Pantalla completa';});
+ if(access==='director'){
+   button('Mi biblioteca',()=>location.assign('direccion.html?v=125'));
+   function askShareDetails(){
+     return new Promise(resolve=>{
+       const overlay=document.createElement('div');Object.assign(overlay.style,{position:'fixed',inset:'0',zIndex:'100000',background:'#07101bd9',display:'grid',placeItems:'center',padding:'18px'});
+       const box=document.createElement('div');Object.assign(box.style,{width:'min(420px,92vw)',background:'#142236',border:'1px solid #42607d',borderRadius:'14px',padding:'18px',color:'#eef7ff',boxShadow:'0 18px 55px #0008',font:'14px system-ui'});
+       const title=document.createElement('h3');title.textContent='Compartir por WhatsApp';title.style.margin='0 0 14px';
+       const nameLabel=document.createElement('label');nameLabel.textContent='Nombre del destinatario (opcional)';Object.assign(nameLabel.style,{display:'grid',gap:'6px'});
+       const name=document.createElement('input');name.type='text';name.maxLength=80;name.placeholder='Ej. Juan, Proveedor, Cliente…';Object.assign(name.style,{width:'100%',boxSizing:'border-box',padding:'10px',borderRadius:'8px',border:'1px solid #4a6380',background:'#0f1a29',color:'#fff'});nameLabel.append(name);
+       const timeLabel=document.createElement('label');timeLabel.textContent='Tiempo de exposición (horas)';Object.assign(timeLabel.style,{display:'grid',gap:'6px',marginTop:'12px'});
+       const hours=document.createElement('input');hours.type='number';hours.min='1';hours.max='720';hours.step='0.5';hours.placeholder='24';Object.assign(hours.style,{width:'100%',boxSizing:'border-box',padding:'10px',borderRadius:'8px',border:'1px solid #4a6380',background:'#0f1a29',color:'#fff'});timeLabel.append(hours);
+       const note=document.createElement('div');note.textContent='Si dejas el tiempo vacío, el enlace durará 24 horas.';Object.assign(note.style,{fontSize:'12px',color:'#aabbd1',marginTop:'8px'});
+       const actions=document.createElement('div');Object.assign(actions.style,{display:'flex',justifyContent:'flex-end',gap:'8px',marginTop:'16px'});
+       const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Cancelar';
+       const send=document.createElement('button');send.type='button';send.textContent='Continuar a WhatsApp';
+       for(const b of [cancel,send])Object.assign(b.style,{padding:'9px 12px',borderRadius:'8px',border:'1px solid #4a6380',background:'#18304a',color:'#fff',cursor:'pointer'});
+       function close(value){overlay.remove();resolve(value)}
+       cancel.onclick=()=>close(null);overlay.onclick=e=>{if(e.target===overlay)close(null)};
+       send.onclick=()=>{const raw=String(hours.value||'').trim();const value=raw?Number(raw.replace(',','.')):24;if(!Number.isFinite(value)||value<=0||value>720){alert('Introduce un tiempo entre 1 hora y 720 horas.');hours.focus();return}close({recipient:String(name.value||'').trim().slice(0,80),hours:value});};
+       actions.append(cancel,send);box.append(title,nameLabel,timeLabel,note,actions);overlay.append(box);document.body.append(overlay);name.focus();
+     });
+   }
+   const share=button('Copiar enlace para terceros',async()=>{if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}share.disabled=true;try{const url=await FusionDistribution.share(params.get('diseno'),'direction');try{await navigator.clipboard.writeText(url);share.textContent='¡Enlace copiado!';share.classList.add('confirmed');setTimeout(()=>{share.textContent='Copiar enlace para terceros';share.classList.remove('confirmed')},1600)}catch{prompt('Enlace individual',url)}}catch(e){alert(e.message)}finally{share.disabled=false}});
+   button('WhatsApp',async()=>{
+     if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}
+     const details=await askShareDetails();if(!details)return;
+     try{await FusionDistribution.shareWhatsApp(params.get('diseno'),distributedModel.meta.nombre,details.hours,'direction',details.recipient);}
+     catch(e){alert(e.message)}
+   });
+   button('Correo',async()=>{
+     if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}
+     try{await FusionDistribution.shareEmail(params.get('diseno'),distributedModel.meta.nombre,'direction');}
+     catch(e){alert(e.message)}
+   });
+   button('Accesos terceros',async()=>{
+     if(!distributedModel)return;
+     let rows;
+     try{rows=await FusionDistribution.listThirdParty(params.get('diseno'),true,'direction')}catch(e){alert(e.message);return}
+     const panel=document.createElement('div');
+     Object.assign(panel.style,{position:'fixed',inset:'0',zIndex:'99999',background:'#07101be8',display:'grid',placeItems:'center',padding:'20px'});
+     const card=document.createElement('div');
+     Object.assign(card.style,{width:'min(720px,94vw)',maxHeight:'80vh',overflow:'auto',background:'#142236',border:'1px solid #42607d',borderRadius:'14px',padding:'18px',color:'#eef7ff',font:'14px system-ui'});
+     const title=document.createElement('h2');title.textContent='Accesos a terceros · '+distributedModel.meta.nombre;card.append(title);
+     const close=document.createElement('button');close.textContent='Cerrar';close.onclick=()=>panel.remove();card.append(close);
+     const list=document.createElement('div');list.style.marginTop='14px';card.append(list);panel.append(card);document.body.append(panel);
+     async function draw(){
+       rows=await FusionDistribution.listThirdParty(params.get('diseno'),true,'direction');list.replaceChildren();
+       if(!rows.length){const p=document.createElement('p');p.textContent='No hay destinatarios registrados.';list.append(p);return}
+       for(const row of rows){
+         const line=document.createElement('div');Object.assign(line.style,{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap',padding:'10px 0',borderBottom:'1px solid #31465e'});
+         const originLabel=row.origin==='direction'?'Desde Dirección':row.origin==='central'?'Desde Central':'Origen anterior';
+         const label=document.createElement('span');label.textContent=row.recipient+' · '+originLabel+' · ACTIVO · '+(row.remaining||'');label.style.flex='1';line.append(label);
+         const disable=document.createElement('button');disable.textContent='Desactivar a terceros';disable.onclick=async()=>{try{await FusionDistribution.deactivateThirdPartyAccess(row.id,'direction');await draw()}catch(e){alert(e.message)}};line.append(disable);
+         list.append(line);
+       }
+     }
+     draw().catch(e=>alert(e.message));
+   });
+ }
+
+ document.body.append(bar);
+ presentationHint=document.createElement('div');presentationHint.id='presentationHint';document.body.append(presentationHint);updateMouseGuide();
+ presentationStatus=document.getElementById('presentationBoot');window.presentationProgress('Preparando el proyecto…',null);
+ const canvas=renderer.domElement;
+ // Adaptación al dispositivo real, incluso en equipos híbridos.
+ canvas.addEventListener('pointerdown',e=>{
+   const next=e.pointerType==='touch';
+   if((next||e.pointerType==='mouse')&&next!==touchGuide){touchGuide=next;updateMouseGuide();}
+ },true);
+ function snapshotTouch(){
+   const pts=[...touchPoints.values()];if(!pts.length)return null;
+   if(pts.length===1)return {count:1,x:pts[0].x,y:pts[0].y,span:0};
+   return {count:2,x:(pts[0].x+pts[1].x)/2,y:(pts[0].y+pts[1].y)/2,span:Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y)};
+ }
+ canvas.addEventListener('pointerdown',e=>{
+   if(!walkingMode||e.pointerType!=='touch')return;
+   e.preventDefault();e.stopImmediatePropagation();touchPoints.set(e.pointerId,{x:e.clientX,y:e.clientY});touchSnapshot=snapshotTouch();canvas.setPointerCapture(e.pointerId);
+ },true);
+ canvas.addEventListener('pointermove',e=>{
+   if(!walkingMode||e.pointerType!=='touch'||!touchPoints.has(e.pointerId))return;
+   e.preventDefault();e.stopImmediatePropagation();
+   touchPoints.set(e.pointerId,{x:e.clientX,y:e.clientY});const next=snapshotTouch(),prev=touchSnapshot;touchSnapshot=next;
+   if(!prev||prev.count!==next.count)return;
+   const dx=next.x-prev.x,dy=next.y-prev.y;
+   if(next.count===1){
+     walkTargetYaw-=dx*.004;walkTargetPitch=THREE.MathUtils.clamp(walkTargetPitch-dy*.004,-Math.PI/2+.01,Math.PI/2-.01);
+   }else{
+     const speed=Math.max(.006,Math.min(.035,distance*.0015));
+     const side=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+     const front=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
+     const shift=side.multiplyScalar(-dx*speed).addScaledVector(front,dy*speed);
+     camera.position.add(shift);controls.target.add(shift);
+     orbitZoomPending=THREE.MathUtils.clamp(orbitZoomPending-(next.span-prev.span)*speed,-distance*2,distance*2);
+     lockEyeHeight();
+   }
+ },true);
+ function endTouch(e){if(!touchPoints.has(e.pointerId))return;e.stopImmediatePropagation();touchPoints.delete(e.pointerId);touchSnapshot=snapshotTouch();}
+ for(const type of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(type,endTouch,true);
+ // Modo a pie: girar únicamente la cabeza, sin mover la cámara.
+ canvas.addEventListener('pointerdown',e=>{
+   if(!walkingMode||e.pointerType==='touch'||e.button!==0)return;
+   e.preventDefault();e.stopImmediatePropagation();headDrag=true;headX=e.clientX;headY=e.clientY;canvas.setPointerCapture(e.pointerId);
+ },true);
+ canvas.addEventListener('pointermove',e=>{
+   if(!walkingMode||e.pointerType==='touch'||!headDrag)return;
+   if(!(e.buttons&1)){headDrag=false;return;}
+   e.preventDefault();e.stopImmediatePropagation();
+   walkTargetYaw-=(e.clientX-headX)*.004;
+   walkTargetPitch=THREE.MathUtils.clamp(walkTargetPitch-(e.clientY-headY)*.004,-Math.PI/2+.01,Math.PI/2-.01);
+   headX=e.clientX;headY=e.clientY;
+ },true);
+ const stopHead=e=>{if(!headDrag)return;if(e.type==='pointerup'&&e.button!==0)return;headDrag=false;};
+ for(const type of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(type,stopHead,true);
+ // Interceptar antes de OrbitControls: zoom lineal y paneo libre horizontal/vertical.
+ canvas.addEventListener('pointerdown',e=>{
+   if(e.pointerType==='touch'||(e.button!==2&&!(walkingMode&&e.button===1)))return;
+   e.preventDefault();e.stopImmediatePropagation();verticalDrag=true;verticalLastY=e.clientY;panLastX=e.clientX;canvas.setPointerCapture(e.pointerId);
+ },true);
+ canvas.addEventListener('pointermove',e=>{
+   if(e.pointerType==='touch'||!verticalDrag)return;
+   if(!(e.buttons&(walkingMode?6:2))){verticalDrag=false;return;}
+   e.preventDefault();e.stopImmediatePropagation();
+   const dx=e.clientX-panLastX,dy=e.clientY-verticalLastY;panLastX=e.clientX;verticalLastY=e.clientY;
+   const speed=Math.max(.012,distance*.0025);
+   camera.updateMatrixWorld(true);
+   const horizontal=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
+   horizontal.y=0;horizontal.normalize();
+   const shift=horizontal.multiplyScalar(-dx*speed);
+   shift.y=dy*speed;
+   camera.position.add(shift);controls.target.add(shift);
+   if(walkingMode){lockEyeHeight();}else controls.update();
+ },true);
+ const stopVertical=e=>{if(!verticalDrag)return;verticalDrag=false;if(e.type==='pointerup')e.stopImmediatePropagation();};
+ canvas.addEventListener('pointerup',stopVertical,true);canvas.addEventListener('pointercancel',stopVertical,true);canvas.addEventListener('lostpointercapture',stopVertical,true);
+ canvas.addEventListener('wheel',e=>{
+   e.preventDefault();e.stopImmediatePropagation();
+   const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?innerHeight:1);
+   const unit=Math.max(.12,distance*.025);
+   orbitZoomPending=THREE.MathUtils.clamp(orbitZoomPending+delta/100*unit,-distance*2,distance*2);
+ },{capture:true,passive:false});
+ canvas.addEventListener('contextmenu',e=>e.preventDefault());
+ addEventListener('blur',()=>{headDrag=false;verticalDrag=false;orbitZoomPending=0;touchPoints.clear();touchSnapshot=null;});
+ new MutationObserver(()=>{const message=status.textContent;if(/^(No se pudo|Error|El motor)/i.test(message))window.presentationProgress(message,null,true);}).observe(status,{childList:true,characterData:true,subtree:true});
+}
+controls.enableDamping=true;
+controls.dampingFactor=presentation?.25:.10;
+controls.zoomSpeed=.62;
+controls.minDistance=.15;
+controls.maxDistance=100;
+// Calidad VR real: más escala significa más píxeles en AMBOS ojos.
+// WebXR no permite cambiar el tamaño del framebuffer durante una sesión activa.
+const qualityProfiles={
+  optimized:{xrScale:.70,foveation:.80,desktopScale:1},
+  balanced:{xrScale:.85,foveation:.50,desktopScale:1.25},
+  high:{xrScale:1.05,foveation:.15,desktopScale:1.5}
+};
+let activeQuality=null;
+try{
+ const saved=localStorage.getItem('fusionvr-quality');
+ if(qualityProfiles[saved])quality.value=saved;
+}catch{}
+function applyQuality(){
+  const profile=qualityProfiles[quality.value]||qualityProfiles.balanced;
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1,profile.desktopScale));
+  if(!renderer.xr.isPresenting){
+    renderer.setSize(innerWidth,innerHeight);
+    renderer.xr.setFramebufferScaleFactor(profile.xrScale);
+    qualityNote.textContent='Modo VR preparado: '+quality.value+' · escala '+Math.round(profile.xrScale*100)+'%. Se aplica al entrar en VR.';
+  }else{
+    qualityNote.textContent='Para cambiar la resolución VR, sal de VR y vuelve a entrar. El cambio no se aplica durante la sesión.';
+  }
+  try{localStorage.setItem('fusionvr-quality',quality.value)}catch{}
+}
+quality.addEventListener('change',applyQuality);
+applyQuality();
+// Base diferenciada de los materiales CAD: azul profundo y cuadrícula
+// antialias con desvanecimiento progresivo. Las líneas finas desaparecen
+// antes de llegar al horizonte para evitar el moiré ("fila de hormigas").
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.ShaderMaterial({
+  lights:true,
+  uniforms:{
+    ...THREE.UniformsUtils.clone(THREE.UniformsLib.lights),
+    floorShadowsReady:{value:false}
+  },
+  vertexShader:`
+    #include <common>
+    #include <shadowmap_pars_vertex>
+    varying vec3 vGridWorld;
+    void main(){
+      vec4 worldPosition=modelMatrix*vec4(position,1.0);
+      vGridWorld=worldPosition.xyz;
+      vec3 transformedNormal=normalMatrix*normal;
+      #include <shadowmap_vertex>
+      gl_Position=projectionMatrix*viewMatrix*worldPosition;
+    }`,
+  fragmentShader:`
+    #include <common>
+    #include <packing>
+    #include <bsdfs>
+    #include <lights_pars_begin>
+    #include <shadowmap_pars_fragment>
+    #include <shadowmask_pars_fragment>
+    uniform bool floorShadowsReady;
+    varying vec3 vGridWorld;
+    float lineCoverage(vec2 uv,float width){
+      vec2 cells=abs(fract(uv-.5)-.5);
+      vec2 fw=max(fwidth(uv),vec2(.0001));
+      vec2 a=1.0-smoothstep(vec2(width),vec2(width)+fw*1.25,cells);
+      return max(a.x,a.y);
+    }
+    void main(){
+      float distanceToEye=distance(vGridWorld.xz,cameraPosition.xz);
+      float fade=1.0-smoothstep(5.0,19.0,distanceToEye);
+      // Atenuar las celdas que en pantalla ya miden menos de dos píxeles.
+      vec2 fine=vGridWorld.xz*2.0;
+      float fineFade=1.0-smoothstep(.20,.55,max(fwidth(fine.x),fwidth(fine.y)));
+      float minor=lineCoverage(fine,.018)*fineFade;
+      float major=lineCoverage(vGridWorld.xz*.5,.012);
+      // Inversión de prueba: fondo azul luminoso y líneas oscuras.
+      vec3 base=vec3(.36,.59,.80);
+      vec3 color=mix(base,vec3(.075,.145,.235),max(minor*.45,major*.60)*fade);
+      // Sombra y cuadrícula comparten fragmento y profundidad.
+      if(floorShadowsReady){
+        color=mix(color,vec3(.082,.157,.239),(1.0-getShadowMask())*.32);
+      }
+      gl_FragColor=vec4(color,1.0);
+    }`,
+  side:THREE.DoubleSide,depthWrite:true
+}));
+ground.rotation.x=-Math.PI/2;
+ground.position.y=-.012;
+ground.receiveShadow=true;
+scene.add(ground);
+
+scene.add(new THREE.HemisphereLight(0xf4f8ff,0x8a929c,.92));
+const sun=new THREE.DirectionalLight(0xfff4e7,2.05);
+const sunDirection=new THREE.Vector3(8,16,10).normalize();
+sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.bias=-.00012;
+sun.shadow.normalBias=.008;
+sun.shadow.autoUpdate=false;
+scene.add(sun,sun.target);
+const fill=new THREE.DirectionalLight(0xe3efff,.42);
+fill.position.set(-7,6,-8);
+scene.add(fill);
+
+function fitModelShadows(size){
+  // Ajustar el mapa al diseño centrado y a su proyección sobre el suelo.
+  const margin=Math.max(.18,size.length()*.035);
+  const minX=-size.x/2-size.y*sunDirection.x/sunDirection.y-margin;
+  const maxX=size.x/2+margin;
+  const minZ=-size.z/2-size.y*sunDirection.z/sunDirection.y-margin;
+  const maxZ=size.z/2+margin;
+
+  // Usar el mismo volumen para encuadrar el modelo y toda su sombra.
+  sun.target.position.set(0,size.y/2,0);
+  sun.position.copy(sun.target.position).addScaledVector(sunDirection,size.length()*2+1);
+  sun.target.updateMatrixWorld();
+  sun.updateMatrixWorld();
+  sun.shadow.updateMatrices(sun);
+  const shadowCamera=sun.shadow.camera;
+  const lightBounds=new THREE.Box3();
+  const corner=new THREE.Vector3();
+  for(const x of [minX,maxX]){
+    for(const y of [ground.position.y,size.y]){
+      for(const z of [minZ,maxZ]){
+        lightBounds.expandByPoint(corner.set(x,y,z).applyMatrix4(shadowCamera.matrixWorldInverse));
+      }
+    }
+  }
+  shadowCamera.left=lightBounds.min.x-margin;
+  shadowCamera.right=lightBounds.max.x+margin;
+  shadowCamera.bottom=lightBounds.min.y-margin;
+  shadowCamera.top=lightBounds.max.y+margin;
+  shadowCamera.near=Math.max(.01,-lightBounds.max.z-margin);
+  shadowCamera.far=-lightBounds.min.z+margin;
+  shadowCamera.updateProjectionMatrix();
+  // Los diseños son estáticos. Orbitar o caminar no invalida el mapa.
+  sun.shadow.needsUpdate=true;
+  ground.material.uniforms.floorShadowsReady.value=true;
+}
+const loader=new GLTFLoader();
+// Biblioteca propia de materiales, sin adivinar materiales según la posición de la pieza.
+const surfaceTextures=new Map();
+
+function libraryTexture(canvas,isColor,tileMeters=1,tileMetersX=null,tileMetersY=null){
+  const texture=new THREE.CanvasTexture(canvas);
+  texture.wrapS=texture.wrapT=THREE.RepeatWrapping;
+  const tx=tileMetersX??tileMeters,ty=tileMetersY??tileMeters;
+  texture.repeat.set(1/tx,1/ty);
+  texture.flipY=false;
+  texture.colorSpace=isColor?THREE.SRGBColorSpace:THREE.NoColorSpace;
+  texture.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),4);
+  texture.needsUpdate=true;
+  return texture;
+}
+// Para revestimientos grandes, proyectar las UV con metros reales: 8 x 2 m por atlas.
+// Sólo se remapean caras de panelado; no se toca la geometría ni la física de otras piezas.
+function projectCladdingUV(mesh){
+  const source=mesh.geometry;
+  if(!source?.attributes?.position)return false;
+  const triangles=(source.index?source.index.count:source.attributes.position.count)/3;
+  if(triangles>18000)return false; // Límite de seguridad para Quest 2.
+  const geo=source.index?source.toNonIndexed():source.clone();
+  const pos=geo.getAttribute('position'),uv=new Float32Array(pos.count*2);
+  const a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3();
+  const ab=new THREE.Vector3(),ac=new THREE.Vector3(),normal=new THREE.Vector3();
+  const world=new THREE.Vector3();
+  mesh.updateMatrixWorld(true);
+  for(let i=0;i<pos.count;i+=3){
+    a.fromBufferAttribute(pos,i).applyMatrix4(mesh.matrixWorld);
+    b.fromBufferAttribute(pos,i+1).applyMatrix4(mesh.matrixWorld);
+    c.fromBufferAttribute(pos,i+2).applyMatrix4(mesh.matrixWorld);
+    ab.subVectors(b,a);ac.subVectors(c,a);
+    normal.crossVectors(ab,ac);
+    // En paredes, U es horizontal y V es altura; las caras superiores
+    // mantienen proyección plana. Las juntas nunca dependen del UV de Fusion.
+    const axis=Math.abs(normal.z)>=Math.abs(normal.x)?'x':'z';
+    const top=Math.abs(normal.y)>Math.max(Math.abs(normal.x),Math.abs(normal.z));
+    for(let j=0;j<3;j++){
+      world.fromBufferAttribute(pos,i+j).applyMatrix4(mesh.matrixWorld);
+      uv[2*(i+j)]=(top?world.x:axis==='x'?world.x:world.z)/8;
+      uv[2*(i+j)+1]=(top?world.z:world.y)/2;
+    }
+  }
+  geo.setAttribute('uv',new THREE.BufferAttribute(uv,2));
+  mesh.geometry=geo;
+  return true;
+}
+function isCladdingPanel(mesh){
+  const materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];
+  if(materials.length!==1||!mesh.geometry?.attributes?.position)return false;
+  const kind=globalThis.FusionMaterialLib?.identify(materials[0]?.name);
+  if(!['cladding','pine','wood','oak'].includes(kind))return false;
+  // Sólo dimensiones de la pieza, no nombre del ensamblaje.
+  const box=new THREE.Box3().setFromObject(mesh);
+  const size=box.getSize(new THREE.Vector3());
+  // Incluir paneles estrechos de pared y barandillas macizas; excluir
+  // montantes finos, perfiles y peldaños por sus dimensiones.
+  return size.y>=.65&&Math.max(size.x,size.z)>=.65&&Math.min(size.x,size.z)<=.45;
+}
+function isIndividualStairPiece(mesh){
+  // Peldaño o zanca individual, nunca el ensamblaje entero.
+  return /(peldano|stair.?tread|tread|riser|contrahuella|zanca)/
+    .test((mesh.name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase());
+}
+function materialFromLibrary(material,forcedKind=null,uvScale='standard'){
+  const lib=globalThis.FusionMaterialLib,kind=forcedKind||lib?.identify(material?.name);
+  if(!kind)return null;
+  const cacheKey=kind+(['anthracite','pineBoard'].includes(kind)&&uvScale==='cad'?'@fusion-cad-uv':'');
+  let maps=surfaceTextures.get(cacheKey);
+  if(!maps){
+    const images=lib.getMaps(kind);
+    if(!images)return null;
+    const cladding=kind==='cladding';
+    const tex=(canvas,isColor)=>{
+      const result=cladding
+        ?libraryTexture(canvas,isColor,1)
+        :libraryTexture(canvas,isColor,images.tileMeters||1,images.tileMetersX,images.tileMetersY);
+      // Fusion exporta algunos UV en centímetros (0..400 para una pieza de 4 m).
+      // Repetir el mapa cada 1 UV produce centenares de micro-repeticiones:
+      // el satinado se ve liso o mate. Corregimos sólo esa clase de UV.
+      if(kind==='anthracite'&&uvScale==='cad')result.repeat.set(.012,.012);
+      if(kind==='pineBoard'&&uvScale==='cad')result.repeat.set(.016,.016);
+      return result;
+    };
+    maps={
+      diffuse:tex(images.color,true),
+      normal:tex(images.normal,false),
+      rough:tex(images.roughness,false),
+      config:images
+    };
+    surfaceTextures.set(cacheKey,maps);
+  }
+  const p=maps.config;
+  const color=(kind==='paint'||kind==='plastic')&&material?.color?material.color.clone():new THREE.Color(0xffffff);
+  const strength=kind==='anthracite'?.16:kind==='cladding'?.92:kind==='concrete'?1.0:
+    ['pine','oak','wood'].includes(kind)?1.12:
+    ['stainless','steel','blacksteel'].includes(kind)?.42:.6;
+  const MaterialClass=kind==='anthracite'?THREE.MeshPhysicalMaterial:THREE.MeshStandardMaterial;
+  const replacement=new MaterialClass({
+    name:material.name,
+    color,
+    map:maps.diffuse,
+    normalMap:maps.normal,
+    normalMapType:THREE.TangentSpaceNormalMap,
+    normalScale:new THREE.Vector2(strength,strength),
+    roughnessMap:maps.rough,
+    metalness:p.metalness,
+    roughness:1,
+    envMapIntensity:kind==='anthracite'?1.30:1,
+    ...(kind==='anthracite'?{clearcoat:.32,clearcoatRoughness:.30}:{}),
+    side:THREE.DoubleSide,
+    transparent:material.transparent,
+    opacity:material.opacity??1
+  });
+  replacement.userData.fusionVrPreset=kind;
+  replacement.userData.fusionUvScale=uvScale;
+  return replacement;
+}
+function applyLibrary(root){
+  const substitutions=new Map();
+  let applied=0,panels=0,anthraciteMeshes=0,anthraciteCadUvMeshes=0;
+  root.updateMatrixWorld(true);
+  root.traverse(mesh=>{
+    if(!mesh.isMesh)return;
+    const stairPiece=isIndividualStairPiece(mesh);
+    const cladding=!stairPiece&&isCladdingPanel(mesh)&&projectCladdingUV(mesh);
+    if(cladding)panels++;
+    const change=original=>{
+      if(!original)return original;
+      const originalKind=globalThis.FusionMaterialLib?.identify(original.name);
+      // Peldaños sin juntas de fachada, los paneles mantienen el atlas aprobado.
+      const kind=cladding?'cladding':
+        stairPiece&&['pine','wood','cladding'].includes(originalKind)?'pineBoard':
+        originalKind==='cladding'?'pine':originalKind;
+      let uvScale='standard';
+      if(kind==='anthracite'||kind==='pineBoard'){
+        if(kind==='anthracite')anthraciteMeshes++;
+        const uv=mesh.geometry?.getAttribute('uv');
+        if(uv?.count){
+          // Usar los metadatos del buffer si existen, sin iterar todo el modelo.
+          // Detectar un rango excesivo, característico del mapeado CAD.
+          let minU=Infinity,maxU=-Infinity,minV=Infinity,maxV=-Infinity;
+          const step=Math.max(1,Math.floor(uv.count/512));
+          for(let i=0;i<uv.count;i+=step){
+            const u=uv.getX(i),v=uv.getY(i);
+            minU=Math.min(minU,u);maxU=Math.max(maxU,u);
+            minV=Math.min(minV,v);maxV=Math.max(maxV,v);
+          }
+          if(Math.max(maxU-minU,maxV-minV)>32){
+            uvScale='cad';if(kind==='anthracite')anthraciteCadUvMeshes++;
+          }
+        }
+      }
+      const key=(kind||'unknown')+':'+uvScale+':'+original.uuid;
+      if(substitutions.has(key))return substitutions.get(key);
+      const next=materialFromLibrary(original,kind,uvScale);
+      substitutions.set(key,next||original);
+      if(next)applied++;
+      return next||original;
+    };
+    mesh.material=Array.isArray(mesh.material)?mesh.material.map(change):change(mesh.material);
+  });
+  root.userData.fusionVrCladdingPanels=panels;
+  root.userData.fusionVrAnthraciteMeshes=anthraciteMeshes;
+  root.userData.fusionVrAnthraciteCadUvMeshes=anthraciteCadUvMeshes;
+  return applied;
+}
+// Fusion exporta algunos diseños con Z vertical; glTF convencional usa Y vertical.
+function inferUpAxis(root){
+ const box=new THREE.Box3().setFromObject(root,true);
+ if(box.isEmpty())return 'y';
+ const size=box.getSize(new THREE.Vector3());
+ const zFloor=Math.abs(box.min.z)<Math.max(.03,size.z*.07)&&box.max.z>Math.max(.15,size.z*.4);
+ const yFloor=Math.abs(box.min.y)<Math.max(.03,size.y*.07)&&box.max.y>Math.max(.15,size.y*.4);
+ const yCentered=box.min.y<-size.y*.20&&box.max.y>size.y*.20;
+ const zCentered=box.min.z<-size.z*.20&&box.max.z>size.z*.20;
+ return zFloor&&yCentered&&!yFloor?'z':yFloor&&zCentered&&!zFloor?'y':'y';
+}
+// Este informe se crea desde los nombres reales del GLB, válido para cualquier diseño.
+function inspectMaterials(root){
+ const groups=new Map(),unknown=new Set(),lib=globalThis.FusionMaterialLib;
+ root.traverse(mesh=>{
+  if(!mesh.isMesh)return;
+  const names=Array.isArray(mesh.material)?mesh.material:[mesh.material];
+  const tris=mesh.geometry?.index?.count?mesh.geometry.index.count/3:(mesh.geometry?.attributes.position?.count||0)/3;
+  const perMaterial=tris/Math.max(names.length,1);
+  for(const mat of names){
+    const name=mat?.name?.trim()||'(sin nombre)';
+    const kind=lib?.identify(name)||null;
+    const key=name+'\x00'+(kind||'');
+    let group=groups.get(key);
+    if(!group){group={name,kind,triangles:0,bodies:new Set()};groups.set(key,group)}
+    group.triangles+=perMaterial;
+    group.bodies.add(mesh.name||'(cuerpo sin nombre)');
+    if(!kind)unknown.add(name);
+  }
+ });
+ const items=[...groups.values()].sort((a,b)=>b.triangles-a.triangles);
+ const lines=items.map(item=>'• '+item.name+' → '+(item.kind||'Sin equivalencia')+' · '+Math.round(item.triangles)+' triángulos · '+item.bodies.size+' cuerpo(s)');
+ if(unknown.size)lines.push('⚠ Sin identificar: '+[...unknown].join(', '));
+ return {items,lines};
+}
+function applyMaterialDiagnostic(root){
+ const palette={pine:0xffc44d,oak:0xf6a53b,wood:0xeaa44e,concrete:0x7996b2,steel:0x8cbbd2,blacksteel:0x354b67,stainless:0x9ee4e9,paint:0xcebfee,plastic:0xbd9fd5};
+ const converted=new Map();
+ root.traverse(mesh=>{
+  if(!mesh.isMesh)return;
+  const materialFor=m=>{
+   if(converted.has(m))return converted.get(m);
+   const kind=globalThis.FusionMaterialLib?.identify(m?.name);
+   const isWood=['pine','oak','wood'].includes(kind);
+   const material=new THREE.MeshBasicMaterial({
+    name:m?.name||'Sin nombre',color:palette[kind]||0xef77cd,
+    transparent:!isWood,opacity:isWood?1:.17,depthWrite:isWood,
+    depthTest:!isWood,side:THREE.DoubleSide
+   });
+   converted.set(m,material);return material;
+  };
+  mesh.material=Array.isArray(mesh.material)?mesh.material.map(materialFor):materialFor(mesh.material);
+  if([...((Array.isArray(mesh.material)?mesh.material:[mesh.material]))].some(m=>m.depthTest===false))mesh.renderOrder=1;
+  else mesh.renderOrder=5;
+ });
+}
+function materialStats(root){
+ const materials=new Set(),textured=new Set();
+ root.traverse(object=>{
+  if(!object.isMesh)return;
+  for(const m of [object.material].flat()){
+   if(!m)continue;
+   materials.add(m);
+   if(m.map?.image)textured.add(m);
+  }
+ });
+ return {materials:materials.size,textured:textured.size};
+}
+// Biblioteca tridimensional dentro del modo inmersivo: no hace falta salir de VR.
+const MENU_W=1024,MENU_H=320,MENU_PAGE_SIZE=6;
+const LIBRARY_START=false; // La biblioteca de diseños se muestra en quest.html.
+let showLibraryOnEntry=LIBRARY_START,libraryEntries=[];
+const thumbnailCache=new Map();
+const menuCanvas=document.createElement('canvas');
+menuCanvas.width=MENU_W;menuCanvas.height=MENU_H;
+const menuCtx=menuCanvas.getContext('2d');
+const menuTexture=new THREE.CanvasTexture(menuCanvas);
+menuTexture.colorSpace=THREE.SRGBColorSpace;
+const menuBoard=new THREE.Mesh(
+  new THREE.PlaneGeometry(1.24,.39),
+  new THREE.MeshBasicMaterial({map:menuTexture,transparent:true,side:THREE.DoubleSide,depthTest:false,depthWrite:false})
+);
+menuBoard.renderOrder=999;
+const menuGroup=new THREE.Group();
+menuGroup.add(menuBoard);
+menuGroup.visible=false;
+scene.add(menuGroup);
+let menuPage=0,menuBusy=false,menuNote='',menuHovered='';
+const menuRaycaster=new THREE.Raycaster();
+const menuControllerObjects=[];
+// Modelos 3D de los mandos Touch: siguen la posición real de cada mano.
+// El modelo WebXR muestra botones y joystick; la maqueta local cubre
+// el caso en que el navegador no pueda descargar el perfil del mando.
+const controllerModelFactory=new XRControllerModelFactory();
+const controllerVisuals=[];
+// Rótulos discretos anclados a la superficie del mando, sin carteles flotantes.
+// Un mismo pictograma de giro, con punta tangencial visible y
+// separación limpia entre arco y cabeza, para mando y rótulo.
+// Diseño aprobado: reproduce la misma curva SVG y la V inclinada.
+// Se escala sin alterar la geometría ni la orientación de la punta.
+function drawTurnArrow(ctx,cx,cy,r,width){
+  const scale=r/43;
+  ctx.save();
+  ctx.translate(cx-80*scale,cy-80*scale);
+  ctx.scale(scale,scale);
+  ctx.strokeStyle='#ffffff';
+  ctx.lineWidth=width/scale;
+  ctx.lineCap='round';
+  ctx.lineJoin='round';
+  const firstAngle=Math.atan2(98-80,119-80);
+  ctx.beginPath();
+  ctx.arc(80,80,43,firstAngle,Math.PI*1.5,false);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(61,32);
+  ctx.lineTo(80,37);
+  ctx.lineTo(65,52);
+  ctx.stroke();
+  ctx.restore();
+}
+function makeTinyMark(text,icon=''){
+  const canvas=document.createElement('canvas');
+  canvas.width=512;canvas.height=128;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='rgba(18,30,44,.92)';
+  ctx.beginPath();ctx.roundRect(3,5,506,118,22);ctx.fill();
+  // Reservar siempre la misma columna izquierda para el símbolo o letra.
+  // Así las cuatro descripciones comienzan en idéntico punto.
+  const textStart=112;
+  if(icon==='X'||icon==='Y'||icon==='B'||icon==='A'){
+    ctx.fillStyle='#ffffff';
+    ctx.font='bold 49px system-ui,sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(icon,62,66);
+  }
+  if(icon==='walk'){
+    // Flecha doble: avanzar y retroceder.
+    ctx.strokeStyle='#ffffff';ctx.fillStyle='#ffffff';
+    ctx.lineWidth=9;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(63,94);ctx.lineTo(63,34);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(42,50);ctx.lineTo(63,29);ctx.lineTo(84,50);
+    ctx.moveTo(42,78);ctx.lineTo(63,99);ctx.lineTo(84,78);ctx.stroke();
+  }else if(icon==='turn'){
+    drawTurnArrow(ctx,62,64,28,9);
+  }
+  ctx.fillStyle='#f3f8ff';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  let font=44;
+  ctx.font='bold '+font+'px system-ui,sans-serif';
+  while(font>22&&ctx.measureText(text).width>490-textStart){
+    font-=2;ctx.font='bold '+font+'px system-ui,sans-serif';
+  }
+  ctx.fillText(text,(textStart+512)/2,66,490-textStart);
+  const texture=new THREE.CanvasTexture(canvas);
+  texture.colorSpace=THREE.SRGBColorSpace;
+  // Un plano rígido, no un Sprite: Sprite gira automáticamente hacia los ojos
+  // y por eso la placa no acompañaba la rotación real del mando.
+  const mark=new THREE.Mesh(
+    new THREE.PlaneGeometry(.043,.0108),
+    new THREE.MeshBasicMaterial({
+      map:texture,transparent:true,depthTest:false,depthWrite:false,
+      side:THREE.DoubleSide
+    })
+  );
+  mark.renderOrder=1002;
+  return mark;
+}
+// Calcomanía sobre la superficie superior del joystick, no junto al cartel.
+function makeJoystickArrow(kind){
+  const canvas=document.createElement('canvas');
+  canvas.width=256;canvas.height=256;
+  const ctx=canvas.getContext('2d');
+  ctx.strokeStyle='#ffffff';
+  ctx.lineWidth=19;ctx.lineCap='round';ctx.lineJoin='round';
+  if(kind==='walk'){
+    ctx.beginPath();ctx.moveTo(128,44);ctx.lineTo(128,212);
+    ctx.moveTo(91,81);ctx.lineTo(128,44);ctx.lineTo(165,81);
+    ctx.moveTo(91,175);ctx.lineTo(128,212);ctx.lineTo(165,175);
+    ctx.stroke();
+  }else{
+    drawTurnArrow(ctx,128,128,70,17);
+  }
+  const texture=new THREE.CanvasTexture(canvas);
+  texture.colorSpace=THREE.SRGBColorSpace;
+  const decal=new THREE.Mesh(
+    new THREE.PlaneGeometry(.009,.009),
+    new THREE.MeshBasicMaterial({map:texture,transparent:true,depthTest:false,depthWrite:false,side:THREE.DoubleSide})
+  );
+  decal.rotation.x=-Math.PI/2;
+  // La cara del joystick se ve desde el lado opuesto al rótulo.
+  // Giro de 180° en su propio plano: la flecha derecha conserva la orientación
+  // aprobada en el cartel, en vez de aparecer invertida en la tapa.
+  if(kind==='turn')decal.rotation.z=Math.PI;
+  decal.renderOrder=1003;
+  return decal;
+}
+function addTinyMarks(grip,hand){
+  const marks=new THREE.Group();
+  // Las flechas van encima de la cabeza del joystick, separadas de los textos.
+  // La flecha no se posiciona con coordenadas fijas (que caían en el aro):
+  // se ancla en cada fotograma al elemento thumbstick del modelo real.
+  const arrow=makeJoystickArrow(hand==='left'?'walk':'turn');
+  // Posición de respaldo sobre el joystick si el modelo WebXR no separa
+  // la tapa de su geometría. No esconder el icono mientras se carga.
+  arrow.position.set(hand==='left'?.019:-.019,.049,-.035);
+  marks.add(arrow);
+  marks.userData.joystickArrow=arrow;
+  // Ajuste de altura de los carteles: antes estaban 160 mm por debajo
+  // del origen del grip, flotando bajo los mandos. Ahora quedan en la
+  // zona inferior de la empuñadura, a la altura visible del controlador.
+  // La orientación y el anclaje rígido aprobados permanecen intactos.
+  // Ambos rótulos siguen coplanares, alineados y unidos al grip.
+  const rowY=-.075,rowZ=-.125,leftX=-.027,rightX=.027;
+  const items=hand==='left'
+    ? [['Configuración','Y',leftX,rowY,rowZ],
+       ['Caminar','walk',rightX,rowY,rowZ]]
+    : [['Catálogo','B',leftX,rowY,rowZ],
+       ['Girar','turn',rightX,rowY,rowZ],
+       // Rescate en una segunda fila: mantiene la posición original
+       // de Catálogo y Girar, sin tapar las flechas de los joysticks.
+       ['Rescate','A',0,rowY,rowZ-.022]];
+  for(const [text,icon,x,y,z] of items){
+    const mark=makeTinyMark(text,icon);
+    mark.position.set(x,y,z);
+    // Orientación local de v0.62, que se veía correcta en el visor.
+    // Sigue siendo una malla rígida y gira con el grip.
+    mark.rotation.x=-Math.PI/2;
+    marks.add(mark);
+  }
+  grip.add(marks);
+  return marks;
+}
+function makeTouchFallback(){
+  const group=new THREE.Group();
+  const shell=new THREE.Mesh(
+    new THREE.CylinderGeometry(.027,.035,.105,12),
+    new THREE.MeshStandardMaterial({color:0x30343d,roughness:.7})
+  );
+  shell.rotation.x=-.3;shell.position.set(0,-.053,.017);group.add(shell);
+  const deck=new THREE.Mesh(
+    new THREE.SphereGeometry(.047,14,9),
+    new THREE.MeshStandardMaterial({color:0x454c58,roughness:.55})
+  );
+  deck.scale.set(.9,.35,1.2);deck.position.set(0,.012,-.015);group.add(deck);
+  const keyMat=new THREE.MeshStandardMaterial({color:0xc4d3e2,roughness:.45});
+  const stick=new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,.017,12),
+    new THREE.MeshStandardMaterial({color:0x202a35,roughness:.8}));
+  stick.position.set(-.019,.034,-.035);group.add(stick);
+  for(const [x,z] of [[.014,-.019],[.029,-.038]]){
+    const key=new THREE.Mesh(new THREE.CylinderGeometry(.008,.008,.005,12),keyMat);
+    key.position.set(x,.033,z);group.add(key);
+  }
+  return group;
+}
+// Manos translúcidas ligeras, ancladas al grip (no al eje de la cámara).
+// Las articulaciones reaccionan a contactos capacitivos cuando WebXR los expone.
+// Mano de agarre semitransparente, de superficies redondeadas.
+// El mando permanece visible: palma detrás de la empuñadura y dedos
+// curvados hacia su cara frontal, con el índice junto al gatillo.
+// Manos anatómicas GLB del perfil público WebXR generic-hand.
+// Sustituyen por completo las antiguas esferas/cilindros y se acoplan
+// al grip de cada Touch sin crear una segunda sesión ni otro rig XR.
+// El modelo procede de los recursos públicos de WebXR Input Profiles
+// (también empleados por XRHandMeshModel de Three.js).
+for(let i=0;i<2;i++){
+  const grip=renderer.xr.getControllerGrip(i);
+  const model=controllerModelFactory.createControllerModel(grip);
+  const fallback=makeTouchFallback();
+  grip.add(model,fallback);
+  // Cámara, colisiones y mandos comparten el mismo sistema local del rig.
+  // Si los grips cuelgan directamente de scene aparecen lejos de las manos
+  // cuando se desplaza el jugador.
+  rig.add(grip);
+  const leftMarks=addTinyMarks(grip,'left');
+  const rightMarks=addTinyMarks(grip,'right');
+  // Recuperar el modelo Touch detallado de la v0.51. La carcasa simple
+  // únicamente se mostrará si la biblioteca WebXR no carga el modelo real.
+  const entry={grip,model,fallback,leftMarks,rightMarks,handedness:null};
+  grip.visible=false;
+  fallback.visible=false;
+  leftMarks.visible=false;
+  rightMarks.visible=false;
+  grip.addEventListener('connected',event=>{
+    entry.handedness=event.data?.handedness||null;
+  });
+  grip.addEventListener('disconnected',()=>{
+    entry.handedness=null;
+    // Una reconexión puede cargar otro modelo: recalcular el anclaje.
+    entry.arrowAttached=false;
+    grip.visible=false;
+    fallback.visible=false;
+    leftMarks.visible=false;
+    rightMarks.visible=false;
+  });
+  controllerVisuals.push(entry);
+}
+// Buscar piezas separadas del aro; nunca ocultar el cuerpo ni el joystick.
+function trimTouchTrackingRing(entry){
+  if(entry.ringTrimmed||!entry.model.children.length)return;
+  entry.ringTrimmed=true;
+  entry.model.traverse(part=>{
+    if(!part.isMesh)return;
+    const name=(part.name||'').toLowerCase();
+    // Solo geometría identificada explícitamente como aro de seguimiento.
+    // No ocultar padres que puedan contener botones y palancas.
+    if(/(^|[_\\s.-])(tracking[_\\s.-]?ring|sensor[_\\s.-]?ring|controller[_\\s.-]?ring|ring|halo)([_\\s.-]|$)/i.test(name)){
+      part.visible=false;
+    }
+  });
+}
+// Anclaje estable a la malla física del stick. No recalcular una caja
+// mundial en cada fotograma: la animación del joystick la hacía saltar.
+function placeArrowOnRealStick(entry){
+  if(entry.arrowAttached||!entry.model.children.length||!entry.handedness)return;
+  const marks=entry.handedness==='left'?entry.leftMarks:entry.rightMarks;
+  const arrow=marks.userData.joystickArrow;
+  if(!arrow)return;
+  const component=entry.model.motionController?.components?.['xr-standard-thumbstick'];
+  const thumbRoot=component?.rootNode||Object.values(component?.visualResponses||{})
+    .find(response=>response.valueNode)?.valueNode;
+  const matches=[];
+  function collect(root){
+    root?.traverse(node=>{
+      if(!node.isMesh||!node.geometry?.attributes?.position)return;
+      const name=(node.name||'').toLowerCase();
+      if(/ring|tracking|sensor|base|socket|controller|grip/.test(name))return;
+      node.geometry.computeBoundingBox();
+      const bounds=node.geometry.boundingBox;
+      if(!bounds)return;
+      const dims=new THREE.Vector3();
+      bounds.getSize(dims);
+      if(dims.length()>.20)return;
+      matches.push(node);
+    });
+  }
+  if(thumbRoot)collect(thumbRoot);
+  if(!matches.length){
+    entry.model.traverse(node=>{
+      if(node.isMesh&&/(thumbstick|joystick|thumb_stick)/i.test(node.name||'')&&
+          !/ring|base|socket|tracking/i.test(node.name||''))matches.push(node);
+    });
+  }
+  // Si el fabricante fusiona la malla del joystick con el cuerpo,
+  // conservar el icono sobre la zona estimada de la tapa y volver a
+  // intentar el anclaje al mesh mientras el modelo termina de cargar.
+  if(!matches.length){arrow.visible=true;return}
+  const mesh=matches.find(node=>/thumbstick|joystick|thumb_stick/i.test(node.name||''))||matches[0];
+  mesh.geometry.computeBoundingBox();
+  const bounds=mesh.geometry.boundingBox;
+  if(!bounds){arrow.visible=true;return}
+  const size=bounds.getSize(new THREE.Vector3());
+  // Evitar mallas grandes de la carcasa: solo la tapa del joystick.
+  if(Math.max(size.x,size.z)>.09){arrow.visible=true;return}
+  // Centrar en la superficie superior, no en el centro del volumen del
+  // mecanismo (el eje puede estar desplazado respecto a la tapa).
+  const vertices=mesh.geometry.getAttribute('position');
+  let top=bounds.max.y,centerX=0,centerZ=0,count=0;
+  const tolerance=Math.max(.001,size.y*.12);
+  for(let i=0;i<vertices.count;i++){
+    const y=vertices.getY(i);
+    if(y>=top-tolerance){
+      centerX+=vertices.getX(i);centerZ+=vertices.getZ(i);count++;
+    }
+  }
+  if(count){centerX/=count;centerZ/=count}
+  else{centerX=(bounds.min.x+bounds.max.x)/2;centerZ=(bounds.min.z+bounds.max.z)/2}
+  arrow.position.set(centerX,top+.0004,centerZ);
+  mesh.add(arrow); // se mueve con la palanca, jamás con la marcha del usuario
+  arrow.visible=true;
+  entry.arrowAttached=true;
+}
+function updateControllerVisuals(frame,referenceSpace,session){
+  for(const entry of controllerVisuals){
+    const source=Array.from(session?.inputSources||[]).find(input=>
+      input.handedness===entry.handedness&&input.gripSpace
+    );
+    const tracked=Boolean(frame&&referenceSpace&&source&&
+      frame.getPose(source.gripSpace,referenceSpace));
+    entry.grip.visible=tracked;
+    entry.fallback.visible=tracked&&entry.model.children.length===0;
+    if(tracked&&entry.model.children.length){
+      trimTouchTrackingRing(entry);
+      placeArrowOnRealStick(entry);
+    }
+    entry.leftMarks.visible=tracked&&entry.handedness==='left';
+    entry.rightMarks.visible=tracked&&entry.handedness==='right';
+  }
+}
+const menuEye=new THREE.Vector3(),menuFacing=new THREE.Vector3(),menuTarget=new THREE.Vector3();
+const menuPointer=new THREE.Mesh(new THREE.SphereGeometry(.014,10,8),
+  new THREE.MeshBasicMaterial({color:0xffffff,depthTest:false,depthWrite:false}));
+menuPointer.visible=false;menuPointer.renderOrder=1001;scene.add(menuPointer);
+function updateMenuPlacement(headset,dt=0){
+  headset.updateMatrixWorld(true);
+  headset.getWorldPosition(menuEye);
+  headset.getWorldDirection(menuFacing);
+  menuFacing.y=0;
+  if(menuFacing.lengthSq()<.001)menuFacing.set(0,0,-1);
+  menuFacing.normalize();
+  menuTarget.copy(menuEye).addScaledVector(menuFacing,1.65);
+  const targetYaw=Math.atan2(-menuFacing.x,-menuFacing.z);
+  if(!dt){
+    menuGroup.position.copy(menuTarget);
+    menuGroup.rotation.y=targetYaw;
+  }else{
+    const blend=1-Math.exp(-15*dt);
+    menuGroup.position.lerp(menuTarget,blend);
+    const yawDelta=Math.atan2(Math.sin(targetYaw-menuGroup.rotation.y),
+      Math.cos(targetYaw-menuGroup.rotation.y));
+    menuGroup.rotation.y+=yawDelta*blend;
+  }
+  menuGroup.updateMatrixWorld(true);
+}
+function updateMenuRays(){
+  menuPointer.visible=false;
+  let nearest=Infinity;
+  for(const {controller,laser} of menuControllerObjects){
+    controller.updateMatrixWorld(true);
+    menuRaycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+    menuRaycaster.ray.direction.set(0,0,-1).transformDirection(controller.matrixWorld);
+    const hit=menuRaycaster.intersectObject(menuBoard,false)[0];
+    const distance=hit?Math.min(hit.distance,2.5):2.5;
+    laser.scale.z=distance/2.5;
+    laser.material.opacity=hit?.uv?1:.60;
+    if(hit&&hit.distance<nearest){
+      nearest=hit.distance;
+      menuPointer.position.copy(hit.point).addScaledVector(menuRaycaster.ray.direction,-.008);
+      menuPointer.visible=true;
+    }
+  }
+}
+for(let i=0;i<2;i++){
+  const controller=renderer.xr.getController(i);
+  const rayGeometry=new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0,0,0),new THREE.Vector3(0,0,-2.5)
+  ]);
+  const laser=new THREE.Line(rayGeometry,new THREE.LineBasicMaterial({
+    color:i===0?0x60edff:0xffd07b,transparent:true,opacity:1,depthTest:false,depthWrite:false
+  }));
+  laser.visible=false;
+  laser.renderOrder=1000;
+  controller.add(laser);
+  rig.add(controller);
+  menuControllerObjects.push({controller,laser});
+  controller.addEventListener('selectstart',()=>{
+    if(!renderer.xr.isPresenting||!menuGroup.visible||menuBusy)return;
+    const hit=menuHit(controller);
+    if(hit)void activateMenuHit(hit);
+  });
+}
+function drawVRMenu(){
+  const ctx=menuCtx;
+  ctx.clearRect(0,0,MENU_W,MENU_H);
+  ctx.fillStyle='rgba(15,30,45,.95)';
+  ctx.beginPath();ctx.roundRect(8,8,MENU_W-16,MENU_H-16,32);ctx.fill();
+  ctx.strokeStyle='#5a9dc6';ctx.lineWidth=4;ctx.stroke();
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='#f1f7ff';ctx.font='bold 42px system-ui';
+  ctx.fillText('ALTURA DEL SUELO',MENU_W/2,66);
+  const button=(key,label,x,w)=>{
+    ctx.fillStyle=menuHovered===key?'#357c96':'#244862';
+    ctx.beginPath();ctx.roundRect(x,125,w,110,18);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='bold 37px system-ui';
+    ctx.fillText(label,x+w/2,181);
+  };
+  button('floorDown','−10 cm',42,283);
+  button('close','Cerrar',355,314);
+  button('floorUp','+10 cm',699,283);
+  ctx.font='29px system-ui';ctx.fillStyle='#a9e9d2';
+  ctx.fillText('Ajuste actual: '+(floorOffsetCm>0?'+':'')+floorOffsetCm+' cm',MENU_W/2,276);
+  menuTexture.needsUpdate=true;
+}
+function menuHit(controller){
+  controller.updateMatrixWorld(true);
+  menuRaycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+  menuRaycaster.ray.direction.set(0,0,-1).transformDirection(controller.matrixWorld);
+  const intersection=menuRaycaster.intersectObject(menuBoard,false)[0];
+  if(!intersection?.uv)return null;
+  const px=intersection.uv.x*MENU_W,py=(1-intersection.uv.y)*MENU_H;
+  if(py>=125&&py<=235){
+    if(px>=42&&px<=325)return {type:'floorDown'};
+    if(px>=355&&px<=669)return {type:'close'};
+    if(px>=699&&px<=982)return {type:'floorUp'};
+  }
+  return null;
+}
+function closeVRMenu(){
+  menuGroup.visible=false;
+  menuHovered='';
+  menuNote='';
+  menuPointer.visible=false;
+  for(const {laser} of menuControllerObjects)laser.visible=false;
+}
+async function refreshVRLibrary(){
+  try{
+    const catalogURL=new URL('catalogo.json',location.href);
+    catalogURL.searchParams.set('refresh',String(Date.now()));
+    const response=await fetch(catalogURL.href,{cache:'no-store'});
+    if(!response.ok)throw Error('HTTP '+response.status);
+    const json=await response.json();
+    const items=Array.isArray(json.modelos)?json.modelos.filter(item=>item.id&&item.archivo):[];
+    if(!items.length)throw Error('Catálogo vacío');
+    const selected=models.value;
+    libraryEntries=items;
+    for(const entry of items){
+      if(!entry.miniatura||!/^miniaturas\/[a-zA-Z0-9_-]+\.(jpg|jpeg|png|webp)$/.test(entry.miniatura)||thumbnailCache.has(entry.miniatura))continue;
+      const img=new Image();
+      thumbnailCache.set(entry.miniatura,img);
+      img.onload=()=>{if(menuGroup.visible)drawVRMenu()};
+      img.src=new URL(entry.miniatura,location.href).href;
+    }
+    models.replaceChildren();
+    for(const item of items)models.add(new Option(item.nombre||item.id,item.archivo));
+    if([...models.options].some(option=>option.value===selected))models.value=selected;
+    menuPage=Math.min(menuPage,Math.max(0,Math.ceil(models.options.length/MENU_PAGE_SIZE)-1));
+    menuNote='Biblioteca actualizada: '+items.length+' diseños';
+    if(menuGroup.visible)drawVRMenu();
+  }catch(error){
+    menuNote='No se pudo actualizar: '+error.message;
+    if(menuGroup.visible)drawVRMenu();
+  }
+}
+function showVRMenu(){
+  if(!renderer.xr.isPresenting||!model)return;
+  menuBusy=false;menuNote='';menuHovered='';
+  updateMenuPlacement(renderer.xr.getCamera(),0);
+  menuGroup.visible=true;
+  for(const {laser} of menuControllerObjects)laser.visible=true;
+  drawVRMenu();
+}
+async function activateMenuHit(hit){
+  if(menuBusy)return;
+  if(hit.type==='close'){closeVRMenu();return}
+  if(hit.type==='floorUp'){setFloorOffset(10);return}
+  if(hit.type==='floorDown'){setFloorOffset(-10);return}
+}
+const vrButton=VRButton.createButton(renderer,{requiredFeatures:['local-floor']});
+vrButton.hidden=true;
+if(!presentation)document.body.append(vrButton);
+const versionLabel=document.createElement('div');
+versionLabel.textContent='Visor VR 0.81 · A Rescate en mando derecho';
+versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
+// El cartel de diagnóstico no se muestra en ningún modo.
+let measureMode=false,measurePoints=[],measureMarks=null,measureLabel=null;
+function clearMeasures(){
+ if(measureMarks){scene.remove(measureMarks);measureMarks.traverse(o=>{o.geometry?.dispose();o.material?.dispose()});measureMarks=null}
+ measurePoints=[];if(measureLabel)measureLabel.textContent=measureMode?'Selecciona dos vértices del modelo.':'';
+}
+function toggleMeasure(btn){
+ if(!model)return;
+ if(!measureMode&&walkingMode)setPresentationMode(false);
+ measureMode=!measureMode;controls.enabled=!measureMode;btn.setAttribute('aria-pressed',String(measureMode));
+ if(!measureLabel){measureLabel=document.createElement('div');measureLabel.style.cssText='position:fixed;bottom:12px;left:12px;z-index:30;max-width:calc(100% - 24px);background:#142034ed;color:#7eeaff;padding:12px;border-radius:8px;pointer-events:none;font:14px system-ui';document.body.append(measureLabel)}
+ measureLabel.hidden=!measureMode;measureLabel.textContent='Selecciona dos vértices del modelo. Cotas en mm; verifica escala.';
+ if(!measureMode)measurePoints=[];
+}
+const measurementRay=new THREE.Raycaster(),measurementPointer=new THREE.Vector2();
+renderer.domElement.addEventListener('pointerdown',e=>{
+ if(!measureMode)return;e.preventDefault();e.stopImmediatePropagation();
+ if(!model||e.button!==0)return;
+ const r=renderer.domElement.getBoundingClientRect();measurementPointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);
+ measurementRay.setFromCamera(measurementPointer,camera);
+ const hit=measurementRay.intersectObject(model,true).find(h=>h.object.visible&&h.face);
+ if(!hit)return;
+ const pos=hit.object.geometry.attributes.position;
+ const corners=[hit.face.a,hit.face.b,hit.face.c].map(i=>new THREE.Vector3().fromBufferAttribute(pos,i).applyMatrix4(hit.object.matrixWorld));
+ const p=corners.reduce((a,b)=>a.distanceToSquared(hit.point)<b.distanceToSquared(hit.point)?a:b);
+ if(!measureMarks){measureMarks=new THREE.Group();scene.add(measureMarks)}
+ const marker=new THREE.Mesh(new THREE.SphereGeometry(Math.max(.003,distance*.0015),12,8),new THREE.MeshBasicMaterial({color:0x00e5ff,depthTest:false}));marker.position.copy(p);marker.renderOrder=999;measureMarks.add(marker);
+ measurePoints.push(p);
+ if(measurePoints.length===1){measureLabel.textContent='Primer vértice seleccionado. Selecciona el segundo.';return}
+ const [a,b]=measurePoints;const delta=b.clone().sub(a);const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),new THREE.LineBasicMaterial({color:0x00e5ff,depthTest:false}));line.renderOrder=999;measureMarks.add(line);
+ const fmt=x=>Math.round(Math.abs(x)*1000).toLocaleString('es-ES');
+ measureLabel.textContent='Distancia: '+fmt(delta.length())+' mm · X: '+fmt(delta.x)+' · Altura: '+fmt(delta.y)+' · Z: '+fmt(delta.z)+' mm';
+ measurePoints=[];
+},true);
+let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
+let worldOctree=null,verticalVelocity=0,isGrounded=false,collisionTriangles=0,collisionStops=0;
+const BODY_RADIUS=.29,GRAVITY=9.81;
+// Motor de movimiento VR: posición horizontal sin empujes de penetración.
+// El suelo real es la superficie caminable del GLB bajo los pies, no el límite
+// inferior del modelo ni una corrección de paredes sobre la altura del rig.
+const avatarHead=new THREE.Vector3();
+const xrLocalHead=new THREE.Vector3(),xrHeadOrientation=new THREE.Quaternion();
+const xrWorldForward=new THREE.Vector3(),xrHeadOffset=new THREE.Vector3();
+let xrPoseAvailable=false,liveHeadWallDepth=0,liveLocalHead='';
+// Corrección virtual: nunca mueve los modelos, las colisiones ni el Guardian.
+let floorOffsetCm=0;
+try{
+  const saved=Number(localStorage.getItem('fusionvr-floor-offset-cm'));
+  if(Number.isFinite(saved))floorOffsetCm=THREE.MathUtils.clamp(Math.round(saved/10)*10,-50,80);
+}catch{}
+let floorBaseSpace=null,appliedFloorOffsetCm=null;
+function setFloorOffset(delta){
+  floorOffsetCm=THREE.MathUtils.clamp(floorOffsetCm+delta,-50,80);
+  try{localStorage.setItem('fusionvr-floor-offset-cm',String(floorOffsetCm))}catch{}
+  menuNote='Suelo '+(floorOffsetCm>0?'+':'')+floorOffsetCm+' cm';
+  drawVRMenu();
+}
+function calibrateVirtualFloor(){
+  if(!renderer.xr.isPresenting)return false;
+  const current=renderer.xr.getReferenceSpace();
+  if(!current)return false;
+  if(!floorBaseSpace)floorBaseSpace=current;
+  if(appliedFloorOffsetCm===floorOffsetCm)return false;
+  try{
+    renderer.xr.setReferenceSpace(floorBaseSpace.getOffsetReferenceSpace(
+      new XRRigidTransform({x:0,y:floorOffsetCm/100,z:0})
+    ));
+    appliedFloorOffsetCm=floorOffsetCm;
+    return true;
+  }catch(error){
+    menuNote='Error al ajustar suelo: '+String(error?.message||error);
+    appliedFloorOffsetCm=floorOffsetCm;
+    if(menuGroup.visible)drawVRMenu();
+    return false;
+  }
+}
+function syncViewerPose(){
+  const frame=renderer.xr.getFrame();
+  const reference=renderer.xr.getReferenceSpace();
+  const pose=frame&&reference?frame.getViewerPose(reference):null;
+  if(!pose)return false;
+  const p=pose.transform.position,q=pose.transform.orientation;
+  xrLocalHead.set(p.x,p.y,p.z);
+  xrHeadOrientation.set(q.x,q.y,q.z,q.w);
+  rig.updateMatrixWorld(true);
+  avatarHead.copy(xrLocalHead).applyMatrix4(rig.matrixWorld);
+  xrWorldForward.set(0,0,-1).applyQuaternion(xrHeadOrientation)
+    .transformDirection(rig.matrixWorld);
+  xrPoseAvailable=true;
+  liveLocalHead=xrLocalHead.x.toFixed(2)+','+xrLocalHead.z.toFixed(2);
+  return true;
+}
+const capsuleDebugVersion='VR 0.14 · Z vertical · colisiones por rayos de geometría';
+const vrRaycaster=new THREE.Raycaster();
+vrRaycaster.far=2.5;
+const rayOrigin=new THREE.Vector3(),rayVector=new THREE.Vector3();
+const floorNormal=new THREE.Vector3(),normalMatrix=new THREE.Matrix3();
+const WALKABLE_SLOPE=.67,SKIN=.045,MAX_STEP=.28;
+const probeOffsets=[0,-BODY_RADIUS*.72,BODY_RADIUS*.72];
+let colliderMeshes=[],lastFloorY=0,modelFloorY=0,vrDiagnostics='';
+// Separar la altura física del apoyo de la altura visual evita que la cámara
+// salte instantáneamente al siguiente peldaño.
+let physicsFeetY=null;
+const STEP_VISUAL_SPEED_UP=.54,STEP_VISUAL_SPEED_DOWN=.48; // Subida ligeramente más rápida; bajada sin cambios
+const STEP_VISUAL_SMOOTHING=7; // amortiguación más ágil al subir y al bajar
+// Caminar normal intacto; sobre peldaños movimiento horizontal lento.
+const WALK_SPEED=1.95,STAIR_SPEED_FACTOR=.41;
+let stairSlowUntil=0,lastStairContactMs=0;
+
+function normalOf(hit,target){
+  normalMatrix.getNormalMatrix(hit.object.matrixWorld);
+  return target.copy(hit.face.normal).applyMatrix3(normalMatrix).normalize();
+}
+function rayHits(origin,direction,length){
+  vrRaycaster.ray.set(origin,direction);
+  vrRaycaster.near=0;
+  vrRaycaster.far=length;
+  return vrRaycaster.intersectObjects(colliderMeshes,false);
+}
+function floorUnder(x,z,feet,maxUp=MAX_STEP){
+  // Rayos desde encima del paso; la primera superficie horizontal caminable.
+  rayOrigin.set(x,feet+maxUp+.06,z);
+  const hits=rayHits(rayOrigin,new THREE.Vector3(0,-1,0),2.4);
+  for(const h of hits){
+    if(normalOf(h,floorNormal).y<WALKABLE_SLOPE)continue;
+    if(h.point.y<=feet+maxUp+.025)return h.point.y;
+  }
+  return 0;
+}
+// Comprobación predictiva de las superficies trianguladas del GLB.
+// Los rayos cubren pecho/cintura/rodillas y ambos lados del cuerpo.
+const wallDirection=new THREE.Vector3(),wallRayStart=new THREE.Vector3();
+// Índice geométrico propio: triángulos de pared a doble cara, sin
+// depender del material ni del resultado de Mesh.raycast.
+const wallCells=new Map(),largeWalls=[];
+const WALL_CELL=.75,WALL_RADIUS=.28;
+let wallCount=0,wallChecks=0,joystickMeters=0,physicalMeters=0;
+let lastTrackedHead=null;
+const closestWallPoint=new THREE.Vector3();
+const wallBodyProbe=new THREE.Vector3();
+function wallKey(ix,iz){return ix+','+iz}
+function buildWallIndex(root){
+  wallCells.clear();largeWalls.length=0;wallCount=0;wallChecks=0;
+  root.updateMatrixWorld(true);
+  const a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3();
+  const edge1=new THREE.Vector3(),edge2=new THREE.Vector3(),normal=new THREE.Vector3();
+  root.traverse(mesh=>{
+    if(!mesh.isMesh||!mesh.geometry||!mesh.visible)return;
+    const geo=mesh.geometry,position=geo.attributes.position,index=geo.index;
+    if(!position)return;
+    const count=index?index.count:position.count;
+    for(let i=0;i+2<count;i+=3){
+      const ia=index?index.getX(i):i,ib=index?index.getX(i+1):i+1,ic=index?index.getX(i+2):i+2;
+      a.fromBufferAttribute(position,ia).applyMatrix4(mesh.matrixWorld);
+      b.fromBufferAttribute(position,ib).applyMatrix4(mesh.matrixWorld);
+      c.fromBufferAttribute(position,ic).applyMatrix4(mesh.matrixWorld);
+      edge1.subVectors(b,a);edge2.subVectors(c,a);
+      normal.crossVectors(edge1,edge2);
+      if(normal.lengthSq()<1e-10)continue;
+      normal.normalize();
+      if(Math.abs(normal.y)>.62)continue;
+      const minY=Math.min(a.y,b.y,c.y),maxY=Math.max(a.y,b.y,c.y);
+      if(maxY<.15)continue;
+      const tri=new THREE.Triangle(a.clone(),b.clone(),c.clone());
+      const minX=Math.min(a.x,b.x,c.x)-WALL_RADIUS,maxX=Math.max(a.x,b.x,c.x)+WALL_RADIUS;
+      const minZ=Math.min(a.z,b.z,c.z)-WALL_RADIUS,maxZ=Math.max(a.z,b.z,c.z)+WALL_RADIUS;
+      const x0=Math.floor(minX/WALL_CELL),x1=Math.floor(maxX/WALL_CELL);
+      const z0=Math.floor(minZ/WALL_CELL),z1=Math.floor(maxZ/WALL_CELL);
+      const entry={tri,minY,maxY};
+      wallCount++;
+      if((x1-x0+1)*(z1-z0+1)>250){largeWalls.push(entry);continue}
+      for(let xi=x0;xi<=x1;xi++)for(let zi=z0;zi<=z1;zi++){
+        const key=wallKey(xi,zi);
+        if(!wallCells.has(key))wallCells.set(key,[]);
+        wallCells.get(key).push(entry);
+      }
+    }
+  });
+}
+function wallPenetration(x,z,feet){
+  if(!wallCount)return 0;
+  const ix=Math.floor(x/WALL_CELL),iz=Math.floor(z/WALL_CELL);
+  const candidates=[...(wallCells.get(wallKey(ix,iz))||[]),...largeWalls];
+  let deepest=0;
+  for(const entry of candidates){
+    if(entry.maxY<feet+.20||entry.minY>feet+1.65)continue;
+    for(const h of [.35,.85,1.35]){
+      wallBodyProbe.set(x,feet+h,z);
+      entry.tri.closestPointToPoint(wallBodyProbe,closestWallPoint);
+      const penetration=WALL_RADIUS-wallBodyProbe.distanceTo(closestWallPoint);
+      if(penetration>deepest)deepest=penetration;
+    }
+  }
+  wallChecks++;
+  return deepest;
+}
+// Comprobación VOLUMÉTRICA: una persona no atraviesa un hueco solo
+// porque un conjunto de rayos coincida entre dos peldaños. La cápsula
+// representa tronco/hombros, sin invadir el suelo con su extremo inferior.
+const bodyCapsule=new Capsule(new THREE.Vector3(),new THREE.Vector3(),BODY_RADIUS);
+function bodyPenetration(x,z,feet){
+  if(!worldOctree)return 0;
+  // La cápsula protege el tronco y los hombros; NO incluye los pies,
+  // que ya se resuelven con los rayos y el sistema de peldaños.
+  // La v0.78 empezaba en .40 con radio .29 (base a .11 m),
+  // invadiendo las contrahuellas de escaleras normales.
+  bodyCapsule.start.set(x,feet+.66,z);
+  bodyCapsule.end.set(x,feet+1.46,z);
+  const hit=worldOctree.capsuleIntersect(bodyCapsule);
+  return hit?.depth||0;
+}
+function bodyBlocked(x,z,feet,nextX,nextZ,nextFeet=feet){
+  const before=bodyPenetration(x,z,feet);
+  const after=bodyPenetration(nextX,nextZ,nextFeet);
+  // Si el avatar nace dentro de geometría, permitir salir; no empeorar.
+  return after>.008&&after>=Math.max(.008,before-.001);
+}
+let geometryRayHits=0;
+function wallClearance(x,z,feet,move){
+  const len=move.length();
+  if(len<1e-8||!colliderMeshes.length)return len;
+  wallDirection.copy(move).divideScalar(len);
+  const normalX=-wallDirection.z,normalZ=wallDirection.x;
+  const headOffsets=[-.17,0,.17];
+  const heights=[.36,.72,1.12,1.54];
+  let distance=len;
+  for(const offset of headOffsets)for(const level of heights){
+    wallRayStart.set(x+normalX*offset,feet+level,z+normalZ*offset);
+    const hits=rayHits(wallRayStart,wallDirection,len+BODY_RADIUS+.035);
+    for(const hit of hits){
+      const n=normalOf(hit,floorNormal);
+      // Suelos y peldaños no se consideran paredes.
+      if(Math.abs(n.y)>.64)continue;
+      distance=Math.min(distance,Math.max(0,hit.distance-BODY_RADIUS-.01));
+      geometryRayHits++;
+      break;
+    }
+  }
+  return distance;
+}
+function solveMovement(headset,desired,dt){
+  if(presentation||!syncViewerPose()){
+    rig.updateMatrixWorld(true);
+    headset.updateMatrixWorld(true);
+    headset.getWorldPosition(avatarHead);
+    xrWorldForward.set(0,0,-1).transformDirection(headset.matrixWorld);
+  }
+  const localEyeHeight=THREE.MathUtils.clamp(xrPoseAvailable?xrLocalHead.y:avatarHead.y-rig.position.y,1.05,2.25);
+  const startX=avatarHead.x,startZ=avatarHead.z;
+  // Mientras la cámara termina un escalón, impedir desplazarse al siguiente.
+  // Mantener el cuerpo sobre el peldaño evita el efecto de agacharse al subir
+  // y de patinar horizontalmente mientras baja la vista.
+  const stairHeightPending=physicsFeetY!==null &&
+    Math.abs(physicsFeetY-rig.position.y)>.028 &&
+    Math.abs(physicsFeetY-rig.position.y)<=MAX_STEP+.12;
+  if(stairHeightPending&&desired.lengthSq()>1e-8)desired.set(0,0,0);
+  if(lastTrackedHead){
+    const delta=Math.hypot(startX-lastTrackedHead.x,startZ-lastTrackedHead.z);
+    if(delta<.5 && desired.length()<.003)physicalMeters+=delta;
+  }
+  if(!lastTrackedHead)lastTrackedHead=new THREE.Vector3();
+  lastTrackedHead.set(startX,avatarHead.y,startZ);
+  joystickMeters+=desired.length();
+  if(physicsFeetY===null)physicsFeetY=rig.position.y;
+  const feet=physicsFeetY;
+  // Detectar directamente cambios de superficie durante la resolución física.
+  // A diferencia del sondeo frontal, no falla cuando la nariz del avatar
+  // todavía está ante la contrahuella o acaba de abandonar un peldaño.
+  const preFloor=floorUnder(startX,startZ,feet);
+  if(desired.lengthSq()>1e-8){
+    const towards=desired.clone().normalize().multiplyScalar(.29);
+    const ahead=floorUnder(startX+towards.x,startZ+towards.z,feet);
+    if(Math.abs(ahead-preFloor)>.035&&Math.abs(ahead-preFloor)<MAX_STEP+.10){
+      lastStairContactMs=performance.now();
+      stairSlowUntil=Math.max(stairSlowUntil,lastStairContactMs+1100);
+    }
+  }
+  liveHeadWallDepth=wallPenetration(startX,startZ,feet);
+  let x=startX,z=startZ,footY=feet;
+  const count=Math.max(1,Math.ceil(desired.length()/.018));
+  const step=desired.clone().divideScalar(count);
+  for(let i=0;i<count;i++){
+    // Comprobar el volumen del cuerpo contra las paredes reales del GLB.
+    // Si ya estamos en contacto, sólo permitir salir, nunca profundizar.
+    const baseDepth=wallPenetration(x,z,footY);
+    const targetDepth=wallPenetration(x+step.x,z+step.z,footY);
+    const triangleBlocked=(targetDepth>.005&&targetDepth>=Math.max(.005,baseDepth-.0001))||
+      bodyBlocked(x,z,footY,x+step.x,z+step.z);
+    const allowance=triangleBlocked?0:wallClearance(x,z,footY,step);
+    if(allowance>=step.length()-.00001){x+=step.x;z+=step.z;continue}
+    // El radio del avatar alcanza la contrahuella antes que el rayo bajo
+    // los pies. Buscar una huella real por delante, sin saltar horizontalmente.
+    if(isGrounded&&step.lengthSq()>1e-10){
+      const dir=step.clone().normalize();
+      const nx=x+step.x,nz=z+step.z;
+      let landing=null;
+      for(let d=.035;d<=BODY_RADIUS+.055;d+=.035){
+        const px=nx+dir.x*d,pz=nz+dir.z*d;
+        const y=floorUnder(px,pz,footY);
+        const rise=y-footY;
+        if(rise<=.025||rise>MAX_STEP)continue;
+        // Exigir una huella con profundidad y anchura, no un borde aislado.
+        const far=floorUnder(px+dir.x*.055,pz+dir.z*.055,footY);
+        const left=floorUnder(px-dir.z*.07,pz+dir.x*.07,footY);
+        const right=floorUnder(px+dir.z*.07,pz-dir.x*.07,footY);
+        if([far,left,right].some(v=>Math.abs(v-y)>.025))continue;
+        if(wallPenetration(nx,nz,y)>.005||
+           bodyBlocked(x,z,footY,nx,nz,y)||
+           wallClearance(x,z,y,step)<step.length()-.00001)continue;
+        landing=y;break;
+      }
+      if(landing!==null){
+        x=nx;z=nz;
+        // Elevar el apoyo únicamente cuando el centro alcanza la huella.
+        const under=floorUnder(x,z,footY);
+        if(under-footY>.025&&under-footY<=MAX_STEP){
+          footY=under;verticalVelocity=0;
+        }
+        lastStairContactMs=performance.now();
+        stairSlowUntil=Math.max(stairSlowUntil,lastStairContactMs+1100);
+        continue;
+      }
+    }
+    collisionStops++;
+    // Probar peldaño; el ascenso debe tener superficie de apoyo y espacio.
+    const candidateFloor=floorUnder(x+step.x,z+step.z,footY);
+    const rise=candidateFloor-footY;
+    if(isGrounded&&rise>.025&&rise<=MAX_STEP&&
+      wallPenetration(x+step.x,z+step.z,candidateFloor)<.005&&
+      !bodyBlocked(x,z,footY,x+step.x,z+step.z,candidateFloor)&&
+      wallClearance(x,z,candidateFloor,step)>=step.length()-.00001){
+      x+=step.x;z+=step.z;footY=candidateFloor;
+      lastStairContactMs=performance.now();
+      stairSlowUntil=Math.max(stairSlowUntil,lastStairContactMs+1100);
+      verticalVelocity=0;continue;
+    }
+    // Deslizar perpendicularmente a la pared, sin retroceso.
+    for(const axis of ['x','z']){
+      const component=new THREE.Vector3(axis==='x'?step.x:0,0,axis==='z'?step.z:0);
+      const check=wallPenetration(x+component.x,z+component.z,footY);
+      const permitted=((check>.005&&check>=Math.max(.005,wallPenetration(x,z,footY)-.0001))||
+        bodyBlocked(x,z,footY,x+component.x,z+component.z))
+        ?0:wallClearance(x,z,footY,component);
+      if(permitted>=component.length()-.00001){
+        x+=component.x;z+=component.z;
+      }
+    }
+  }
+  rig.position.x+=x-startX;
+  rig.position.z+=z-startZ;
+  const surface=floorUnder(x,z,footY);
+  if(surface>footY+.01&&surface-footY<=MAX_STEP&&desired.lengthSq()>1e-9){
+    footY=surface;verticalVelocity=0;isGrounded=true;
+    stairSlowUntil=Math.max(stairSlowUntil,performance.now()+850);
+  }else if(footY-surface>.025&&footY-surface<=MAX_STEP+.03&&isGrounded){
+    // Un peldaño hacia abajo es un nuevo apoyo, no una caída libre:
+    // fijar el pie físico en la huella inferior y dejar que la vista
+    // descienda de forma controlada antes de seguir caminando.
+    footY=surface;verticalVelocity=0;isGrounded=true;
+    stairSlowUntil=Math.max(stairSlowUntil,performance.now()+850);
+  }else{
+    verticalVelocity=Math.max(-8,verticalVelocity-GRAVITY*dt);
+    const proposed=footY+verticalVelocity*dt;
+    if(proposed<=surface+.018&&surface<=footY+.045){
+      footY=surface;verticalVelocity=0;isGrounded=true;
+    }else{
+      footY=Math.max(0,proposed);
+      isGrounded=footY<.001;
+      if(isGrounded)verticalVelocity=0;
+    }
+  }
+  physicsFeetY=footY;
+  // El apoyo y las colisiones permanecen en el escalón físico correcto.
+  // La cámara se mueve despacio EN AMBAS DIRECCIONES; antes la bajada
+  // copiaba directamente footY, creando el salto brusco que notabas.
+  const visualDelta=footY-rig.position.y;
+  const isStairMotion=performance.now()<stairSlowUntil&&Math.abs(visualDelta)<=MAX_STEP+.12;
+  if(isStairMotion||visualDelta>0){
+    const easing=1-Math.exp(-STEP_VISUAL_SMOOTHING*dt);
+    const amount=Math.min(Math.abs(visualDelta),(visualDelta>0?STEP_VISUAL_SPEED_UP:STEP_VISUAL_SPEED_DOWN)*dt,
+                          Math.abs(visualDelta)*easing);
+    rig.position.y+=Math.sign(visualDelta)*amount;
+    if(Math.abs(footY-rig.position.y)<.002)rig.position.y=footY;
+  }else{
+    // Caídas mayores de un peldaño conservan la gravedad y el apoyo físicos.
+    rig.position.y=footY;
+  }
+  lastFloorY=surface;
+  vrDiagnostics='Paredes '+wallCount+' · bloqueos '+collisionStops+
+    ' · joystick '+joystickMeters.toFixed(1)+'m · HMD '+startX.toFixed(2)+','+startZ.toFixed(2)+
+    ' · pared '+liveHeadWallDepth.toFixed(3)+'m · peldaño '+(stairHeightPending?'transición':'libre');
+}
+function resetPhysics(){
+  physicsFeetY=null;
+  stairSlowUntil=0;lastStairContactMs=0;
+  verticalVelocity=0;
+  isGrounded=false;
+  lastFloorY=0;
+  vrDiagnostics='';
+  joystickMeters=0;physicalMeters=0;lastTrackedHead=null;xrPoseAvailable=false;
+}
+
+// Botón A del mando DERECHO: rescate sin cerrar el diseño ni las gafas.
+// Mantiene el HMD en su pose física y recoloca el rig para que los pies
+// vuelvan al punto de entrada del diseño, incluso si el usuario se desplazó
+// físicamente por su habitación desde que comenzó la sesión.
+function restartModelView(){
+  if(!model||!renderer.xr.isPresenting)return;
+  const hadBob=gaitBob;
+  rig.position.y-=hadBob;
+  gaitBob=0;gaitPhase=0;
+  const frame=renderer.xr.getFrame();
+  const ref=renderer.xr.getReferenceSpace();
+  const pose=frame&&ref?frame.getViewerPose(ref):null;
+  rig.rotation.set(0,0,0);
+  rig.position.set(
+    pose?-(pose.transform.position.x):0,
+    0,
+    vrStartDistance-(pose?pose.transform.position.z:0)
+  );
+  resetPhysics();
+  smoothTurnAxis=0;
+  canTurn=true;
+  menuNote='Vista reiniciada · A';
+  if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
+}
+function updateMouseGuide(){
+ if(!presentationHint)return;
+ if(touchGuide){
+   const finger=(x,y,color)=>'<rect x="'+x+'" y="'+y+'" width="10" height="22" rx="5" fill="'+color+'" stroke="#dbe9f6" stroke-width="1"/>';
+   const single='<svg width="42" height="26" viewBox="0 0 42 26" aria-hidden="true">'+finger(16,2,'#65b9ff')+'<path d="M13 13H3m0 0 4-4m-4 4 4 4M29 13h10m0 0-4-4m4 4-4 4" stroke="#65b9ff" fill="none" stroke-width="1.5"/></svg>';
+   const double='<svg width="42" height="26" viewBox="0 0 42 26" aria-hidden="true">'+finger(10,2,'#f4b56e')+finger(22,2,'#f4b56e')+'<path d="M8 13H2m0 0 3-3m-3 3 3 3M34 13h6m0 0-3-3m3 3-3 3" stroke="#f4b56e" fill="none" stroke-width="1.5"/></svg>';
+   const pinch='<svg width="42" height="26" viewBox="0 0 42 26" aria-hidden="true">'+finger(2,2,'#77ddae')+finger(30,2,'#77ddae')+'<path d="M14 13h5m-3-3 3 3-3 3M28 13h-5m3-3-3 3 3 3" stroke="#77ddae" fill="none" stroke-width="1.5"/></svg>';
+   presentationHint.innerHTML='<div class="mouseLegend touchLegend"><span>'+single+'<span>1 dedo · '+(walkingMode?'Mirar alrededor':'Girar')+'</span></span><span>'+double+'<span>2 dedos · '+(walkingMode?'Desplazarse':'Paneo')+'</span></span><span>'+pinch+'<span>Pellizco · '+(walkingMode?'Avanzar / retroceder':'Zoom')+'</span></span>'+(walkingMode?'<small>Altura fija: 1,75 m</small>':'')+'</div>';
+   presentationHint.classList.add('touchGuide');return;
+ }
+ presentationHint.classList.remove('touchGuide');
+ presentationHint.innerHTML='<svg width="46" height="64" viewBox="0 0 46 64" aria-hidden="true"><rect x="4" y="3" width="38" height="58" rx="19" fill="#26374a" stroke="#a7bed4" stroke-width="1.5"/><path d="M5 26V21A18 18 0 0 1 20 4V26Z" fill="#65b9ff"/><path d="M41 26V21A18 18 0 0 0 26 4V26Z" fill="#f4b56e"/><path d="M4 27H42" stroke="#a7bed4"/><rect x="20" y="9" width="6" height="16" rx="3" fill="#77ddae" stroke="#172438"/><path d="M23 12v9" stroke="#d7fbea" stroke-width="1.2"/></svg><div class="mouseLegend"><span><i style="background:#65b9ff"></i>'+(walkingMode?'Mirar alrededor':'Girar')+'</span><span><i style="background:#f4b56e"></i>'+'Paneo libre'+'</span><span><i style="background:#77ddae"></i>'+'Zoom'+'</span>'+(walkingMode?'<small>Altura fija: 1,75 m</small>':'<small>Central: desplazar</small>')+'</div>';
+}
+let presentationFloor=0;
+function lockEyeHeight(){
+ if(!model||!walkingMode)return;
+ const support=floorUnder(camera.position.x,camera.position.z,presentationFloor);
+ presentationFloor=support;
+ const shift=support+1.75-camera.position.y;
+ // Trasladar la cámara y su pivote juntos: conserva la orientación y el zoom.
+ camera.position.y+=shift;controls.target.y+=shift;
+ camera.updateMatrixWorld(true);
+}
+function syncHeadAngles(){
+ headEuler.setFromQuaternion(camera.quaternion,'YXZ');
+ yaw=walkTargetYaw=headEuler.y;pitch=walkTargetPitch=headEuler.x;
+}
+function setPresentationMode(walk){
+ if(measureMode){measureMode=false;controls.enabled=true;measurePoints=[];if(measureLabel)measureLabel.hidden=true;document.querySelectorAll('#presentationBar button').forEach(b=>{if(b.textContent==='Medir')b.setAttribute('aria-pressed','false')});}
+ if(walkingMode===walk)return;
+ if(walk){
+   const damping=controls.enableDamping;controls.enableDamping=false;controls.update();controls.enableDamping=damping;
+   walkingMode=true;controls.enabled=false;presentationFloor=0;lockEyeHeight();syncHeadAngles();
+ }else{
+   walkingMode=false;controls.enabled=true;
+   const aim=camera.getWorldDirection(new THREE.Vector3());
+   controls.target.copy(camera.position).addScaledVector(aim,Math.max(.5,Math.min(distance,3)));
+   controls.update();
+ }
+ headDrag=false;verticalDrag=false;orbitZoomPending=0;touchPoints.clear();touchSnapshot=null;
+ orbitButton.setAttribute('aria-pressed',String(!walk));walkButton.setAttribute('aria-pressed',String(walk));updateMouseGuide();
+}
+function desktopView(){
+  if(presentation){orbitZoomPending=0;verticalDrag=false;presentationFloor=0;}
+  rig.position.set(0,0,0);
+  rig.rotation.set(0,0,0);
+  camera.position.set(distance*.65,height*.85+1,distance);
+  controls.target.set(0,height*.45,0);
+  if(presentation){controls.maxDistance=Math.max(100,distance*8);controls.minDistance=.08;}
+  controls.update();
+  if(presentation&&walkingMode){lockEyeHeight();syncHeadAngles();}
+}
+function dispose(root){
+  const textures=new Set();
+  root.traverse(o=>{
+    o.geometry?.dispose();
+    const materials=Array.isArray(o.material)?o.material:[o.material];
+    for(const m of materials){
+      if(!m)continue;
+      for(const value of Object.values(m))if(value?.isTexture)textures.add(value);
+      m.dispose();
+    }
+  });
+  const shared=new Set();
+  for(const m of surfaceTextures.values()){shared.add(m.diffuse);shared.add(m.normal);shared.add(m.rough)}
+  for(const texture of textures)if(!shared.has(texture))texture.dispose();
+}
+async function openModel(){
+  const load=++generation;
+  vrButton.hidden=true;
+  status.textContent='Cargando diseño…';
+  if(presentation)window.presentationProgress('Descargando el modelo 3D…',null);
+  try{
+    const url=new URL(distributedModel?distributedModel.url:models.value,location.href);
+    if(!distributedModel&&(url.origin!==location.origin||!url.pathname.startsWith(new URL('modelos/',location.href).pathname)||!url.pathname.endsWith('.glb')))throw Error('Ruta de modelo no válida.');
+    const {scene:next}=await loader.loadAsync(url.href,event=>{if(presentation&&load===generation){const known=event.lengthComputable&&event.total>0;window.presentationProgress(known?'Descargando el modelo 3D · '+Math.round(event.loaded/event.total*100)+'%':'Descargando el modelo 3D…',known?event.loaded/event.total*100:null);}});
+    if(presentation)window.presentationProgress('Preparando geometría y materiales…',null);
+    if(load!==generation){dispose(next);return}
+    const upAxis=orientation.value;
+    switch(upAxis){
+      case 'z': next.rotateX(-Math.PI/2); break;
+      case '-z': next.rotateX(Math.PI/2); break;
+      case 'x': next.rotateZ(Math.PI/2); break;
+      case '-x': next.rotateZ(-Math.PI/2); break;
+      case '-y': next.rotateX(Math.PI); break;
+    }
+    const sourceMaterials=inspectMaterials(next);
+    detectedMaterials.textContent=sourceMaterials.lines.join('\n')||'No hay materiales reconocibles.';
+    if(appearance.value==='library'){
+      if(!globalThis.FusionMaterialLib)throw Error('No se pudo cargar nuestra biblioteca de materiales.');
+      status.textContent='Cargando materiales PBR CC0 (si no hay conexión, uso los locales)…';
+      if(presentation)window.presentationProgress('Preparando texturas y acabados…',null);
+      await globalThis.FusionMaterialLib.prepare();
+    }
+    if(load!==generation){dispose(next);return}
+    const applied=appearance.value==='library'?applyLibrary(next):0;
+    if(appearance.value==='diagnostic')applyMaterialDiagnostic(next);
+    if(appearance.value==='clear'){
+      const materials=new Set();
+      next.traverse(object=>{
+        if(object.isMesh) for(const material of [object.material].flat()) materials.add(material);
+      });
+      for(const material of materials){
+        if(!material.map&&material.color&&Math.max(material.color.r,material.color.g,material.color.b)<.04){
+          material.color.setHex(0x545960);
+          material.metalness=Math.min(material.metalness??0,.45);
+          material.roughness=Math.max(material.roughness??.7,.6);
+        }
+      }
+    }
+    // Los diseños de interiores de Fusion pueden utilizar superficies de una sola cara.
+    // Mostrarlas desde ambos lados evita paredes invisibles al entrar en el modelo.
+    next.traverse(object=>{
+      if(!object.isMesh)return;
+      for(const material of [object.material].flat()){
+        if(material&&material.side!==THREE.DoubleSide){
+          material.side=THREE.DoubleSide;
+          material.needsUpdate=true;
+        }
+      }
+    });
+    if(presentation)window.presentationProgress('Preparando la escena 3D…',null);
+    const stats=materialStats(next);
+    const bounds=new THREE.Box3().setFromObject(next,true);
+    if(bounds.isEmpty()){dispose(next);throw Error('El archivo está vacío.')}
+    const center=bounds.getCenter(new THREE.Vector3()), size=bounds.getSize(new THREE.Vector3());
+    if(model){scene.remove(model);dispose(model)}
+    model=next;
+    model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+    model.position.x-=center.x;
+    model.position.y-=bounds.min.y;
+    model.position.z-=center.z;
+    distance=Math.max(3,size.z/2+Math.max(size.x,size.y,2));
+    // Punto de entrada cerca de la fachada frontal (+Z), no a la distancia
+    // de encuadre del escritorio. Evita empezar en el centro de una pared.
+    vrStartDistance=Math.max(.9,size.z/2+.8);
+    height=size.y;
+    scene.add(model);
+    model.updateMatrixWorld(true);
+    fitModelShadows(size);
+    // Una estructura espacial creada desde TODAS las mallas del diseño,
+    // independientemente de sus materiales, nombres o tamaños.
+    worldOctree=new Octree();
+    worldOctree.fromGraphNode(model);
+    colliderMeshes=[];
+    model.traverse(o=>{if(o.isMesh&&o.geometry&&o.visible){colliderMeshes.push(o)}});
+    modelFloorY=0;
+    collisionTriangles=0;
+    model.traverse(o=>{if(o.isMesh&&o.geometry){collisionTriangles+=o.geometry.index?o.geometry.index.count/3:(o.geometry.attributes.position?.count||0)/3}});
+    buildWallIndex(model);
+    collisionStops=0;
+    geometryRayHits=0;
+    resetPhysics();
+    if(renderer.xr.isPresenting){
+      // Cambia el diseño y recoloca al visitante sin cerrar la sesión inmersiva.
+      rig.position.set(0,0,vrStartDistance);
+      rig.rotation.set(0,0,0);
+      smoothTurnAxis=0;
+      if(menuGroup.visible)updateMenuPlacement(renderer.xr.getCamera(),0);
+    }else desktopView();
+    status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.81';
+    vrButton.hidden=false;
+    if(presentation){window.presentationProgress('Proyecto listo',100);requestAnimationFrame(()=>requestAnimationFrame(()=>{if(load===generation)presentationStatus.hidden=true;}));}
+    return true;
+  }catch(error){
+    if(load===generation){status.textContent='No se pudo abrir el diseño. '+error.message;if(presentation)window.presentationProgress('No se pudo abrir el proyecto. '+error.message,null,true);}
+    if(model)vrButton.hidden=false;
+    return false;
+  }
+}
+renderer.xr.addEventListener('sessionstart',()=>{
+  // El framebuffer elegido ya se configuró ANTES de entrar en VR.
+  activeQuality=quality.value;
+  if(typeof renderer.xr.setFoveation==='function'){
+    renderer.xr.setFoveation(qualityProfiles[activeQuality]?.foveation??.50);
+  }
+  qualityNote.textContent='VR activo · '+activeQuality+' · escala '+Math.round((qualityProfiles[activeQuality]?.xrScale??.85)*100)+'%.';
+
+  controls.enabled=false;
+  rig.position.set(0,0,Math.max(.65,Math.min(distance,2)));
+  rig.rotation.set(0,0,0);
+  lastTime=0;
+  menuButtonHeld=false;
+  floorButtonHeld=false;
+  restartButtonHeld=false;
+  returnToLibrary=false;
+  canTurn=true;
+  smoothTurnAxis=0;
+  gaitPhase=0;gaitBob=0;
+  resetPhysics();
+  floorBaseSpace=null;
+  appliedFloorOffsetCm=null;
+  closeVRMenu();
+  showLibraryOnEntry=false;
+});
+let returnToLibrary=false;
+function leaveDesign(){
+  if(returnToLibrary)return;
+  returnToLibrary=true;
+  closeVRMenu();
+  const session=renderer.xr.getSession();
+  if(session){
+    session.end().catch(()=>{location.assign(new URL('./quest.html',location.href).href)});
+  }else location.assign(new URL('./quest.html',location.href).href);
+}
+renderer.xr.addEventListener('sessionend',()=>{
+  menuButtonHeld=false;
+  controls.enabled=true;
+  smoothTurnAxis=0;
+  closeVRMenu();
+  desktopView();
+  activeQuality=null;
+  if(returnToLibrary)location.assign(new URL('./quest.html',location.href).href);
+  else applyQuality();
+});
+const forward=new THREE.Vector3(), right=new THREE.Vector3(), pivot=new THREE.Vector3(), turned=new THREE.Vector3();
+function stick(source){
+  const axes=source?.gamepad?.axes;
+  return axes?.length>=4?[axes[2],axes[3]]:[axes?.[0]??0,axes?.[1]??0];
+}
+const dead=n=>Math.abs(n)<.18?0:n;
+function smoothStick(value){
+ const deadzone=.16;
+ const magnitude=Math.abs(value);
+ if(magnitude<deadzone)return 0;
+ return Math.sign(value)*Math.pow((Math.min(1,magnitude)-deadzone)/(1-deadzone),1.1);
+}
+function rotateAroundHeadset(headset,angle){
+ if(Math.abs(angle)<1e-7)return;
+ // Gira alrededor de la posición real de la cabeza para no crear órbitas.
+ pivot.setFromMatrixPosition(headset.matrixWorld).sub(rig.position);
+ pivot.y=0;
+ turned.copy(pivot).applyAxisAngle(THREE.Object3D.DEFAULT_UP,angle);
+ rig.position.add(pivot).sub(turned);
+ rig.rotation.y+=angle;
+}
+let menuButtonHeld=false,floorButtonHeld=false,restartButtonHeld=false,menuRedrawAt=0,gaitPhase=0,gaitBob=0;
+let meterStart=0,meterFrames=0,meterSlowest=0,meterLast=0;
+renderer.setAnimationLoop(time=>{
+  const dt=lastTime?Math.min(.05,(time-lastTime)/1000):0;
+  lastTime=time;
+  if(renderer.xr.isPresenting){
+    // Quitar la oscilación visual del fotograma anterior antes de resolver
+    // posición, escalones y colisiones; no altera el apoyo físico.
+    rig.position.y-=gaitBob;
+    // Ajustar solo una vez por sesión; nunca recalibrar en cada peldaño.
+    // Tras cambiar la referencia, esperar al siguiente frame para que tanto
+    // el render de Three como la lógica usen las MISMAS coordenadas.
+    const xrSession=renderer.xr.getSession();
+    updateControllerVisuals(renderer.xr.getFrame(),renderer.xr.getReferenceSpace(),xrSession);
+    const heightChanged=calibrateVirtualFloor();
+    const headset=renderer.xr.getCamera();
+    const inputs=Array.from(xrSession.inputSources);
+    const [x,y]=stick(inputs.find(s=>s.handedness==='left'));
+    const [turn]=stick(inputs.find(s=>s.handedness==='right'));
+    const left=inputs.find(s=>s.handedness==='left');
+    const rightInput=inputs.find(s=>s.handedness==='right');
+    // WebXR Quest Touch: botones de cara 4=A, 5=B en el mando derecho.
+    // Solo alterna al pulsar, sin reactivar por mantenerlo pulsado.
+    const exitPressed=Boolean(rightInput?.gamepad?.buttons?.[5]?.pressed);
+    const adjustPressed=Boolean(left?.gamepad?.buttons?.[5]?.pressed);
+    const restartPressed=Boolean(rightInput?.gamepad?.buttons?.[4]?.pressed);
+    if(restartPressed&&!restartButtonHeld&&!returnToLibrary)restartModelView();
+    restartButtonHeld=restartPressed;
+    if(exitPressed&&!menuButtonHeld)leaveDesign();
+    if(adjustPressed&&!floorButtonHeld&&!returnToLibrary){
+      if(menuGroup.visible)closeVRMenu();
+      else showVRMenu();
+    }
+    menuButtonHeld=exitPressed;
+    floorButtonHeld=adjustPressed;
+    if(menuGroup.visible){
+      updateMenuPlacement(headset,dt);
+      updateMenuRays();
+    }
+    if(menuGroup.visible&&!menuBusy){
+      if(!menuRedrawAt||time-menuRedrawAt>250){menuRedrawAt=time;drawVRMenu()}
+      let nextHover='';
+      for(const {controller} of menuControllerObjects){
+        const hit=menuHit(controller);
+        if(hit){nextHover=hit.type+(hit.i===undefined?'':':'+hit.i);break}
+      }
+      if(nextHover!==menuHovered){menuHovered=nextHover;drawVRMenu()}
+    }
+    syncViewerPose();
+    forward.copy(xrWorldForward);
+    forward.y=0;
+    forward.normalize();
+    right.crossVectors(forward,THREE.Object3D.DEFAULT_UP);
+    const strafe=dead(x),stride=-dead(y);
+    const magnitude=Math.max(1,Math.hypot(strafe,stride));
+    const walkingDirection=new THREE.Vector3().addScaledVector(forward,stride/magnitude)
+      .addScaledVector(right,strafe/magnitude);
+    // Detectar peldaños por la altura REAL del suelo delante del visitante.
+    // Vale para subir y bajar, y mantiene el paso lento entre peldaños.
+    // La física y los límites de escalón siguen exactamente iguales.
+    if(!menuGroup.visible&&walkingDirection.lengthSq()>.01&&physicsFeetY!==null){
+      const feet=physicsFeetY;
+      const supportHere=floorUnder(avatarHead.x,avatarHead.z,feet);
+      const probe=walkingDirection.clone().normalize().multiplyScalar(.34);
+      const supportAhead=floorUnder(avatarHead.x+probe.x,avatarHead.z+probe.z,feet);
+      const riseOrDrop=supportAhead-supportHere;
+      if(Math.abs(riseOrDrop)>.045&&Math.abs(riseOrDrop)<=MAX_STEP+.06){
+        stairSlowUntil=time+1100;
+      }
+    }
+    const walkingSpeed=time<stairSlowUntil?WALK_SPEED*STAIR_SPEED_FACTOR:WALK_SPEED;
+    // Paso vertical de 1,8 cm ligado a distancia REAL recorrida, no a un reloj.
+    // ~0,7 m por paso: dos elevaciones en una zancada completa.
+    // Solo en superficie plana; escaleras y colisiones no reciben este offset.
+    const isWalking=!menuGroup.visible&&walkingDirection.lengthSq()>.025;
+    const move=walkingDirection.multiplyScalar(walkingSpeed*dt);
+    const beforeX=rig.position.x,beforeZ=rig.position.z;
+    if(!heightChanged&&!returnToLibrary&&!restartPressed)
+      solveMovement(headset,menuGroup.visible?new THREE.Vector3():move,dt);
+    const distanceMoved=Math.hypot(rig.position.x-beforeX,rig.position.z-beforeZ);
+    const onFlatGround=isGrounded&&time>=stairSlowUntil&&
+      physicsFeetY!==null&&Math.abs(physicsFeetY-rig.position.y)<.025;
+    if(isWalking&&onFlatGround&&distanceMoved>.0001){
+      gaitPhase+=(distanceMoved/.70)*Math.PI*2;
+    }
+    const targetBob=isWalking&&onFlatGround&&distanceMoved>.0001
+      ?.018*(.5-.5*Math.cos(gaitPhase)):0;
+    gaitBob+=(targetBob-gaitBob)*(1-Math.exp(-14*dt));
+    if(Math.abs(gaitBob)<.0001)gaitBob=0;
+    rig.position.y+=gaitBob;
+    if(turnMode.value==='snap'){
+      smoothTurnAxis=0;
+      if(Math.abs(turn)<.25)canTurn=true;
+      if(canTurn&&Math.abs(turn)>.65){
+        canTurn=false;
+        rotateAroundHeadset(headset,-Math.sign(turn)*Math.PI/6);
+      }
+    }else{
+      // Giro proporcional y continuo a cada fotograma, sin saltos de 30°.
+      // La amortiguación suaviza el inicio y el final del movimiento.
+      const desired=smoothStick(turn);
+      const blend=1-Math.exp(-12*dt);
+      smoothTurnAxis+=(desired-smoothTurnAxis)*blend;
+      if(Math.abs(smoothTurnAxis)<.001&&Math.abs(desired)<.001)smoothTurnAxis=0;
+      const radiansPerSecond=Number(turnSpeed.value)*Math.PI/180;
+      rotateAroundHeadset(headset,-smoothTurnAxis*radiansPerSecond*dt);
+    }
+  }
+  if(presentation&&walkingMode&&model){
+    const blend=1-Math.exp(-22*dt);
+    yaw+=(walkTargetYaw-yaw)*blend;pitch+=(walkTargetPitch-pitch)*blend;
+    camera.rotation.set(pitch,yaw,0,'YXZ');
+    if(Math.abs(orbitZoomPending)>.0001){
+      const step=orbitZoomPending*(1-Math.exp(-18*dt));
+      const dir=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
+      const shift=dir.multiplyScalar(-step);
+      camera.position.add(shift);controls.target.add(shift);
+      orbitZoomPending-=step;
+    }
+    lockEyeHeight();
+  }else if(!renderer.xr.isPresenting){
+    if(presentation&&model&&Math.abs(orbitZoomPending)>.0001){
+      const offset=camera.position.clone().sub(controls.target);
+      const current=offset.length();
+      const step=orbitZoomPending*(1-Math.exp(-18*dt));
+      const next=THREE.MathUtils.clamp(current+step,controls.minDistance,controls.maxDistance);
+      if(current>1e-8){
+        const axis=offset.divideScalar(current);
+        camera.position.copy(controls.target).addScaledVector(axis,next);
+        // Al alcanzar el centro orbital, continuar acercando la cámara y
+        // su objetivo juntos: no detener el zoom en el centro del modelo.
+        const overflow=Math.min(0,current+step-controls.minDistance);
+        if(overflow<0){const shift=axis.multiplyScalar(overflow);camera.position.add(shift);controls.target.add(shift);}
+      }
+      orbitZoomPending-=step;
+      if(next>=controls.maxDistance&&step>0)orbitZoomPending=0;
+    }
+    controls.update();
+  }
+  if(presentation)ground.visible=walkingMode||camera.getWorldPosition(new THREE.Vector3()).y>=ground.position.y;
+  renderer.render(scene,camera);
+  if(!meterStart)meterStart=time;
+  if(meterLast){
+    const frameMs=time-meterLast;
+    if(frameMs>0&&frameMs<250)meterSlowest=Math.max(meterSlowest,frameMs);
+  }
+  meterLast=time;
+  meterFrames++;
+  const windowMs=time-meterStart;
+  if(windowMs>=1000){
+    const fps=Math.round(meterFrames*1000/windowMs);
+    const worst=Math.round(meterSlowest);
+    performanceLabel.textContent=(renderer.xr.isPresenting?'Quest/VR':'PC')+': '+fps+' FPS · peor fotograma '+worst+' ms · '+renderer.info.render.calls+' grupos de dibujo · '+collisionTriangles+' triángulos de colisión · '+collisionStops+' bloqueos · '+vrDiagnostics;
+    meterStart=time;meterFrames=0;meterSlowest=0;
+  }
+});
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+for(const control of [models,orientation,appearance])control.addEventListener('change',openModel);
+function exitWithdrawnDesign(){
+  generation++;
+  renderer.setAnimationLoop(null);
+  const destination=access==='director'?'direccion.html?v=125':'retirado.html';
+  location.replace(new URL(destination,location.href).href);
+}
+
+try{
+    if(presentation){
+    const id=params.get('diseno');
+    if(access!=='taller')throw Error('Acceso no válido para Taller');
+    const key=location.hash.slice(1);
+    const findJob=async()=>{const {jobs}=await EskalaTaller.worker(key);return jobs.find(j=>j.design===id)};
+    const job=await findJob();if(!job)throw Error('Trabajo no asignado');
+    distributedModel={meta:job.model,url:new URL(job.model.archivo,location.href).href};
+    setInterval(async()=>{if(document.hidden)return;try{if(!await findJob())location.replace(EskalaTaller.link(key))}catch(e){console.warn(e)}},30000);
+    const item=distributedModel.meta;orientation.value='z';appearance.value='library';models.add(new Option(item.nombre,item.id));presentationTitle.textContent=item.nombre;document.title=item.nombre+' · ESKALA Viewer';await openModel();
+  }else{
+  const catalogURL=new URL('catalogo.json',location.href);
+  catalogURL.searchParams.set('refresh',String(Date.now()));
+  const response=await fetch(catalogURL.href,{cache:'no-store'});
+  if(!response.ok)throw Error('No se pudo leer el catálogo.');
+  const {modelos=[]}=await response.json();
+  orientation.value='z';
+  libraryEntries=modelos;
+  for(const item of modelos)models.add(new Option(item.nombre,item.archivo));
+  if(!models.length)throw Error('Todavía no hay diseños publicados.');
+  const requestedId=new URLSearchParams(location.search).get('diseno');
+  const requested=modelos.find(item=>item.id===requestedId);
+  if(requested)models.value=requested.archivo;
+  if(presentation){if(!requested)throw Error('El enlace no identifica un diseño disponible.');presentationTitle.textContent=requested.nombre;document.title=requested.nombre+' · ESKALA Viewer';}
+  for(const control of [models,orientation,appearance])control.disabled=false;
+  appearance.value='library';
+  await openModel();
+  }
+}catch(error){
+  if(error.code==='DESIGN_WITHDRAWN')exitWithdrawnDesign();
+  else{
+    status.textContent=error.message;
+    if(presentation)window.presentationProgress('No se pudo abrir el proyecto. '+error.message,null,true);
+  }
+}
+</script>
+</html>
