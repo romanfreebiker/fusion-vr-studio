@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-11-26T11:34:17.239Z",
+  "updated": "2026-11-26T11:34:21.920Z",
   "accesses": [
     {
       "id": "acc_mwxgve7k_owcajz",
@@ -21,10 +21,11 @@
       "contact": "",
       "channel": "whatsapp",
       "tokenHash": "655a9e16bb577b9bf34c178b8885cc13eef1120cbf25ffb83078f2bd07a139a2",
-      "status": "active",
+      "status": "revoked",
       "createdAt": "2026-11-26T11:28:07.439Z",
-      "updatedAt": "2026-11-26T11:28:07.439Z",
-      "expiresAt": "2026-11-27T11:28:07.439Z"
+      "updatedAt": "2026-11-26T11:34:21.920Z",
+      "expiresAt": "2026-11-27T11:28:07.439Z",
+      "revokedAt": "2026-11-26T11:34:21.920Z"
     },
     {
       "id": "acc_mwxh30l2_o476fm",
