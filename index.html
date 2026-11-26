@@ -4248,7 +4248,7 @@ async function refresh(){
 const dateLabel=new Intl.DateTimeFormat('es-ES',{dateStyle:'medium',timeStyle:'short'});
 function render(){
   if(!document.getElementById('distributionNav')){
-    const url=new URL('direccion.html',location.href);url.searchParams.set('v','91');
+    const url=new URL('direccion.html',location.href);url.searchParams.set('v','95');
     const panel=document.createElement('div');panel.style.cssText='margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center';
     const copy=textNode('button','Copiar enlace para dirección','button small');copy.type='button';
     copy.onclick=async()=>{try{await navigator.clipboard.writeText(url.href);copy.textContent='¡Enlace copiado!';toast('Enlace general de dirección copiado');setTimeout(()=>copy.textContent='Copiar enlace para dirección',1600)}catch{prompt('Copia el enlace general de dirección',url.href)}};
