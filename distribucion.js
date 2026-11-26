@@ -170,7 +170,7 @@
  }
  async function listThirdParty(designId,force=false){
    const data=await readThird(force),now=Date.now();
-   return data.accesses.filter(a=>a&&a.designId===designId).map(a=>({...a,effectiveStatus:thirdPartyState(a,now),remaining:thirdPartyRemaining(a,now)})).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+   return data.accesses.filter(a=>a&&a.designId===designId&&thirdPartyState(a,now)==='active').map(a=>({...a,effectiveStatus:'active',remaining:thirdPartyRemaining(a,now)})).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
  }
  async function thirdPartySettings(force=false){
    const data=await readThird(force);
@@ -189,7 +189,7 @@
    const label=channel==='whatsapp'?'WhatsApp':channel==='email'?'Correo':'Enlace';
    return label+' · '+date+' '+time;
  }
- async function createThirdPartyAccess(designId,recipient='',contact='',channel='link'){
+ async function createThirdPartyAccess(designId,recipient='',contact='',channel='link',ttlHours=24){
    const clean=String(recipient||automaticRecipient(channel)).trim().slice(0,80);
    const base=await shareBase(designId);
    const secret=randomToken(),hash=await tokenHash(secret),nowMs=Date.now(),now=new Date(nowMs).toISOString();
@@ -198,12 +198,9 @@
    let shortUrl;
    try{shortUrl=await shortenExternal(longUrl)}
    catch(error){throw Error('No se pudo crear el enlace corto de ESKALA. Vuelve a intentarlo.')}
-   const access={id:'acc_'+nowMs.toString(36)+'_'+Math.random().toString(36).slice(2,8),designId,recipient:clean,contact:maskContact(contact),channel,tokenHash:hash,status:'active',createdAt:now,updatedAt:now};
-   await writeThird(data=>{
-     const hours=Math.max(1,Math.min(24*30,Math.round(Number(data.defaultTtlHours)||24)));
-     access.expiresAt=new Date(nowMs+hours*3600000).toISOString();
-     data.accesses.push(access);
-   });
+   const hours=Math.max(1,Math.min(24*30,Number(ttlHours)||24));
+   const access={id:'acc_'+nowMs.toString(36)+'_'+Math.random().toString(36).slice(2,8),designId,recipient:clean,contact:maskContact(contact),channel,tokenHash:hash,status:'active',createdAt:now,updatedAt:now,expiresAt:new Date(nowMs+hours*3600000).toISOString()};
+   await writeThird(data=>data.accesses.push(access));
    return {access:{...access,effectiveStatus:'active',remaining:thirdPartyRemaining(access)},url:shortUrl};
  }
  async function setThirdPartyStatus(accessId,status){
@@ -225,6 +222,9 @@
      data.accesses.splice(i,1);
    });
  }
+ async function deactivateThirdPartyAccess(accessId){
+   return deleteThirdPartyAccess(accessId);
+ }
  async function verifyThirdParty(designId,secret,force=false){
    if(!secret)return null;
    const hash=await tokenHash(secret),data=await readThird(force),now=Date.now();
@@ -244,10 +244,10 @@
  async function share(id){
    return (await createThirdPartyAccess(id,'','', 'link')).url;
  }
- async function shareWhatsApp(id,name){
+ async function shareWhatsApp(id,name,ttlHours=24){
    const page=window.open('about:blank','_blank');
    try{
-     const {url}=await createThirdPartyAccess(id,'','', 'whatsapp');
+     const {url}=await createThirdPartyAccess(id,'','', 'whatsapp',ttlHours);
      const message='ESKALA Studio · '+(name||'Diseño 3D')+'\n'+url;
      const target='https://wa.me/?text='+encodeURIComponent(message);
      if(page){page.opener=null;page.location.replace(target);}else window.location.assign(target);
@@ -298,5 +298,5 @@
    window.addEventListener('pageshow',check);
  }
  function removalUrl(m){const u=new URL('https://github.com/'+repo+'/issues/new');u.searchParams.set('title','[Dirección] Retirar diseño '+m.id);u.searchParams.set('body','Solicito retirar de la biblioteca de dirección el diseño '+m.nombre+'.\n\nIdentificador: '+m.id+'\nVersión: '+m.updated);return u.href}
- window.FusionDistribution={version:11,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,loadViewer,watchViewer,refreshInterval,hide,removalUrl};
+ window.FusionDistribution={version:12,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,hide,removalUrl};
 })();
