@@ -13,7 +13,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=19"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=20"></script>
 <script>
 /* Three.js
 The MIT License
@@ -4045,22 +4045,6 @@ three/examples/jsm/libs/fflate.module.js:
         <div class="status" id="settingsStatus" role="status"></div>
         <p class="muted tiny" id="savedConnectionStatus">Consulta los diseños sin iniciar sesión; para subir o eliminar necesitas autorizar GitHub.</p>
       </div>
-      <div class="panel">
-        <h2>Accesos a terceros</h2>
-        <p>Los enlaces enviados caducan automáticamente. Esta duración se aplica a los nuevos envíos y no añade ningún paso al compartir.</p>
-        <label class="field" style="max-width:360px"><span>Duración predeterminada</span>
-          <select class="select" id="thirdPartyTtl">
-            <option value="1">1 hora</option>
-            <option value="6">6 horas</option>
-            <option value="12">12 horas</option>
-            <option value="24">24 horas</option>
-            <option value="48">48 horas</option>
-            <option value="72">72 horas</option>
-            <option value="168">7 días</option>
-          </select>
-        </label>
-        <p class="muted tiny" id="thirdPartyTtlStatus">Cargando configuración…</p>
-      </div>
     </section>
     <footer class="footer"><span>ESKALA Studio · Versión 0.1</span><span>Biblioteca pública de modelos</span></footer>
   </main>
@@ -4088,13 +4072,16 @@ const humanSize=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/
 const safeName=s=>String(s||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,50)||'diseno';
 const textNode=(tag,text,cls)=>{const el=document.createElement(tag);el.textContent=text;if(cls)el.className=cls;return el};
 function toast(message,bad=false){const t=$('toast');t.textContent=message;t.className='toast'+(bad?' bad':'');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>t.classList.add('hidden'),5000)}
-function status(id,message,type){const e=$(id);e.textContent=message;e.className='status show'+(type?' '+type:'')}
-function nav(view){state.activeView=view;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));Object.keys(views).forEach(v=>$('view-'+v).classList.toggle('hidden',v!==view));$('pageTitle').textContent=views[view][0];$('pageSubtitle').textContent=views[view][1];if(view==='materiales')renderMaterialLibrary();if(view==='configuracion')loadThirdPartyTtl();window.scrollTo({top:0,behavior:'smooth'})}
-async function loadThirdPartyTtl(){
-  const select=$('thirdPartyTtl'),label=$('thirdPartyTtlStatus');if(!select||!label)return;
-  try{const settings=await FusionDistribution.thirdPartySettings(true);select.value=String(settings.defaultTtlHours);label.textContent='Duración actual: '+select.options[select.selectedIndex]?.text+'.';}
-  catch(e){label.textContent='No se pudo leer la duración: '+e.message}
+function askExposureHours(){
+  const value=prompt('Tiempo de exposición del enlace (horas).\n\nDéjalo vacío para 24 horas.','');
+  if(value===null)return null;
+  if(!String(value).trim())return 24;
+  const hours=Number(String(value).replace(',','.'));
+  if(!Number.isFinite(hours)||hours<=0||hours>720){toast('Introduce un tiempo entre 1 hora y 720 horas.',true);return null}
+  return hours;
 }
+function status(id,message,type){const e=$(id);e.textContent=message;e.className='status show'+(type?' '+type:'')}
+function nav(view){state.activeView=view;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));Object.keys(views).forEach(v=>$('view-'+v).classList.toggle('hidden',v!==view));$('pageTitle').textContent=views[view][0];$('pageSubtitle').textContent=views[view][1];if(view==='materiales')renderMaterialLibrary();window.scrollTo({top:0,behavior:'smooth'})}
 
 function renderMaterialLibrary(){
  const area=$('materialGallery'),lib=globalThis.FusionMaterialLib;
@@ -4460,23 +4447,16 @@ function render(){
     async function updateThirdPartyAccesses(){
       try{
         const rows=await FusionDistribution.listThirdParty(m.id,true);
-        const active=rows.filter(x=>x.effectiveStatus==='active').length;
-        accessSummary.textContent='Compartido con terceros · '+active+' activo'+(active===1?'':'s')+(rows.length!==active?' · '+(rows.length-active)+' revocado'+(rows.length-active===1?'':'s'):'');
+        const active=rows.length;
+        accessSummary.textContent=active?'Compartido con terceros · '+active+' activo'+(active===1?'':'s'):'Sin accesos activos a terceros';
         accessList.replaceChildren();
         for(const row of rows){
           const line=document.createElement('div');line.className='third-access-row';
           const who=textNode('span',row.recipient+(row.contact?' · '+row.contact:''),'who');
-          const effective=row.effectiveStatus||row.status;const stateText=effective==='active'?'ACTIVO · '+(row.remaining||''):effective==='expired'?'CADUCADO':'REVOCADO';const stateLabel=textNode('span',stateText,'state '+(effective==='active'?'active':'revoked'));
-          if(effective==='active'){
-            const disable=textNode('button','Desactivar','button ghost small');
-            disable.onclick=async()=>{try{await FusionDistribution.setThirdPartyStatus(row.id,'revoked');await updateThirdPartyAccesses();toast('Acceso desactivado')}catch(e){toast(e.message,true)}};
-            line.append(who,stateLabel,disable);
-          }else{
-            line.append(who,stateLabel);
-          }
-          const del=textNode('button','Eliminar','button ghost small');
-          del.onclick=async()=>{if(!confirm('¿Eliminar este acceso?'))return;try{await FusionDistribution.deleteThirdPartyAccess(row.id);await updateThirdPartyAccesses()}catch(e){toast(e.message,true)}};
-          line.append(del);accessList.append(line);
+          const stateLabel=textNode('span','ACTIVO · '+(row.remaining||''),'state active');
+          const disable=textNode('button','Desactivar a terceros','button ghost small');
+          disable.onclick=async()=>{try{await FusionDistribution.deactivateThirdPartyAccess(row.id);await updateThirdPartyAccesses();toast('Acceso a terceros desactivado')}catch(e){toast(e.message,true)}};
+          line.append(who,stateLabel,disable);accessList.append(line);
         }
         if(!rows.length)accessList.append(textNode('div','Todavía no hay destinatarios registrados.','muted tiny'));
       }catch(e){accessSummary.textContent='Accesos terceros: '+e.message}
@@ -4488,7 +4468,7 @@ function render(){
         catch{prompt('Enlace individual',url)}
         await updateThirdPartyAccesses();
       }],
-      ['WhatsApp',async()=>{await FusionDistribution.shareWhatsApp(m.id,m.nombre);await updateThirdPartyAccesses()}],
+      ['WhatsApp',async()=>{const hours=askExposureHours();if(hours===null)return;await FusionDistribution.shareWhatsApp(m.id,m.nombre,hours);await updateThirdPartyAccesses()}],
       ['Correo',async()=>{await FusionDistribution.shareEmail(m.id,m.nombre);await updateThirdPartyAccesses()}]
     ];
     const shareButtons=shareActions.map(([label,action])=>{
@@ -4623,13 +4603,7 @@ thumbnailsButton.addEventListener('click',async()=>{
   finally{state.busy=false;thumbnailsButton.disabled=false;thumbnailsButton.textContent='▣ Generar miniaturas pendientes';render();}
 });
 $('searchInput').addEventListener('input',render);$('categoryFilter').addEventListener('change',render);$('refreshBtn').addEventListener('click',refresh);
-$('thirdPartyTtl')?.addEventListener('change',async e=>{
-  const label=$('thirdPartyTtlStatus'),select=e.currentTarget;
-  select.disabled=true;
-  try{const hours=await FusionDistribution.setThirdPartyTtlHours(select.value);select.value=String(hours);label.textContent='Duración guardada: '+select.options[select.selectedIndex]?.text+'. Se aplicará a los próximos envíos.';toast('Temporizador de terceros actualizado');}
-  catch(error){label.textContent=error.message;toast(error.message,true);await loadThirdPartyTtl();}
-  finally{select.disabled=false}
-});
+
 async function inspectGlb(file){
   if(!file||(file.name&&!/\.glb$/i.test(file.name)))return null;
   const head=await file.slice(0,20).arrayBuffer(),h=new DataView(head);
