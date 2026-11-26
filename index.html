@@ -4012,7 +4012,7 @@ three/examples/jsm/libs/fflate.module.js:
       <div class="hero"><div><div class="kicker">ESKALA · HOME + WORK</div><h2>Diseña donde quieras.<br>Visítalo en realidad virtual.</h2><p>Guarda tus diseños en una biblioteca común y accede desde cualquier ordenador mediante el mismo enlace.</p><button class="button" type="button" data-goto="subir" style="margin-top:14px">＋ Añadir diseño</button></div><div class="hero-art" aria-hidden="true">◈</div></div>
       <div class="stats"><div class="stat"><div class="number" id="statCount">0</div><div class="muted">Diseños guardados</div></div><div class="stat"><div class="number" id="statCategories">0</div><div class="muted">Familias</div></div><div class="stat"><div class="number" id="statSize">0 MB</div><div class="muted">Tamaño de modelos</div></div></div>
       <div class="toolbar"><div><h2 style="margin:0">Todos los proyectos</h2><div class="muted tiny" id="repoLabel">Configura tu repositorio para ver la biblioteca</div></div><div class="filters"><input class="input search" id="searchInput" placeholder="Buscar por nombre..." aria-label="Buscar diseños"><select class="select" id="categoryFilter" aria-label="Filtrar categoría"><option value="">Todas las categorías</option></select></div></div>
-      <button id="manageFamilies" class="button secondary small" type="button" style="margin:0 0 12px">Gestionar familias</button>
+      <p id="storageStatus" class="muted tiny" role="status" style="margin:0 0 12px">Almacenamiento pendiente de comprobar.</p><button id="manageFamilies" class="button secondary small" type="button" style="margin:0 0 12px">Gestionar familias</button>
       <div id="gallery" class="gallery"></div>
       <div id="emptyLibrary" class="empty"><div class="symbol">⬡</div><strong>Tu biblioteca está lista para empezar</strong><p>Conecta GitHub y sube tu primer diseño GLB.</p><button class="button secondary" data-goto="configuracion" type="button">Configurar GitHub</button></div>
     </section>
@@ -4291,7 +4291,7 @@ function b64ToJson(b){const bin=atob((b||'').replace(/\s/g,''));const a=new Uint
 function rawUrl(p){return `https://raw.githubusercontent.com/${encodeURIComponent(state.owner)}/${encodeURIComponent(state.repo)}/${encPath(state.branch)}/${encPath(p)}`}
 async function loadCatalog(){
   const result=await request('GET','catalogo.json',null,true);
-  if(!result){state.catalogSha=null;return {version:1,modelos:[]}}
+  if(!result)throw Error('No se encuentra el catálogo de diseños. No se modificará la biblioteca.');
   state.catalogSha=result.sha;
   if(result.content&&result.encoding==='base64')return b64ToJson(result.content);
   throw Error('El catálogo no tiene el formato esperado.');
@@ -4394,12 +4394,30 @@ function changeDesignFamily(id,family){
     return {familias,modelos:modelos.map(m=>m.id===id?{...m,categoria:next}:m)};
   });
 }
+let storageCheckSequence=0;
+let catalogLoadFailed=false;
+async function checkStorage(){
+  const sequence=++storageCheckSequence;
+  const node=$('storageStatus');
+  if(!node)return;
+  node.textContent='Comprobando almacenamiento de GitHub…';
+  try{
+    const ref=await githubRequest('GET','/git/ref/heads/'+encPath(state.branch));
+    const tree=await githubRequest('GET','/git/trees/'+ref.object.sha+'?recursive=1');
+    if(tree.truncated||!Array.isArray(tree.tree))throw Error('Listado incompleto');
+    const bytes=tree.tree.reduce((sum,item)=>sum+(item.type==='blob'?(Number(item.size)||0):0),0);
+    const mib=bytes/1048576;
+    if(sequence!==storageCheckSequence)return;
+    node.textContent='Archivos actuales del repositorio: '+mib.toFixed(1)+' MiB / 1.000 MiB de referencia'+(mib>=750?' · ⚠ Capacidad elevada.':' · Capacidad disponible.');
+    node.style.color=mib>=750?'#e5a126':'';
+  }catch(e){if(sequence===storageCheckSequence){node.textContent='Almacenamiento: no se pudo comprobar; se reintentará al actualizar.';node.style.color='';}}
+}
 async function refresh(){
   if(!state.owner||!state.repo){setConnection('Sin conectar');render();return}
   setConnection('Consultando...');$('refreshBtn').disabled=true;
-  try{const result=await loadCatalog();updateCatalogState(result);setConnection(state.token?'GitHub autorizado':'Biblioteca disponible · sin autorización',!!state.token);$('repoLabel').textContent=state.owner+'/'+state.repo+' · '+state.branch;render();}
-  catch(e){setConnection('Error de conexión');toast(e.message,true);render()}
-  finally{$('refreshBtn').disabled=false}
+  try{const result=await loadCatalog();catalogLoadFailed=false;updateCatalogState(result);setConnection(state.token?'GitHub autorizado':'Biblioteca disponible · sin autorización',!!state.token);$('repoLabel').textContent=state.owner+'/'+state.repo+' · '+state.branch;render();}
+  catch(e){catalogLoadFailed=true;setConnection('Error de conexión');toast(e.message,true);render()}
+  finally{$('refreshBtn').disabled=false;void checkStorage()}
 }
 
 const dateLabel=new Intl.DateTimeFormat('es-ES',{dateStyle:'medium',timeStyle:'short'});
@@ -4426,7 +4444,7 @@ function render(){
   const q=$('searchInput').value.trim().toLocaleLowerCase('es'), family=filter.value;
   const shown=state.models.filter(m=>(!q||(m.nombre||'').toLocaleLowerCase('es').includes(q))&&(!family||'family:'+familyKey(m.categoria)===family));
   $('gallery').replaceChildren();$('emptyLibrary').classList.toggle('hidden',shown.length>0);
-  if(!shown.length){$('emptyLibrary').querySelector('strong').textContent=state.models.length?'No hay diseños con ese filtro':'Todavía no hay diseños publicados';$('emptyLibrary').querySelector('p').textContent=state.models.length?'Prueba otra búsqueda o familia.':'Conecta tu repositorio y sube un archivo GLB.';return}
+  if(!shown.length){if(catalogLoadFailed){$('emptyLibrary').querySelector('strong').textContent='Error al cargar los diseños';$('emptyLibrary').querySelector('p').textContent='Pulsa Actualizar para reintentar. Tus archivos no se han eliminado.';return;} $('emptyLibrary').querySelector('strong').textContent=state.models.length?'No hay diseños con ese filtro':'Todavía no hay diseños publicados';$('emptyLibrary').querySelector('p').textContent=state.models.length?'Prueba otra búsqueda o familia.':'Conecta tu repositorio y sube un archivo GLB.';return}
   for(const m of shown){
     const tile=document.createElement('article');tile.className='tile';
     const cover=document.createElement('div');cover.className='cover';
