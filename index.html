@@ -13,7 +13,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=13"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=14"></script>
 <script>
 /* Three.js
 The MIT License
@@ -3970,6 +3970,13 @@ three/examples/jsm/libs/fflate.module.js:
 .tile-family{display:grid;gap:4px;margin:6px 0 10px}
 .share-controls{display:flex;flex-wrap:wrap;gap:6px;flex-basis:100%}
 .share-controls strong{flex-basis:100%}
+.third-accesses{display:grid;gap:6px;flex-basis:100%;margin-top:2px}
+.third-access-summary{font-size:12px;color:#8fd9ff}
+.third-access-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 8px;border:1px solid #30465f;border-radius:8px;background:#101a28}
+.third-access-row .who{font-size:12px;flex:1;min-width:120px}
+.third-access-row .state{font-size:11px;font-weight:700}
+.third-access-row .state.active{color:#78e6af}.third-access-row .state.revoked{color:#ff9aa4}
+.third-access-row button{padding:5px 8px!important;font-size:11px!important}
 </style>
 </head>
 <body>
@@ -4426,21 +4433,53 @@ function render(){
     const revoke=textNode('button','Retirar de dirección','button ghost small');revoke.hidden=true;foot.append(revoke);
     const shareControls=document.createElement('div');shareControls.className='share-controls';
     shareControls.append(textNode('strong','Enviar a terceros','muted tiny'));
+    const accessSummary=textNode('div','Consultando accesos…','third-access-summary');
+    const accessList=document.createElement('div');accessList.className='third-accesses';
+    function askRecipient(){
+      const recipient=prompt('Nombre o empresa del destinatario.\n\nSe mostrará en la lista de accesos:','');
+      if(recipient===null)return null;
+      if(!recipient.trim()){toast('Indica un nombre o empresa.',true);return null}
+      const contact=prompt('Contacto o referencia opcional.\nSi escribes teléfono o email se guardará enmascarado porque el repositorio es público.','');
+      return {recipient:recipient.trim(),contact:contact||''};
+    }
+    async function updateThirdPartyAccesses(){
+      try{
+        const rows=await FusionDistribution.listThirdParty(m.id,true);
+        const active=rows.filter(x=>x.status==='active').length;
+        accessSummary.textContent='Compartido con terceros · '+active+' activo'+(active===1?'':'s')+(rows.length!==active?' · '+(rows.length-active)+' revocado'+(rows.length-active===1?'':'s'):'');
+        accessList.replaceChildren();
+        for(const row of rows){
+          const line=document.createElement('div');line.className='third-access-row';
+          const who=textNode('span',row.recipient+(row.contact?' · '+row.contact:''),'who');
+          const stateLabel=textNode('span',row.status==='active'?'ACTIVO':'REVOCADO','state '+row.status);
+          const toggle=textNode('button',row.status==='active'?'Desactivar':'Reactivar','button ghost small');
+          toggle.onclick=async()=>{try{await FusionDistribution.setThirdPartyStatus(row.id,row.status==='active'?'revoked':'active');await updateThirdPartyAccesses();toast(row.status==='active'?'Acceso desactivado':'Acceso reactivado')}catch(e){toast(e.message,true)}};
+          const del=textNode('button','Eliminar','button ghost small');
+          del.onclick=async()=>{if(!confirm('¿Eliminar el registro de acceso de '+row.recipient+'?'))return;try{await FusionDistribution.deleteThirdPartyAccess(row.id);await updateThirdPartyAccesses()}catch(e){toast(e.message,true)}};
+          line.append(who,stateLabel,toggle,del);accessList.append(line);
+        }
+        if(!rows.length)accessList.append(textNode('div','Todavía no hay destinatarios registrados.','muted tiny'));
+      }catch(e){accessSummary.textContent='Accesos terceros: '+e.message}
+    }
     const shareActions=[
       ['Copiar enlace',async()=>{
-        const url=await FusionDistribution.share(m.id);
-        try{await navigator.clipboard.writeText(url);toast('Enlace para terceros copiado');}
-        catch{prompt('Enlace para terceros',url)}
+        const details=askRecipient();if(!details)return;
+        const url=await FusionDistribution.share(m.id,details.recipient,details.contact);
+        try{await navigator.clipboard.writeText(url);toast('Enlace individual copiado para '+details.recipient);}
+        catch{prompt('Enlace individual para '+details.recipient,url)}
+        await updateThirdPartyAccesses();
       }],
-      ['WhatsApp',()=>FusionDistribution.shareWhatsApp(m.id,m.nombre)],
-      ['Correo',()=>FusionDistribution.shareEmail(m.id,m.nombre)]
+      ['WhatsApp',async()=>{const details=askRecipient();if(!details)return;await FusionDistribution.shareWhatsApp(m.id,m.nombre,details.recipient,details.contact);await updateThirdPartyAccesses()}],
+      ['Correo',async()=>{const details=askRecipient();if(!details)return;await FusionDistribution.shareEmail(m.id,m.nombre,details.recipient,details.contact);await updateThirdPartyAccesses()}]
     ];
     const shareButtons=shareActions.map(([label,action])=>{
       const button=textNode('button',label,'button secondary small');button.type='button';
       button.onclick=async()=>{try{await action()}catch(e){toast(e.message,true)}};
       shareControls.append(button);return button;
     });
+    shareControls.append(accessSummary,accessList);
     foot.append(shareControls);
+    updateThirdPartyAccesses();
     function displayDistribution(d){
       const active=d?.status==='active';
       distribution.textContent=active?'Activo en dirección':d?.status==='inactive'?'Desactivado por dirección':'No enviado a dirección';
