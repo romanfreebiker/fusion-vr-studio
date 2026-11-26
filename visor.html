@@ -65,7 +65,7 @@ window.presentationProgress=function(message,percent,error=false){
 window.addEventListener('error',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo iniciar el visor. Comprueba la conexión.',null,true);});
 window.addEventListener('unhandledrejection',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo cargar el proyecto.',null,true);});
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=19"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=20"></script>
 <header>
 <h1>ESKALA Viewer</h1><span class="eskala-sign">by Roman · <b>62</b> SESENTA&amp;DOS</span>
 <label for="models">Diseño</label><select id="models" disabled></select>
@@ -227,14 +227,26 @@ if(presentation){
  document.addEventListener('fullscreenchange',()=>{full.setAttribute('aria-pressed',String(!!document.fullscreenElement));full.textContent=document.fullscreenElement?'Salir de pantalla completa':'Pantalla completa';});
  if(access==='director'){
    button('Mi biblioteca',()=>location.assign('direccion.html?v=119'));
-   const share=button('Copiar enlace para terceros',async()=>{if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}share.disabled=true;try{const url=await FusionDistribution.share(params.get('diseno'));try{await navigator.clipboard.writeText(url);share.textContent='¡Enlace copiado!';share.classList.add('confirmed');setTimeout(()=>{share.textContent='Copiar enlace para terceros';share.classList.remove('confirmed')},1600)}catch{prompt('Enlace individual',url)}}catch(e){alert(e.message)}finally{share.disabled=false}});
-   for(const [label,action] of [['WhatsApp','shareWhatsApp'],['Correo','shareEmail']]){
-     button(label,async()=>{
-       if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}
-       try{await FusionDistribution[action](params.get('diseno'),distributedModel.meta.nombre);}
-       catch(e){alert(e.message)}
-     });
+   function askExposureHours(){
+     const value=prompt('Tiempo de exposición del enlace (horas).\n\nDéjalo vacío para 24 horas.','');
+     if(value===null)return null;
+     if(!String(value).trim())return 24;
+     const hours=Number(String(value).replace(',','.'));
+     if(!Number.isFinite(hours)||hours<=0||hours>720){alert('Introduce un tiempo entre 1 hora y 720 horas.');return null}
+     return hours;
    }
+   const share=button('Copiar enlace para terceros',async()=>{if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}share.disabled=true;try{const url=await FusionDistribution.share(params.get('diseno'));try{await navigator.clipboard.writeText(url);share.textContent='¡Enlace copiado!';share.classList.add('confirmed');setTimeout(()=>{share.textContent='Copiar enlace para terceros';share.classList.remove('confirmed')},1600)}catch{prompt('Enlace individual',url)}}catch(e){alert(e.message)}finally{share.disabled=false}});
+   button('WhatsApp',async()=>{
+     if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}
+     const hours=askExposureHours();if(hours===null)return;
+     try{await FusionDistribution.shareWhatsApp(params.get('diseno'),distributedModel.meta.nombre,hours);}
+     catch(e){alert(e.message)}
+   });
+   button('Correo',async()=>{
+     if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}
+     try{await FusionDistribution.shareEmail(params.get('diseno'),distributedModel.meta.nombre);}
+     catch(e){alert(e.message)}
+   });
    button('Accesos terceros',async()=>{
      if(!distributedModel)return;
      let rows;
@@ -251,12 +263,8 @@ if(presentation){
        if(!rows.length){const p=document.createElement('p');p.textContent='No hay destinatarios registrados.';list.append(p);return}
        for(const row of rows){
          const line=document.createElement('div');Object.assign(line.style,{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap',padding:'10px 0',borderBottom:'1px solid #31465e'});
-         const effective=row.effectiveStatus||row.status;
-         const label=document.createElement('span');label.textContent=row.recipient+' · '+(effective==='active'?'ACTIVO · '+(row.remaining||''):effective==='expired'?'CADUCADO':'REVOCADO');label.style.flex='1';line.append(label);
-         if(effective==='active'){
-           const disable=document.createElement('button');disable.textContent='Desactivar';disable.onclick=async()=>{try{await FusionDistribution.setThirdPartyStatus(row.id,'revoked');await draw()}catch(e){alert(e.message)}};line.append(disable);
-         }
-         const del=document.createElement('button');del.textContent='Eliminar';del.onclick=async()=>{if(!confirm('¿Eliminar este acceso?'))return;try{await FusionDistribution.deleteThirdPartyAccess(row.id);await draw()}catch(e){alert(e.message)}};line.append(del);
+         const label=document.createElement('span');label.textContent=row.recipient+' · ACTIVO · '+(row.remaining||'');label.style.flex='1';line.append(label);
+         const disable=document.createElement('button');disable.textContent='Desactivar a terceros';disable.onclick=async()=>{try{await FusionDistribution.deactivateThirdPartyAccess(row.id);await draw()}catch(e){alert(e.message)}};line.append(disable);
          list.append(line);
        }
      }
