@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado": "2026-11-26T10:45:08.288Z",
+  "actualizado": "2026-11-26T10:45:16.554Z",
   "modelos": [
     {
       "id": "puerta-zona-generador-abierta-mwvp69l8",
@@ -31,16 +31,6 @@
       "miniatura": "miniaturas/escalera-bascula-mwswzrjg.jpg",
       "bytes": 4764848,
       "fecha": "2026-11-23T06:58:40.852Z"
-    },
-    {
-      "id": "escalera-butano-y-altillo-mwsuyq54",
-      "nombre": "escalera butano y altillo",
-      "categoria": "Viviendas",
-      "descripcion": "",
-      "archivo": "modelos/escalera-butano-y-altillo-mwsuyq54.glb",
-      "miniatura": "miniaturas/escalera-butano-y-altillo-mwsuyq54.jpg",
-      "bytes": 2088648,
-      "fecha": "2026-11-23T06:01:50.795Z"
     },
     {
       "id": "garaje2-mws3nfb6",
