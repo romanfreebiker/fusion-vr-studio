@@ -1226,7 +1226,7 @@ versionLabel.textContent='Visor VR 0.81 · A Rescate en mando derecho';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 // El cartel de diagnóstico no se muestra en ningún modo.
 let technicalMode=false, technicalOriginals=[], technicalEdges=[], technicalMaterial=null, technicalLineMaterial=null, dimensionLayer=null, dimensions=[];
-let measureMode=false,measurePoints=[],measureMarks=null,measureLabel=null,measureHover=null,measureEvent=null,measureFrame=0, snapLayer=null, provisionalLine=null, provisionalLabel=null;
+let measureMode=false,measurePoints=[],measureMarks=null,measureLabel=null,measureHover=null,measureEvent=null,measureFrame=0, snapLayer=null, provisionalLine=null, provisionalLabel=null, elasticCursor=null, elasticSVG=null, elasticStroke=null;
 const featureCache=new WeakMap();
 const measurementRay=new THREE.Raycaster(),measurementPointer=new THREE.Vector2();
 const SNAP_RADIUS=15, PREVIEW_RADIUS=22;
@@ -1330,25 +1330,38 @@ function measureTarget(x,y,pointerType){
  return best;
 }
 function clearProvisional(){
+ if(elasticSVG)elasticSVG.style.display='none';elasticCursor=null;
  if(provisionalLine){scene.remove(provisionalLine);provisionalLine.geometry.dispose();provisionalLine.material.dispose();provisionalLine=null}
  if(provisionalLabel){provisionalLabel.remove();provisionalLabel=null}
 }
-function previewMeasure(target){
+function updateElastic(){
+ if(!elasticCursor||measurePoints.length!==1||!measureMode){if(elasticSVG)elasticSVG.style.display='none';return}
+ const r=renderer.domElement.getBoundingClientRect(),a=projectMeasure(measurePoints[0],r);
+ const b=elasticCursor.target?projectMeasure(elasticCursor.target.p,r):elasticCursor;
+ if(!elasticSVG){
+ const ns='http://www.w3.org/2000/svg';elasticSVG=document.createElementNS(ns,'svg');elasticSVG.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:23;overflow:hidden';
+ elasticStroke=document.createElementNS(ns,'line');elasticStroke.setAttribute('stroke','#0078b8');elasticStroke.setAttribute('stroke-width','1.3');elasticStroke.setAttribute('stroke-dasharray','5 3');elasticSVG.append(elasticStroke);document.body.append(elasticSVG);
+ }
+ const valid=a.z>=-1&&a.z<=1;
+ elasticSVG.style.display=valid?'block':'none';
+ elasticStroke.setAttribute('x1',a.x);elasticStroke.setAttribute('y1',a.y);elasticStroke.setAttribute('x2',b.x);elasticStroke.setAttribute('y2',b.y);
+ if(provisionalLabel){
+ provisionalLabel.hidden=!valid||!elasticCursor.target;
+ provisionalLabel.style.left=(a.x+b.x)/2+'px';provisionalLabel.style.top=((a.y+b.y)/2-10)+'px';
+ }
+}
+function previewMeasure(target,x,y){
  if(!measureHover)return;
  if(snapLayer)snapLayer.replaceChildren();
- if(target?.p&&measurePoints.length===1&&target.p.distanceToSquared(measurePoints[0])<1e-12){measureHover.hidden=true;clearProvisional();return}
- measureHover.hidden=!target?.p;
- if(!target?.p){clearProvisional();return}
- measureHover.style.left=target.x+'px';measureHover.style.top=target.y+'px';measureHover.dataset.kind=target.kind;
- measureHover.textContent='';measureHover.classList.remove('free');
+ const same=target?.p&&measurePoints.length===1&&target.p.distanceToSquared(measurePoints[0])<1e-12;
+ measureHover.hidden=!target?.p||same;
+ if(target?.p&&!same){measureHover.style.left=target.x+'px';measureHover.style.top=target.y+'px';measureHover.dataset.kind=target.kind;measureHover.textContent='';measureHover.classList.remove('free')}
  if(measurePoints.length!==1){clearProvisional();return}
- const a=measurePoints[0],b=target.p;
- if(!provisionalLine){
- provisionalLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),new THREE.LineBasicMaterial({color:0x0078b8,transparent:true,opacity:.65,depthTest:false,depthWrite:false}));provisionalLine.renderOrder=999;scene.add(provisionalLine);
- provisionalLabel=document.createElement('span');provisionalLabel.className='dimension-label';provisionalLabel.style.cssText='position:fixed;z-index:23;pointer-events:none;opacity:.8';document.body.append(provisionalLabel);
- }else{const p=provisionalLine.geometry.attributes.position;p.setXYZ(0,a.x,a.y,a.z);p.setXYZ(1,b.x,b.y,b.z);p.needsUpdate=true;provisionalLine.geometry.computeBoundingSphere()}
- const r=renderer.domElement.getBoundingClientRect(),q=projectMeasure(a,r);
- provisionalLabel.textContent=Math.round(a.distanceTo(b)*1000).toLocaleString('es-ES')+' mm';provisionalLabel.style.left=(q.x+target.x)/2+'px';provisionalLabel.style.top=((q.y+target.y)/2-10)+'px';
+ if(!Number.isFinite(x)||!Number.isFinite(y))return;
+ elasticCursor={x,y,target:target?.p&&!same?target:null};
+ if(!provisionalLabel){provisionalLabel=document.createElement('span');provisionalLabel.className='dimension-label';provisionalLabel.style.cssText='position:fixed;z-index:24;pointer-events:none;opacity:.85';document.body.append(provisionalLabel)}
+ if(elasticCursor.target)provisionalLabel.textContent=Math.round(measurePoints[0].distanceTo(target.p)*1000).toLocaleString('es-ES')+' mm';
+ updateElastic();
 }
 const measureTouches=new Set();let measurePress=null, desktopOrbit=null;
 function rotateDesktop(dx,dy){const offset=camera.position.clone().sub(controls.target);const spherical=new THREE.Spherical().setFromVector3(offset);spherical.theta-=dx*2*Math.PI/Math.max(1,innerHeight);spherical.phi-=dy*2*Math.PI/Math.max(1,innerHeight);spherical.makeSafe();camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(spherical));camera.lookAt(controls.target);camera.updateMatrixWorld(true);controls.update();}
@@ -1360,17 +1373,17 @@ renderer.domElement.addEventListener('pointerdown',e=>{
  measurePress={id:e.pointerId,x:e.clientX,y:e.clientY,drag:false,type:e.pointerType};hideMeasureHover();
 },true);
 renderer.domElement.addEventListener('pointermove',e=>{
- if(desktopOrbit?.id===e.pointerId){e.preventDefault();e.stopImmediatePropagation();const d=desktopOrbit;if(!d.drag&&Math.hypot(e.clientX-d.startX,e.clientY-d.startY)>4)d.drag=true;if(d.drag){rotateDesktop(e.clientX-d.x,e.clientY-d.y);d.x=e.clientX;d.y=e.clientY}hideMeasureHover();return;}
+ if(desktopOrbit?.id===e.pointerId){e.preventDefault();e.stopImmediatePropagation();const d=desktopOrbit;if(!d.drag&&Math.hypot(e.clientX-d.startX,e.clientY-d.startY)>4)d.drag=true;if(d.drag){rotateDesktop(e.clientX-d.x,e.clientY-d.y);d.x=e.clientX;d.y=e.clientY}hideMeasureHover();if(measureMode&&measurePoints.length===1)previewMeasure(null,e.clientX,e.clientY);return;}
  if(!measureMode)return;
  if(measurePress&&measurePress.id===e.pointerId&&Math.hypot(e.clientX-measurePress.x,e.clientY-measurePress.y)>5){measurePress.drag=true;hideMeasureHover()}
  if(e.pointerType==='touch'||e.buttons)return;
  measureEvent={x:e.clientX,y:e.clientY,type:e.pointerType};
- if(!measureFrame)measureFrame=requestAnimationFrame(()=>{measureFrame=0;if(measureMode&&measureEvent)previewMeasure(measureTarget(measureEvent.x,measureEvent.y,measureEvent.type))});
+ if(!measureFrame)measureFrame=requestAnimationFrame(()=>{measureFrame=0;if(measureMode&&measureEvent)previewMeasure(measureTarget(measureEvent.x,measureEvent.y,measureEvent.type),measureEvent.x,measureEvent.y)});
 },true);
 renderer.domElement.addEventListener('pointerleave',hideMeasureHover);
 function selectMeasurePoint(target){
  if(!target?.p)return;
- if(measurePoints.length!==1)clearMeasures();
+ if(measurePoints.length!==1)clearMeasures();else if(target.p.distanceToSquared(measurePoints[0])<1e-12)return;
  clearProvisional();
  const p=target.p.clone();
  if(!measureMarks){measureMarks=new THREE.Group();scene.add(measureMarks)}
@@ -1385,7 +1398,7 @@ function selectMeasurePoint(target){
  measurePoints=[];
 }
 renderer.domElement.addEventListener('pointerup',e=>{
- if(desktopOrbit?.id===e.pointerId){e.preventDefault();e.stopImmediatePropagation();const d=desktopOrbit;desktopOrbit=null;if(renderer.domElement.hasPointerCapture(e.pointerId))renderer.domElement.releasePointerCapture(e.pointerId);if(measureMode&&!d.drag&&Math.hypot(e.clientX-d.startX,e.clientY-d.startY)<=4){const t=measureTarget(e.clientX,e.clientY,e.pointerType);selectMeasurePoint(t);hideMeasureHover()}return;}
+ if(desktopOrbit?.id===e.pointerId){e.preventDefault();e.stopImmediatePropagation();const d=desktopOrbit;desktopOrbit=null;if(renderer.domElement.hasPointerCapture(e.pointerId))renderer.domElement.releasePointerCapture(e.pointerId);if(measureMode&&!d.drag&&Math.hypot(e.clientX-d.startX,e.clientY-d.startY)<=4){const t=measureTarget(e.clientX,e.clientY,e.pointerType);selectMeasurePoint(t);hideMeasureHover();if(measurePoints.length===1)previewMeasure(t,e.clientX,e.clientY)}else if(measureMode&&measurePoints.length===1)previewMeasure(null,e.clientX,e.clientY);return;}
  if(e.pointerType==='touch')measureTouches.delete(e.pointerId);
  const press=measurePress;
  if(!press||press.id!==e.pointerId)return;
@@ -2167,7 +2180,7 @@ renderer.setAnimationLoop(time=>{
     controls.update();
   }
   if(presentation)ground.visible=!technicalMode&&(walkingMode||camera.getWorldPosition(new THREE.Vector3()).y>=ground.position.y);
-  renderer.render(scene,camera);updateDimensions();
+  renderer.render(scene,camera);updateDimensions();updateElastic();
   if(!meterStart)meterStart=time;
   if(meterLast){
     const frameMs=time-meterLast;
@@ -2205,7 +2218,7 @@ try{
     const job=await findJob();if(!job)throw Error('Trabajo no asignado');
     distributedModel={meta:job.model,url:new URL(job.model.archivo,location.href).href};
     setInterval(async()=>{if(document.hidden)return;try{if(!await findJob())location.replace(EskalaTaller.link(key))}catch(e){console.warn(e)}},30000);
-    const item=distributedModel.meta;orientation.value='z';appearance.value='library';models.add(new Option(item.nombre,item.id));presentationTitle.textContent=item.nombre+' · Taller v4.1';document.title=item.nombre+' · ESKALA Taller';await openModel();
+    const item=distributedModel.meta;orientation.value='z';appearance.value='library';models.add(new Option(item.nombre,item.id));presentationTitle.textContent=item.nombre+' · Taller v4.2';document.title=item.nombre+' · ESKALA Taller';await openModel();
   }else{
   const catalogURL=new URL('catalogo.json',location.href);
   catalogURL.searchParams.set('refresh',String(Date.now()));
