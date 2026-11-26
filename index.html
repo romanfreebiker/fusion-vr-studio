@@ -16,7 +16,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=30"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=31"></script>
 <script>
 /* Three.js
 The MIT License
@@ -4075,13 +4075,29 @@ const humanSize=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/
 const safeName=s=>String(s||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,50)||'diseno';
 const textNode=(tag,text,cls)=>{const el=document.createElement(tag);el.textContent=text;if(cls)el.className=cls;return el};
 function toast(message,bad=false){const t=$('toast');t.textContent=message;t.className='toast'+(bad?' bad':'');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>t.classList.add('hidden'),5000)}
-function askExposureHours(){
-  const value=prompt('Tiempo de exposición del enlace (horas).\n\nDéjalo vacío para 24 horas.','');
-  if(value===null)return null;
-  if(!String(value).trim())return 24;
-  const hours=Number(String(value).replace(',','.'));
-  if(!Number.isFinite(hours)||hours<=0||hours>720){toast('Introduce un tiempo entre 1 hora y 720 horas.',true);return null}
-  return hours;
+function askShareDetails(){
+  return new Promise(resolve=>{
+    const overlay=document.createElement('div');
+    Object.assign(overlay.style,{position:'fixed',inset:'0',zIndex:'100000',background:'#07101bd9',display:'grid',placeItems:'center',padding:'18px'});
+    const box=document.createElement('div');
+    Object.assign(box.style,{width:'min(420px,92vw)',background:'#142236',border:'1px solid #42607d',borderRadius:'14px',padding:'18px',color:'#eef7ff',boxShadow:'0 18px 55px #0008',font:'14px system-ui'});
+    const title=document.createElement('h3');title.textContent='Compartir por WhatsApp';title.style.margin='0 0 14px';
+    const nameLabel=document.createElement('label');nameLabel.textContent='Nombre del destinatario (opcional)';Object.assign(nameLabel.style,{display:'grid',gap:'6px'});
+    const name=document.createElement('input');name.type='text';name.maxLength=80;name.placeholder='Ej. Juan, Proveedor, Cliente…';
+    Object.assign(name.style,{width:'100%',boxSizing:'border-box',padding:'10px',borderRadius:'8px',border:'1px solid #4a6380',background:'#0f1a29',color:'#fff'});nameLabel.append(name);
+    const timeLabel=document.createElement('label');timeLabel.textContent='Tiempo de exposición (horas)';Object.assign(timeLabel.style,{display:'grid',gap:'6px',marginTop:'12px'});
+    const hours=document.createElement('input');hours.type='number';hours.min='1';hours.max='720';hours.step='0.5';hours.placeholder='24';
+    Object.assign(hours.style,{width:'100%',boxSizing:'border-box',padding:'10px',borderRadius:'8px',border:'1px solid #4a6380',background:'#0f1a29',color:'#fff'});timeLabel.append(hours);
+    const note=document.createElement('div');note.textContent='Si dejas el tiempo vacío, el enlace durará 24 horas.';Object.assign(note.style,{fontSize:'12px',color:'#aabbd1',marginTop:'8px'});
+    const actions=document.createElement('div');Object.assign(actions.style,{display:'flex',justifyContent:'flex-end',gap:'8px',marginTop:'16px'});
+    const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Cancelar';
+    const send=document.createElement('button');send.type='button';send.textContent='Continuar a WhatsApp';
+    for(const b of [cancel,send])Object.assign(b.style,{padding:'9px 12px',borderRadius:'8px',border:'1px solid #4a6380',background:'#18304a',color:'#fff',cursor:'pointer'});
+    function close(value){overlay.remove();resolve(value)}
+    cancel.onclick=()=>close(null);overlay.onclick=e=>{if(e.target===overlay)close(null)};
+    send.onclick=()=>{const raw=String(hours.value||'').trim();const value=raw?Number(raw.replace(',','.')):24;if(!Number.isFinite(value)||value<=0||value>720){toast('Introduce un tiempo entre 1 hora y 720 horas.',true);hours.focus();return}close({recipient:String(name.value||'').trim().slice(0,80),hours:value});};
+    actions.append(cancel,send);box.append(title,nameLabel,timeLabel,note,actions);overlay.append(box);document.body.append(overlay);name.focus();
+  });
 }
 function status(id,message,type){const e=$(id);e.textContent=message;e.className='status show'+(type?' '+type:'')}
 function nav(view){state.activeView=view;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));Object.keys(views).forEach(v=>$('view-'+v).classList.toggle('hidden',v!==view));$('pageTitle').textContent=views[view][0];$('pageSubtitle').textContent=views[view][1];if(view==='materiales')renderMaterialLibrary();window.scrollTo({top:0,behavior:'smooth'})}
@@ -4472,7 +4488,7 @@ function render(){
         catch{prompt('Enlace individual',url)}
         await updateThirdPartyAccesses();
       }],
-      ['WhatsApp',async()=>{const hours=askExposureHours();if(hours===null)return;await FusionDistribution.shareWhatsApp(m.id,m.nombre,hours,'central');await updateThirdPartyAccesses()}],
+      ['WhatsApp',async()=>{const details=await askShareDetails();if(!details)return;await FusionDistribution.shareWhatsApp(m.id,m.nombre,details.hours,'central',details.recipient);await updateThirdPartyAccesses()}],
       ['Correo',async()=>{await FusionDistribution.shareEmail(m.id,m.nombre,'central');await updateThirdPartyAccesses()}]
     ];
     const shareButtons=shareActions.map(([label,action])=>{
