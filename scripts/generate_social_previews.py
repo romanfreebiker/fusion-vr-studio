@@ -98,9 +98,9 @@ def short_page(model, slug, area='v', branded_path=None):
     image_src = "../../social/" + slug + ".jpg"
     viewer_src = "../../visor.html"
     if branded_path:
-        viewer = HOST + "visor.html?modo=presentacion&diseno=" + quote(ident, safe="") + "&acceso=invitado&v=104"
+        viewer = HOST + "visor.html?modo=presentacion&diseno=" + quote(ident, safe="") + "&acceso=invitado&v=120"
         return branded_viewer_page(name, HOST + branded_path, viewer)
-    viewer = viewer_src + "?modo=presentacion&diseno=" + quote(ident, safe="") + "&acceso=invitado&v=100"
+    viewer = viewer_src + "?modo=presentacion&diseno=" + quote(ident, safe="") + "&acceso=invitado&v=120"
     page_title = "ESKALA | " + name
     desc = "Explora " + name + " en 3D. Vista interactiva y recorrido virtual en ESKALA."
     esc = lambda x: html.escape(x, quote=True)
