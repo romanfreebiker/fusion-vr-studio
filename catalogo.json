@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado": "2026-11-26T10:49:28.273Z",
+  "actualizado": "2026-11-26T10:49:46.325Z",
   "modelos": [
     {
       "id": "puerta-zona-generador-abierta-mwvp69l8",
@@ -48,6 +48,7 @@
     "Garajes",
     "Mobiliario",
     "Otros",
-    "Taller"
+    "Taller",
+    "Escaleras"
   ]
 }
