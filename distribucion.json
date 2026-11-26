@@ -20,6 +20,16 @@
       "miniatura": "miniaturas/puerta-zona-generador-abierta-mwvp69l8.jpg",
       "status": "active",
       "updated": "2026-11-25T21:15:07.459Z"
+    },
+    {
+      "id": "mesa-empaquetado-completa-mwstduga",
+      "nombre": "mesa empaquetado completa",
+      "descripcion": "",
+      "categoria": "Viviendas",
+      "archivo": "modelos/mesa-empaquetado-completa-mwstduga.glb",
+      "miniatura": "miniaturas/mesa-empaquetado-completa-mwstduga.jpg",
+      "status": "active",
+      "updated": "2026-11-26T06:27:41.250Z"
     }
   ]
 }
