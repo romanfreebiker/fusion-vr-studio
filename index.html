@@ -13,7 +13,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=28"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=29"></script>
 <script>
 /* Three.js
 The MIT License
@@ -4490,7 +4490,7 @@ function render(){
         button.title='Compartir con terceros es independiente de Dirección.';
       }
     }
-    const updateDistribution=async()=>{try{const d=(await FusionDistribution.list('admin')).find(x=>x.id===m.id);displayDistribution(d)}catch(e){distribution.textContent='Distribución: '+e.message}};
+    const updateDistribution=async()=>{try{const d=(await FusionDistribution.list('admin',true)).find(x=>x.id===m.id);displayDistribution(d)}catch(e){distribution.textContent='Distribución: '+e.message}};
     send.onclick=async()=>{send.disabled=true;try{await FusionDistribution.send(m);toast('Diseño enviado a dirección');await updateDistribution()}catch(e){toast(e.message,true);send.disabled=false}};
     revoke.onclick=async()=>{try{await FusionDistribution.setStatus(m.id,'inactive','admin');await updateDistribution()}catch(e){toast(e.message,true)}};
     displayDistribution(null);
