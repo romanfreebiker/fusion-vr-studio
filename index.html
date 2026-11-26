@@ -13,7 +13,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=23"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=24"></script>
 <script>
 /* Three.js
 The MIT License
@@ -4446,7 +4446,7 @@ function render(){
     const accessList=document.createElement('div');accessList.className='third-accesses';
     async function updateThirdPartyAccesses(){
       try{
-        const rows=await FusionDistribution.listThirdParty(m.id,true);
+        const rows=await FusionDistribution.listThirdParty(m.id,true,'all');
         const active=rows.length;
         accessSummary.textContent=active?'Compartido con terceros · '+active+' activo'+(active===1?'':'s'):'Sin accesos activos a terceros';
         accessList.replaceChildren();
@@ -4456,7 +4456,7 @@ function render(){
           const who=textNode('span',row.recipient+(row.contact?' · '+row.contact:'')+' · '+originLabel,'who');
           const stateLabel=textNode('span','ACTIVO · '+(row.remaining||''),'state active');
           const disable=textNode('button','Desactivar a terceros','button ghost small');
-          disable.onclick=async()=>{try{await FusionDistribution.deactivateThirdPartyAccess(row.id);await updateThirdPartyAccesses();toast('Acceso a terceros desactivado')}catch(e){toast(e.message,true)}};
+          disable.onclick=async()=>{try{await FusionDistribution.deactivateThirdPartyAccess(row.id,'central');await updateThirdPartyAccesses();toast('Acceso a terceros desactivado')}catch(e){toast(e.message,true)}};
           line.append(who,stateLabel,disable);accessList.append(line);
         }
         if(!rows.length)accessList.append(textNode('div','Todavía no hay destinatarios registrados.','muted tiny'));
