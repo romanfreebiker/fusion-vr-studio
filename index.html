@@ -3981,7 +3981,7 @@ three/examples/jsm/libs/fflate.module.js:
 .third-access-row .state.active{color:#78e6af}.third-access-row .state.revoked{color:#ff9aa4}
 .third-access-row button{padding:5px 8px!important;font-size:11px!important}
 </style>
-</head>
+<script src="taller.js"></script></head>
 <body>
 <!-- ESKALA: cabecera corporativa compartida. Los controles conservan data-view. -->
 <header class="eskala-corpbar" role="banner">
@@ -4421,6 +4421,37 @@ async function refresh(){
 }
 
 const dateLabel=new Intl.DateTimeFormat('es-ES',{dateStyle:'medium',timeStyle:'short'});
+async function workshopDialog(model=null){
+ if(!state.token){postAuthView='biblioteca';nav('configuracion');status('settingsStatus','Conecta GitHub para gestionar Taller.');return}
+ const T=window.EskalaTaller;
+ const dialog=document.createElement('dialog');dialog.style.cssText='width:min(620px,92vw);max-height:85vh;overflow:auto;background:#152436;color:#eef7ff;border:1px solid #52718a;border-radius:12px;padding:18px';
+ const heading=textNode('h2',model?'Asignar a taller: '+model.nombre:'Operarios y trabajos');const close=textNode('button','Cerrar','button secondary small');close.onclick=()=>dialog.close();dialog.append(heading,close);const area=document.createElement('div');dialog.append(area);document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove());dialog.showModal();
+ const keyName=id=>'eskala-taller-key:'+id;
+ const run=async fn=>{try{await fn();await draw()}catch(e){toast(e.message,true)}};
+ const btn=(label,fn)=>{const b=textNode('button',label,'button secondary small');b.type='button';b.onclick=fn;return b};
+ const choose=(options,value)=>{const x=document.createElement('select');x.className='input';for(const o of options)x.add(new Option(o,o));x.value=value||options[0];return x};
+ async function draw(){
+ const d=await T.data();area.replaceChildren();
+ if(!model){const name=document.createElement('input');name.className='input';name.placeholder='Nombre o alias del operario';area.append(name,btn('Crear operario',()=>run(async()=>{const label=name.value.trim();if(!label)throw Error('Introduce un nombre');const key=T.secret(),hash=await T.hash(key),id=crypto.randomUUID();await T.change(state.token,x=>x.workers.push({id,label,hash,active:true}));localStorage.setItem(keyName(id),key);toast('Operario creado')})));}
+ for(const w of d.workers.filter(x=>x.active)){
+ const panel=document.createElement('div');panel.style.cssText='border-top:1px solid #456;padding:12px 0;display:grid;gap:8px';panel.append(textNode('strong',w.label));const key=localStorage.getItem(keyName(w.id));
+ if(!model){
+ const links=document.createElement('div');links.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
+ links.append(btn('Entrar en su aplicación',()=>{const u=new URL('taller.html',location.href);u.searchParams.set('adminWorker',w.id);window.open(u.href,'_blank','noopener')}));
+ links.append(btn('Copiar enlace del operario',async()=>{if(!key){toast('Enlace no guardado en este navegador. Regenera el acceso si es necesario.',true);return}try{await navigator.clipboard.writeText(T.link(key));toast('Enlace copiado')}catch{prompt('Enlace del operario',T.link(key))}}));
+ links.append(btn('Regenerar enlace',()=>run(async()=>{if(!confirm('El enlace anterior dejará de funcionar. ¿Continuar?'))return;const k=T.secret(),h=await T.hash(k);await T.change(state.token,x=>{x.workers.find(y=>y.id===w.id).hash=h});localStorage.setItem(keyName(w.id),k)})));
+ links.append(btn('Desactivar',()=>run(async()=>{if(confirm('¿Desactivar este operario?'))await T.change(state.token,x=>{x.workers.find(y=>y.id===w.id).active=false})})));panel.append(links);
+ for(const j of d.jobs.filter(x=>x.worker===w.id)){const m=state.models.find(x=>x.id===j.design);if(!m)continue;const phase=choose(T.phases,j.phase);phase.onchange=()=>run(()=>T.change(state.token,x=>{const row=x.jobs.find(y=>y.worker===w.id&&y.design===j.design);if(row)row.phase=phase.value}));panel.append(textNode('span',m.nombre+' · '+j.type+' · '+j.priority),phase,btn('Retirar trabajo',()=>run(()=>T.change(state.token,x=>{x.jobs=x.jobs.filter(y=>!(y.worker===w.id&&y.design===j.design))}))))}
+ }else{
+ const j=d.jobs.find(x=>x.worker===w.id&&x.design===model.id);const type=choose(['Fabricación','Instalación','Fabricación e instalación'],j?.type||'Fabricación e instalación'),priority=choose(['Normal','Alta','Urgente'],j?.priority),phase=choose(T.phases,j?.phase);const note=document.createElement('textarea');note.className='input';note.placeholder='Instrucciones';note.value=j?.note||'';
+ panel.append(textNode('span',j?'Trabajo asignado':'Sin asignar'),type,priority,phase,note,btn(j?'Actualizar asignación':'Asignar trabajo',()=>run(()=>T.change(state.token,x=>{x.jobs=x.jobs.filter(y=>!(y.worker===w.id&&y.design===model.id));x.jobs.push({worker:w.id,design:model.id,type:type.value,priority:priority.value,phase:phase.value,note:note.value.trim().slice(0,500)})}))));
+ if(j)panel.append(btn('Retirar trabajo',()=>run(()=>T.change(state.token,x=>{x.jobs=x.jobs.filter(y=>!(y.worker===w.id&&y.design===model.id))}))));
+ }area.append(panel)}
+ if(!d.workers.some(w=>w.active))area.append(textNode('p','Crea primero un operario desde Gestionar taller.'));
+ }
+ try{await draw()}catch(e){area.textContent=e.message}
+}
+
 function render(){
   if(!document.getElementById('distributionNav')){
     const url=new URL('direccion.html',location.href);url.searchParams.set('v','95');
@@ -4429,7 +4460,7 @@ function render(){
     copy.onclick=async()=>{try{await navigator.clipboard.writeText(url.href);copy.textContent='¡Enlace copiado!';toast('Enlace general de dirección copiado');setTimeout(()=>copy.textContent='Copiar enlace para dirección',1600)}catch{prompt('Copia el enlace general de dirección',url.href)}};
     const link=textNode('a','Probar acceso de dirección','button secondary small');link.id='distributionNav';link.href=url.href;link.target='_blank';link.rel='noopener';
     const note=textNode('p','Distribución sincronizada en GitHub · archivos públicos','muted tiny');note.style.flexBasis='100%';
-    panel.append(copy,link,note);$('gallery').before(panel);
+    const workshop=textNode('button','Gestionar taller','button secondary small');workshop.onclick=()=>workshopDialog();panel.append(copy,link,workshop,note);$('gallery').before(panel);
   }
   $('statCount').textContent=state.models.length;
   $('statCategories').textContent=state.families.length;
@@ -4533,6 +4564,7 @@ function render(){
     displayDistribution(null);
     updateDistribution();
     distribution.onclick=updateDistribution;distribution.style.cursor='pointer';
+    const assign=textNode('button','Asignar a taller','button secondary small');assign.onclick=()=>workshopDialog(m);foot.append(assign);
     const dl=document.createElement('button');dl.className='button secondary small';dl.textContent='↓ Descargar GLB';dl.addEventListener('click',()=>downloadModel(m));foot.append(dl);
     const remove=textNode('button','Eliminar','button secondary small delete-design');
     remove.type='button';
