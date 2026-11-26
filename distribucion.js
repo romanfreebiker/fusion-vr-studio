@@ -124,9 +124,37 @@
    if(typeof entry.path==='string'&&entry.path.startsWith(prefix)&&/^[a-f0-9]{12}\/$/.test(entry.path.slice(prefix.length)))return new URL(entry.path,location.href);
    throw Error('No se encuentra el enlace ESKALA publicado.');
  }
+ function thirdPartyState(row,now=Date.now()){
+   if(!row)return 'expired';
+   if(row.status==='revoked')return 'revoked';
+   const expiry=Date.parse(row.expiresAt||'');
+   if(Number.isFinite(expiry)&&expiry<=now)return 'expired';
+   return 'active';
+ }
+ function thirdPartyRemaining(row,now=Date.now()){
+   if(thirdPartyState(row,now)!=='active')return '';
+   const expiry=Date.parse(row.expiresAt||'');
+   if(!Number.isFinite(expiry))return '';
+   const ms=Math.max(0,expiry-now),minutes=Math.ceil(ms/60000);
+   if(minutes<60)return minutes+' min';
+   const hours=Math.floor(minutes/60),mins=minutes%60;
+   if(hours<24)return hours+' h'+(mins?' '+mins+' min':'');
+   const days=Math.floor(hours/24),rest=hours%24;
+   return days+' d'+(rest?' '+rest+' h':'');
+ }
  async function listThirdParty(designId,force=false){
+   const data=await readThird(force),now=Date.now();
+   return data.accesses.filter(a=>a&&a.designId===designId).map(a=>({...a,effectiveStatus:thirdPartyState(a,now),remaining:thirdPartyRemaining(a,now)})).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+ }
+ async function thirdPartySettings(force=false){
    const data=await readThird(force);
-   return data.accesses.filter(a=>a&&a.designId===designId).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+   const hours=Number(data.defaultTtlHours);
+   return {defaultTtlHours:Number.isFinite(hours)&&hours>0?hours:24};
+ }
+ async function setThirdPartyTtlHours(hours){
+   const value=Math.max(1,Math.min(24*30,Math.round(Number(hours)||24)));
+   await writeThird(data=>{data.defaultTtlHours=value});
+   return value;
  }
  function automaticRecipient(channel){
    const now=new Date();
@@ -138,11 +166,15 @@
  async function createThirdPartyAccess(designId,recipient='',contact='',channel='link'){
    const clean=String(recipient||automaticRecipient(channel)).trim().slice(0,80);
    const base=await shareBase(designId);
-   const secret=randomToken(),hash=await tokenHash(secret),now=new Date().toISOString();
-   const access={id:'acc_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8),designId,recipient:clean,contact:maskContact(contact),channel,tokenHash:hash,status:'active',createdAt:now,updatedAt:now};
-   await writeThird(data=>data.accesses.push(access));
+   const secret=randomToken(),hash=await tokenHash(secret),nowMs=Date.now(),now=new Date(nowMs).toISOString();
+   const access={id:'acc_'+nowMs.toString(36)+'_'+Math.random().toString(36).slice(2,8),designId,recipient:clean,contact:maskContact(contact),channel,tokenHash:hash,status:'active',createdAt:now,updatedAt:now};
+   await writeThird(data=>{
+     const hours=Math.max(1,Math.min(24*30,Math.round(Number(data.defaultTtlHours)||24)));
+     access.expiresAt=new Date(nowMs+hours*3600000).toISOString();
+     data.accesses.push(access);
+   });
    base.searchParams.set('share',secret);
-   return {access,url:base.href};
+   return {access:{...access,effectiveStatus:'active',remaining:thirdPartyRemaining(access)},url:base.href};
  }
  async function setThirdPartyStatus(accessId,status){
    if(!['active','revoked'].includes(status))throw Error('Estado de acceso no válido');
@@ -166,7 +198,7 @@
  async function verifyThirdParty(designId,secret,force=false){
    if(!secret)return null;
    const hash=await tokenHash(secret),data=await readThird(force),now=Date.now();
-   return data.accesses.find(a=>a.designId===designId&&a.tokenHash===hash&&a.status==='active'&&(!a.expiresAt||Date.parse(a.expiresAt)>now))||null;
+   return data.accesses.find(a=>a.designId===designId&&a.tokenHash===hash&&thirdPartyState(a,now)==='active')||null;
  }
  async function write(change){const token=adminToken();if(!token)throw Error('Conecta tu cuenta de GitHub en Configuración para gestionar la distribución.');
    for(let i=0;i<3;i++){const {sha,data}=await readForWrite(token);change(data.modelos);try{await request(api+'/contents/'+path,{method:'PUT',headers:{...readHeaders,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({sha,branch,message:'Actualizar distribución de diseños',content:encode(data)})});snapshots.delete(path);return}catch(e){if(e.status!==409||i===2)throw e}}
@@ -236,5 +268,5 @@
    window.addEventListener('pageshow',check);
  }
  function removalUrl(m){const u=new URL('https://github.com/'+repo+'/issues/new');u.searchParams.set('title','[Dirección] Retirar diseño '+m.id);u.searchParams.set('body','Solicito retirar de la biblioteca de dirección el diseño '+m.nombre+'.\n\nIdentificador: '+m.id+'\nVersión: '+m.updated);return u.href}
- window.FusionDistribution={version:7,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,loadViewer,watchViewer,refreshInterval,hide,removalUrl};
+ window.FusionDistribution={version:8,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,loadViewer,watchViewer,refreshInterval,hide,removalUrl};
 })();
