@@ -1225,26 +1225,27 @@ const versionLabel=document.createElement('div');
 versionLabel.textContent='Visor VR 0.81 · A Rescate en mando derecho';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 // El cartel de diagnóstico no se muestra en ningún modo.
-let measureMode=false,measurePoints=[],measureMarks=null,measureLabel=null,measureHover=null,measureEvent=null,measureFrame=0;
+let measureMode=false,measurePoints=[],measureMarks=null,measureLabel=null,measureHover=null,measureEvent=null,measureFrame=0, snapLayer=null;
 const featureCache=new WeakMap();
 const measurementRay=new THREE.Raycaster(),measurementPointer=new THREE.Vector2();
-const SNAP_RADIUS=13;
+const SNAP_RADIUS=15, PREVIEW_RADIUS=58;
 function clearMeasures(){
  if(measureMarks){scene.remove(measureMarks);measureMarks.traverse(o=>{o.geometry?.dispose();o.material?.dispose()});measureMarks=null}
  measurePoints=[];if(measureLabel)measureLabel.textContent=measureMode?'Selecciona dos puntos. Acerca el cursor a una arista o vértice.':'';
 }
-function hideMeasureHover(){if(measureHover)measureHover.hidden=true;measureEvent=null}
+function hideMeasureHover(){if(measureHover)measureHover.hidden=true;if(snapLayer)snapLayer.replaceChildren();measureEvent=null}
 function setMeasureMode(active,btn){
  measureMode=active;controls.enabled=!active&&!walkingMode;btn?.setAttribute('aria-pressed',String(active));
  document.body.classList.toggle('measuring',active);
  if(!measureLabel){measureLabel=document.createElement('div');measureLabel.style.cssText='position:fixed;bottom:12px;left:12px;z-index:30;max-width:calc(100% - 24px);background:#142034ed;color:#7eeaff;padding:10px;border-radius:8px;pointer-events:none;font:13px system-ui';document.body.append(measureLabel)}
  if(!measureHover){measureHover=document.createElement('div');measureHover.className='measure-snap';measureHover.hidden=true;document.body.append(measureHover)}
- measureLabel.hidden=!active;measureLabel.textContent='Selecciona dos puntos · Imán: vértices, puntos medios y aristas.';
+ if(!snapLayer){snapLayer=document.createElement('div');snapLayer.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:24';document.body.append(snapLayer)}
+ measureLabel.hidden=!active;measureLabel.textContent='Selecciona dos puntos · Los enganches cercanos aparecen al mover el cursor.';
  if(!active){measurePoints=[];hideMeasureHover()}
 }
 function toggleMeasure(btn){
  if(!model)return;
- if(!measureMode){if(walkingMode)setPresentationMode(false);setProjection(true)}
+ if(!measureMode&&walkingMode)setPresentationMode(false);
  setMeasureMode(!measureMode,btn);
 }
 function featureEdges(geometry){
@@ -1262,13 +1263,15 @@ function measureTarget(x,y,pointerType){
  const cast=(px,py)=>{measurementPointer.set((px-r.left)/r.width*2-1,-(py-r.top)/r.height*2+1);measurementRay.setFromCamera(measurementPointer,camera);return measurementRay.intersectObject(model,true).find(h=>h.object.visible&&h.face)};
  const hit=cast(x,y);
  // Probe near the pointer as well, so exposed corners can be snapped from outside the silhouette.
- const hits=[hit];if(!hit)for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]])hits.push(cast(x+dx*radius*.7,y+dy*radius*.7));
+ const hits=[hit];for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]])hits.push(cast(x+dx*radius*.8,y+dy*radius*.8));
  const candidates=new Map();for(const h of hits)if(h&&!candidates.has(h.object))candidates.set(h.object,h);
- let best=null;
+ let best=null;const features=new Map(), picks=[];
  function offer(p,kind,penalty=0){
  const q=projectMeasure(p,r);if(q.z<-1||q.z>1)return;
- const d=Math.hypot(q.x-x,q.y-y);if(d>radius)return;
- const score=d+penalty;if(!best||score<best.score)best={p:p.clone(),kind,score,x:q.x,y:q.y};
+ const d=Math.hypot(q.x-x,q.y-y);if(d>PREVIEW_RADIUS)return;
+ const score=d+penalty, candidate={p:p.clone(),kind,score,x:q.x,y:q.y};
+ if(kind!=='Arista'){const key=p.toArray().map(v=>Math.round(v*100000)).join(',');if(!features.has(key)||features.get(key).score>score)features.set(key,candidate)}
+ if(d<=radius)picks.push(candidate);
  }
  for(const [mesh,h] of candidates){
  const edges=featureEdges(mesh.geometry),a=new THREE.Vector3(),b=new THREE.Vector3();
@@ -1276,7 +1279,7 @@ function measureTarget(x,y,pointerType){
  for(let i=0;i<edges.length;i+=6){
  a.fromArray(edges,i).applyMatrix4(mesh.matrixWorld);b.fromArray(edges,i+3).applyMatrix4(mesh.matrixWorld);
  const u=projectMeasure(a,r),v=projectMeasure(b,r);
- if(Math.min(u.x,v.x)>x+radius||Math.max(u.x,v.x)<x-radius||Math.min(u.y,v.y)>y+radius||Math.max(u.y,v.y)<y-radius)continue;
+ if(Math.min(u.x,v.x)>x+PREVIEW_RADIUS||Math.max(u.x,v.x)<x-PREVIEW_RADIUS||Math.min(u.y,v.y)>y+PREVIEW_RADIUS||Math.max(u.y,v.y)<y-PREVIEW_RADIUS)continue;
  offer(a,'Vértice');offer(b,'Vértice');
  const mid=a.clone().lerp(b,.5);offer(mid,'Punto medio',3);
  const dx=v.x-u.x,dy=v.y-u.y,den=dx*dx+dy*dy;
@@ -1286,18 +1289,17 @@ function measureTarget(x,y,pointerType){
  const k=(1-t)*db+t*da;if(camera.isOrthographicCamera)offer(a.clone().lerp(b,t),'Arista',7);else if(k>0)offer(a.clone().lerp(b,t*da/k),'Arista',7);}
  }
  }
- if(best){
- // Reject snaps to hidden geometry behind another visible face.
- const front=cast(best.x,best.y);
- if(front&&front.point.clone().sub(best.p).dot(camera.getWorldDirection(new THREE.Vector3()))<-Math.max(.002,front.distance*.0001))best=null;
- }
- if(best)return best;
- if(hit){const q=projectMeasure(hit.point,r);return {p:hit.point.clone(),kind:'Superficie libre',x:q.x,y:q.y}}
- return null;
+ const visible=c=>{const f=cast(c.x,c.y);return !f||f.point.clone().sub(c.p).dot(camera.getWorldDirection(new THREE.Vector3()))>=-Math.max(.002,f.distance*.0001)};
+ const nearby=[...features.values()].sort((a,b)=>a.score-b.score).slice(0,18).filter(visible);
+ best=picks.sort((a,b)=>a.score-b.score).slice(0,24).find(visible)||null;
+ if(best)return {...best,nearby};
+ if(hit){const q=projectMeasure(hit.point,r);return {p:hit.point.clone(),kind:'Superficie libre',x:q.x,y:q.y,nearby}}
+ return nearby.length?{nearby}:null;
 }
 function previewMeasure(target){
  if(!measureHover)return;
- measureHover.hidden=!target;if(!target)return;
+ if(snapLayer){snapLayer.replaceChildren();for(const c of target?.nearby||[]){const dot=document.createElement('span');dot.style.cssText='position:absolute;transform:translate(-50%,-50%);width:4px;height:4px;border:1px solid #78f8ff;background:#142034;border-radius:'+(c.kind==='Punto medio'?'0':'50%')+';left:'+c.x+'px;top:'+c.y+'px;box-shadow:0 0 1px #000';snapLayer.append(dot)}}
+ measureHover.hidden=!target?.p;if(!target?.p)return;
  measureHover.style.left=target.x+'px';measureHover.style.top=target.y+'px';measureHover.dataset.kind=target.kind;
  measureHover.textContent=target.kind==='Superficie libre'?'':target.kind;
  measureHover.classList.toggle('free',target.kind==='Superficie libre');
@@ -1310,7 +1312,7 @@ renderer.domElement.addEventListener('pointermove',e=>{
 renderer.domElement.addEventListener('pointerleave',hideMeasureHover);
 renderer.domElement.addEventListener('pointerdown',e=>{
  if(!measureMode||e.button!==0)return;e.preventDefault();e.stopImmediatePropagation();
- const target=measureTarget(e.clientX,e.clientY,e.pointerType);if(!target)return;previewMeasure(target);
+ const target=measureTarget(e.clientX,e.clientY,e.pointerType);previewMeasure(target);if(!target?.p)return;
  const p=target.p;
  if(!measureMarks){measureMarks=new THREE.Group();scene.add(measureMarks)}
  const marker=new THREE.Points(new THREE.BufferGeometry().setFromPoints([p]),new THREE.PointsMaterial({color:0x00e5ff,size:2,sizeAttenuation:false,depthTest:false,depthWrite:false}));marker.renderOrder=999;measureMarks.add(marker);
