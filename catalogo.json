@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado": "2026-11-26T10:44:55.861Z",
+  "actualizado": "2026-11-26T10:45:08.288Z",
   "modelos": [
     {
       "id": "puerta-zona-generador-abierta-mwvp69l8",
@@ -41,16 +41,6 @@
       "miniatura": "miniaturas/escalera-butano-y-altillo-mwsuyq54.jpg",
       "bytes": 2088648,
       "fecha": "2026-11-23T06:01:50.795Z"
-    },
-    {
-      "id": "escalera-antracita-prova-mws85q1l",
-      "nombre": "escalera antracita prova",
-      "categoria": "Viviendas",
-      "descripcion": "",
-      "archivo": "modelos/escalera-antracita-prova-mws85q1l.glb",
-      "miniatura": "miniaturas/escalera-antracita-prova-mws85q1l.jpg",
-      "bytes": 470768,
-      "fecha": "2026-11-22T19:23:25.732Z"
     },
     {
       "id": "garaje2-mws3nfb6",
