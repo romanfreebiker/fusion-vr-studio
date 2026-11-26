@@ -9,7 +9,7 @@ body{margin:0;background:#142034;color:#f4f7fd;font:16px system-ui}canvas{displa
 header{position:absolute;z-index:1;top:16px;left:16px;max-width:min(440px,calc(100vw - 72px));padding:14px 18px;background:#131e30ee;border:1px solid #42536f;border-radius:12px}
 h1{font-size:19px;margin:0 0 10px}label{display:block;margin-bottom:5px}select{font:inherit;color:inherit;background:#243652;border:1px solid #637a9d;border-radius:6px;padding:7px;max-width:100%}
 p{margin:9px 0}a{color:#90caff}#performance{font-size:12px;color:#9fe7c4;font-variant-numeric:tabular-nums;margin-top:8px}details{margin-top:12px;border-top:1px solid #42536f;padding-top:9px}summary{cursor:pointer;font-weight:600;color:#b9d9f7}#detectedMaterials{max-height:160px;overflow:auto;font-size:12px;line-height:1.65;white-space:pre-wrap;color:#d5e0f0;margin-top:7px}
-html.presentation-boot header,body.presentation header{display:none}body.presentation #VRButton{display:none!important}body.presentation canvas{touch-action:none;cursor:grab}body.presentation canvas:active{cursor:grabbing}body.presentation.measuring canvas,body.presentation.measuring canvas:active{cursor:crosshair!important}.measure-snap{position:fixed;z-index:25;pointer-events:none;width:9px;height:9px;border:1px solid #65f6ff;border-radius:2px;transform:translate(-50%,-50%);box-shadow:0 0 0 1px #101d2b;color:#65f6ff;font:11px system-ui;white-space:nowrap;text-indent:14px;line-height:9px;text-shadow:0 1px 3px black}.measure-snap.free{width:5px;height:5px;border-radius:50%;border-color:#fff}
+html.presentation-boot header,body.presentation header{display:none}body.presentation #VRButton{display:none!important}body.presentation canvas{touch-action:none;cursor:grab}body.presentation canvas:active{cursor:grabbing}body.presentation.measuring canvas,body.presentation.measuring canvas:active{cursor:crosshair!important}.measure-snap{position:fixed;z-index:25;pointer-events:none;width:4px;height:4px;border:1px solid #65f6ff;border-radius:2px;transform:translate(-50%,-50%);box-shadow:0 0 0 1px #101d2b;color:#65f6ff;font:11px system-ui;white-space:nowrap;text-indent:8px;line-height:9px;text-shadow:0 1px 3px black}.measure-snap.free{width:5px;height:5px;border-radius:50%;border-color:#fff}
 #presentationBar{position:fixed;z-index:20;top:14px;left:14px;right:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;pointer-events:none}#presentationBar>*{pointer-events:auto;background:#142034eb;border:1px solid #52647b;border-radius:9px;color:white;padding:10px 13px;font:14px system-ui}#presentationBar strong{margin-right:auto}#presentationBar button{cursor:pointer;transition:background .12s,border-color .12s,transform .12s}#presentationBar button:hover{background:#36516d;border-color:#a6c5e4}#presentationBar button:active{background:#80c8ff;color:#0b1625;transform:translateY(2px)}#presentationBar button[aria-pressed=true],#presentationBar button.confirmed{background:#2378b9;border-color:#9ed8ff;color:white;box-shadow:0 0 0 1px #9ed8ff}#presentationBar button:focus-visible{outline:2px solid #b8e6ff;outline-offset:3px}#presentationHint{position:fixed;bottom:16px;right:16px;z-index:20;background:#142034b8;color:white;border-radius:10px;padding:8px 11px;font:12px system-ui;text-align:left;pointer-events:none;display:flex;align-items:center;gap:9px;max-width:90vw}.mouseLegend{display:grid;gap:5px}.mouseLegend span{display:flex;align-items:center;gap:6px;white-space:nowrap}.mouseLegend i{width:8px;height:8px;border-radius:2px;display:inline-block}.mouseLegend small{color:#b7c9dd;font-size:11px}#presentationStatus{position:fixed;z-index:21;top:50%;left:50%;transform:translate(-50%,-50%);background:#142034e8;padding:18px;border-radius:12px;text-align:center}
 #presentationBoot{display:none}html.presentation-boot #presentationBoot:not([hidden]){display:grid;position:fixed;inset:0;z-index:100;place-items:center;background:linear-gradient(180deg,#151e26,#101820);color:#eef6ff;font:15px system-ui}
 .boot-panel{width:min(360px,78vw);text-align:center}.boot-logo{margin:0 auto 24px;width:64px;height:64px;display:grid;place-items:center;border:1px solid #7899bb;border-radius:18px;background:#213b55;box-shadow:0 14px 40px #0004}.boot-name{font-size:25px;font-weight:650;letter-spacing:.5px}.boot-sub{margin-top:7px;color:#a7bed4;font-size:13px}.boot-track{height:5px;background:#31465e;border-radius:99px;margin-top:30px;overflow:hidden}.boot-fill{height:100%;width:5%;background:#73c4ff;border-radius:99px;transition:width .25s ease}.boot-step{margin-top:15px;color:#bad0e6;font-size:13px;min-height:36px}.boot-panel button{font:inherit;color:white;background:#294766;border:1px solid #7398ba;border-radius:8px;padding:8px 14px;cursor:pointer}.boot-track.indeterminate .boot-fill{width:30%!important;animation:boot-scan 1.4s ease-in-out infinite}@keyframes boot-scan{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
@@ -170,9 +170,9 @@ turnSpeed.addEventListener('change',()=>{
 });
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0xa9bdcf);
-const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,presentation?.002:.03,500);
+const perspectiveCamera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.002,500);const orthoCamera=new THREE.OrthographicCamera(-5,5,5,-5,.002,1000);let camera=perspectiveCamera,orthoHeight=10;
 const rig=new THREE.Group();
-rig.add(camera);
+rig.add(perspectiveCamera,orthoCamera);
 scene.add(rig);
 let renderer;
 try {
@@ -203,7 +203,11 @@ scene.environment=pmrem.fromScene(room,.04).texture;
 scene.environmentIntensity=.88;
 room.dispose();pmrem.dispose();
 document.body.append(renderer.domElement);
-const controls=new OrbitControls(camera,renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);let projectionButton;function resizeOrtho(){const a=innerWidth/innerHeight;orthoCamera.left=-orthoHeight*a/2;orthoCamera.right=orthoHeight*a/2;orthoCamera.top=orthoHeight/2;orthoCamera.bottom=-orthoHeight/2;orthoCamera.updateProjectionMatrix()}
+function setProjection(orthogonal){if(orthogonal===camera.isOrthographicCamera)return;if(orthogonal&&walkingMode)setPresentationMode(false);const prev=camera;const span=prev.isOrthographicCamera?orthoHeight/prev.zoom:2*prev.position.distanceTo(controls.target)*Math.tan(THREE.MathUtils.degToRad(perspectiveCamera.fov/2));camera=orthogonal?orthoCamera:perspectiveCamera;camera.position.copy(prev.position);camera.quaternion.copy(prev.quaternion);camera.up.copy(prev.up);if(orthogonal){orthoHeight=Math.max(.001,span);camera.zoom=1;resizeOrtho()}else{const offset=prev.position.clone().sub(controls.target).normalize();camera.position.copy(controls.target).addScaledVector(offset,Math.max(.08,span/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))))}controls.object=camera;controls.update();if(projectionButton){projectionButton.textContent=orthogonal?'Ortogonal':'Perspectiva';projectionButton.setAttribute('aria-pressed',String(orthogonal))}hideMeasureHover()}
+function standardView(x,y,z){if(!model)return;if(walkingMode)setPresentationMode(false);setProjection(true);const bounds=new THREE.Box3().setFromObject(model),center=bounds.getCenter(new THREE.Vector3()),size=bounds.getSize(new THREE.Vector3());const extent=Math.max(size.x,size.y,size.z,.01);orthoHeight=extent*1.8/Math.min(1,innerWidth/innerHeight);camera.zoom=1;resizeOrtho();controls.target.copy(center);camera.position.copy(center).addScaledVector(new THREE.Vector3(x,y,z).normalize(),extent*2+1);camera.up.set(0,1,0);camera.lookAt(center);controls.update();hideMeasureHover()}
+function worldPerPixel(){return camera.isOrthographicCamera?orthoHeight/camera.zoom/innerHeight:2*camera.position.distanceTo(controls.target)*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))/innerHeight}
+function zoomAt(x,y,delta){const r=renderer.domElement.getBoundingClientRect(),ndc=new THREE.Vector2((x-r.left)/r.width*2-1,1-(y-r.top)/r.height*2);camera.updateMatrixWorld(true);const ray=new THREE.Raycaster();ray.setFromCamera(ndc,camera);const normal=camera.getWorldDirection(new THREE.Vector3());const plane=new THREE.Plane().setFromNormalAndCoplanarPoint(normal,controls.target);const anchor=(model&&ray.intersectObject(model,true).find(h=>h.object.visible)?.point)||ray.ray.intersectPlane(plane,new THREE.Vector3());if(!anchor)return;const factor=Math.exp(THREE.MathUtils.clamp(delta,-250,250)*.0018);if(camera.isOrthographicCamera){const old=camera.zoom;camera.zoom=THREE.MathUtils.clamp(old/factor,.001,10000);camera.updateProjectionMatrix();camera.updateMatrixWorld(true);ray.setFromCamera(ndc,camera);const p=ray.ray.intersectPlane(new THREE.Plane().setFromNormalAndCoplanarPoint(normal,anchor),new THREE.Vector3());if(p){const shift=anchor.clone().sub(p);camera.position.add(shift);controls.target.add(shift)}}else{const dist=camera.position.distanceTo(anchor);const f=THREE.MathUtils.clamp(factor,.003/Math.max(dist,.0001),1000/Math.max(dist,.0001));const shift=anchor.clone().sub(camera.position).multiplyScalar(1-f);camera.position.add(shift);controls.target.add(shift)}controls.update();hideMeasureHover()}
 let mouseButtons=0, wheelDistance=0, yaw=0,pitch=0, walkingMode=false, verticalDrag=false, verticalLastY=0, panLastX=0, orbitZoomPending=0;
 let walkTargetYaw=0,walkTargetPitch=0,walkSpeed=0,walkSideSpeed=0;
 const keys=new Set();
@@ -221,7 +225,7 @@ if(presentation){
  presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
  button('Mis trabajos',()=>{const u=new URL(EskalaTaller.link(location.hash.slice(1)));if(params.get('adminWorker'))u.searchParams.set('adminWorker',params.get('adminWorker'));location.assign(u.href)});
- const measureBtn=button('Medir',()=>toggleMeasure(measureBtn));button('Borrar cotas',()=>clearMeasures());
+ const measureBtn=button('Medir',()=>toggleMeasure(measureBtn));button('Borrar cotas',()=>clearMeasures());projectionButton=button('Perspectiva',()=>setProjection(!camera.isOrthographicCamera));const viewSelect=document.createElement('select');viewSelect.setAttribute('aria-label','Vistas normalizadas');for(const [label,val] of [['Vistas',''],['Frontal','0,0,1'],['Posterior','0,0,-1'],['Izquierda','-1,0,0'],['Derecha','1,0,0'],['Superior','0,1,0'],['Inferior','0,-1,0'],['Isométrica','1,1,1']])viewSelect.add(new Option(label,val));viewSelect.onchange=()=>{if(viewSelect.value)standardView(...viewSelect.value.split(',').map(Number));viewSelect.value=''};bar.append(viewSelect);
  orbitButton=button('Vista 3D',()=>setPresentationMode(false));walkButton=button('Recorrer a pie',()=>setPresentationMode(true));
  orbitButton.setAttribute('aria-pressed','true');walkButton.setAttribute('aria-pressed','false');
  button('Inicio',()=>desktopView());
@@ -350,12 +354,12 @@ if(presentation){
    if(!(e.buttons&(walkingMode?6:2))){verticalDrag=false;return;}
    e.preventDefault();e.stopImmediatePropagation();
    const dx=e.clientX-panLastX,dy=e.clientY-verticalLastY;panLastX=e.clientX;verticalLastY=e.clientY;
-   const speed=Math.max(.012,distance*.0025);
+   const speed=walkingMode?Math.max(.012,distance*.0025):worldPerPixel();
    camera.updateMatrixWorld(true);
    const horizontal=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
-   horizontal.y=0;horizontal.normalize();
-   const shift=horizontal.multiplyScalar(-dx*speed);
-   shift.y=dy*speed;
+   if(walkingMode){horizontal.y=0;horizontal.normalize()}
+   const vertical=walkingMode?new THREE.Vector3(0,1,0):new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,1);
+   const shift=horizontal.multiplyScalar(-dx*speed).addScaledVector(vertical,dy*speed);
    camera.position.add(shift);controls.target.add(shift);
    if(walkingMode){lockEyeHeight();}else controls.update();
  },true);
@@ -364,6 +368,7 @@ if(presentation){
  canvas.addEventListener('wheel',e=>{
    e.preventDefault();e.stopImmediatePropagation();
    const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?innerHeight:1);
+   if(!walkingMode){zoomAt(e.clientX,e.clientY,delta);return;}
    const unit=Math.max(.12,distance*.025);
    orbitZoomPending=THREE.MathUtils.clamp(orbitZoomPending+delta/100*unit,-distance*2,distance*2);
  },{capture:true,passive:false});
@@ -1239,7 +1244,7 @@ function setMeasureMode(active,btn){
 }
 function toggleMeasure(btn){
  if(!model)return;
- if(!measureMode&&walkingMode)setPresentationMode(false);
+ if(!measureMode){if(walkingMode)setPresentationMode(false);setProjection(true)}
  setMeasureMode(!measureMode,btn);
 }
 function featureEdges(geometry){
@@ -1278,13 +1283,13 @@ function measureTarget(x,y,pointerType){
  if(den>0){const t=THREE.MathUtils.clamp(((x-u.x)*dx+(y-u.y)*dy)/den,0,1);
  // Convert screen interpolation to perspective-correct world interpolation.
  const da=-a.clone().applyMatrix4(camera.matrixWorldInverse).z,db=-b.clone().applyMatrix4(camera.matrixWorldInverse).z;
- const k=(1-t)*db+t*da;if(k>0)offer(a.clone().lerp(b,t*da/k),'Arista',7);}
+ const k=(1-t)*db+t*da;if(camera.isOrthographicCamera)offer(a.clone().lerp(b,t),'Arista',7);else if(k>0)offer(a.clone().lerp(b,t*da/k),'Arista',7);}
  }
  }
  if(best){
  // Reject snaps to hidden geometry behind another visible face.
  const front=cast(best.x,best.y);
- if(front&&front.point.distanceTo(camera.position)+Math.max(.002,front.distance*.002)<best.p.distanceTo(camera.position))best=null;
+ if(front&&front.point.clone().sub(best.p).dot(camera.getWorldDirection(new THREE.Vector3()))<-Math.max(.002,front.distance*.0001))best=null;
  }
  if(best)return best;
  if(hit){const q=projectMeasure(hit.point,r);return {p:hit.point.clone(),kind:'Superficie libre',x:q.x,y:q.y}}
@@ -1308,7 +1313,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
  const target=measureTarget(e.clientX,e.clientY,e.pointerType);if(!target)return;previewMeasure(target);
  const p=target.p;
  if(!measureMarks){measureMarks=new THREE.Group();scene.add(measureMarks)}
- const marker=new THREE.Points(new THREE.BufferGeometry().setFromPoints([p]),new THREE.PointsMaterial({color:0x00e5ff,size:5,sizeAttenuation:false,depthTest:false,depthWrite:false}));marker.renderOrder=999;measureMarks.add(marker);
+ const marker=new THREE.Points(new THREE.BufferGeometry().setFromPoints([p]),new THREE.PointsMaterial({color:0x00e5ff,size:2,sizeAttenuation:false,depthTest:false,depthWrite:false}));marker.renderOrder=999;measureMarks.add(marker);
  measurePoints.push(p);
  if(measurePoints.length===1){measureLabel.textContent=target.kind+' seleccionado. Selecciona el segundo punto.';return}
  const [a,b]=measurePoints;const delta=b.clone().sub(a);const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),new THREE.LineBasicMaterial({color:0x00e5ff,depthTest:false,depthWrite:false}));line.renderOrder=999;measureMarks.add(line);
@@ -1739,6 +1744,7 @@ function setPresentationMode(walk){
  if(measureMode)setMeasureMode(false,[...document.querySelectorAll('#presentationBar button')].find(b=>b.textContent==='Medir'));
  if(walkingMode===walk)return;
  if(walk){
+   if(camera.isOrthographicCamera)setProjection(false);
    const damping=controls.enableDamping;controls.enableDamping=false;controls.update();controls.enableDamping=damping;
    walkingMode=true;controls.enabled=false;presentationFloor=0;lockEyeHeight();syncHeadAngles();
  }else{
@@ -1751,6 +1757,7 @@ function setPresentationMode(walk){
  orbitButton.setAttribute('aria-pressed',String(!walk));walkButton.setAttribute('aria-pressed',String(walk));updateMouseGuide();
 }
 function desktopView(){
+  if(camera.isOrthographicCamera){standardView(1,1,1);return;}
   if(presentation){orbitZoomPending=0;verticalDrag=false;presentationFloor=0;}
   rig.position.set(0,0,0);
   rig.rotation.set(0,0,0);
@@ -2101,8 +2108,8 @@ renderer.setAnimationLoop(time=>{
   }
 });
 addEventListener('resize',()=>{
-  camera.aspect=innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
+  perspectiveCamera.aspect=innerWidth/innerHeight;
+  perspectiveCamera.updateProjectionMatrix();resizeOrtho();
   renderer.setSize(innerWidth,innerHeight);
 });
 for(const control of [models,orientation,appearance])control.addEventListener('change',openModel);
