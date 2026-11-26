@@ -226,7 +226,7 @@ if(presentation){
  const full=button('Pantalla completa',()=>{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{});});
  document.addEventListener('fullscreenchange',()=>{full.setAttribute('aria-pressed',String(!!document.fullscreenElement));full.textContent=document.fullscreenElement?'Salir de pantalla completa':'Pantalla completa';});
  if(access==='director'){
-   button('Mi biblioteca',()=>location.assign('direccion.html?v=122'));
+   button('Mi biblioteca',()=>location.assign('direccion.html?v=123'));
    function askExposureHours(){
      const value=prompt('Tiempo de exposición del enlace (horas).\n\nDéjalo vacío para 24 horas.','');
      if(value===null)return null;
@@ -1998,7 +1998,7 @@ for(const control of [models,orientation,appearance])control.addEventListener('c
 function exitWithdrawnDesign(){
   generation++;
   renderer.setAnimationLoop(null);
-  const destination=access==='director'?'direccion.html?v=122':'retirado.html';
+  const destination=access==='director'?'direccion.html?v=123':'retirado.html';
   location.replace(new URL(destination,location.href).href);
 }
 
