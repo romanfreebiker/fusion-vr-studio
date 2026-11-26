@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado": "2026-11-26T10:50:47.373Z",
+  "actualizado": "2026-11-26T10:50:52.464Z",
   "modelos": [
     {
       "id": "puerta-zona-generador-abierta-mwvp69l8",
@@ -35,7 +35,7 @@
     {
       "id": "garaje2-mws3nfb6",
       "nombre": "garaje2",
-      "categoria": "",
+      "categoria": "Estructuras",
       "descripcion": "",
       "archivo": "modelos/garaje2-mws3nfb6.glb",
       "miniatura": "miniaturas/garaje2-mws3nfb6.jpg",
