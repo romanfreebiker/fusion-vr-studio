@@ -4488,7 +4488,7 @@ function render(){
         catch{prompt('Enlace individual',url)}
         await updateThirdPartyAccesses();
       }],
-      ['WhatsApp',async()=>{const details=await askShareDetails();if(!details)return;await FusionDistribution.shareWhatsApp(m.id,m.nombre,details.hours,'central',details.recipient);await updateThirdPartyAccesses()}],
+      ['WhatsApp',async()=>{const details=await askShareDetails();if(!details)return;await FusionDistribution.shareWhatsApp(m.id,m.nombre,details.hours,'central',details.recipient)}],
       ['Correo',async()=>{await FusionDistribution.shareEmail(m.id,m.nombre,'central');await updateThirdPartyAccesses()}]
     ];
     const shareButtons=shareActions.map(([label,action])=>{
