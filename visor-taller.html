@@ -225,7 +225,7 @@ if(presentation){
  presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
  button('Mis trabajos',()=>{const u=new URL(EskalaTaller.link(location.hash.slice(1)));if(params.get('adminWorker'))u.searchParams.set('adminWorker',params.get('adminWorker'));location.assign(u.href)});
- const measureBtn=button('Medir',()=>toggleMeasure(measureBtn));button('Borrar cotas',()=>clearMeasures());button('Modo papel',()=>setTechnicalMode(!technicalMode));projectionButton=button('Perspectiva',()=>setProjection(!camera.isOrthographicCamera));const viewSelect=document.createElement('select');viewSelect.setAttribute('aria-label','Vistas normalizadas');for(const [label,val] of [['Vistas',''],['Frontal','0,0,1'],['Posterior','0,0,-1'],['Izquierda','-1,0,0'],['Derecha','1,0,0'],['Superior','0,1,0'],['Inferior','0,-1,0'],['Isométrica','1,1,1']])viewSelect.add(new Option(label,val));viewSelect.onchange=()=>{if(viewSelect.value)standardView(...viewSelect.value.split(',').map(Number));viewSelect.value=''};bar.append(viewSelect);
+ const measureBtn=button('Medir',()=>toggleMeasure(measureBtn));button('Borrar medida',()=>clearMeasures());button('Modo papel',()=>setTechnicalMode(!technicalMode));projectionButton=button('Perspectiva',()=>setProjection(!camera.isOrthographicCamera));const viewSelect=document.createElement('select');viewSelect.setAttribute('aria-label','Vistas normalizadas');for(const [label,val] of [['Vistas',''],['Frontal','0,0,1'],['Posterior','0,0,-1'],['Izquierda','-1,0,0'],['Derecha','1,0,0'],['Superior','0,1,0'],['Inferior','0,-1,0'],['Isométrica','1,1,1']])viewSelect.add(new Option(label,val));viewSelect.onchange=()=>{if(viewSelect.value)standardView(...viewSelect.value.split(',').map(Number));viewSelect.value=''};bar.append(viewSelect);
  orbitButton=button('Vista 3D',()=>setPresentationMode(false));walkButton=button('Recorrer a pie',()=>setPresentationMode(true));
  orbitButton.setAttribute('aria-pressed','true');walkButton.setAttribute('aria-pressed','false');
  button('Inicio',()=>desktopView());
@@ -1226,10 +1226,10 @@ versionLabel.textContent='Visor VR 0.81 · A Rescate en mando derecho';
 versionLabel.style.cssText='position:absolute;bottom:12px;left:12px;z-index:5;background:#102b32;padding:6px 10px;border-radius:6px;font:13px system-ui;color:#9bf5d5';
 // El cartel de diagnóstico no se muestra en ningún modo.
 let technicalMode=false, technicalOriginals=[], technicalEdges=[], technicalMaterial=null, technicalLineMaterial=null, dimensionLayer=null, dimensions=[];
-let measureMode=false,measurePoints=[],measureMarks=null,measureLabel=null,measureHover=null,measureEvent=null,measureFrame=0, snapLayer=null;
+let measureMode=false,measurePoints=[],measureMarks=null,measureLabel=null,measureHover=null,measureEvent=null,measureFrame=0, snapLayer=null, provisionalLine=null, provisionalLabel=null;
 const featureCache=new WeakMap();
 const measurementRay=new THREE.Raycaster(),measurementPointer=new THREE.Vector2();
-const SNAP_RADIUS=15, PREVIEW_RADIUS=58;
+const SNAP_RADIUS=15, PREVIEW_RADIUS=22;
 function setTechnicalMode(active){
  if(active===technicalMode||!model)return;
  technicalMode=active;document.body.classList.toggle('technical',active);
@@ -1264,19 +1264,20 @@ function updateDimensions(){
  }
 }
 function clearMeasures(){
+ clearProvisional();
  if(dimensionLayer)dimensionLayer.replaceChildren();dimensions=[];
  if(measureMarks){scene.remove(measureMarks);measureMarks.traverse(o=>{o.geometry?.dispose();o.material?.dispose()});measureMarks=null}
  measurePoints=[];if(measureLabel)measureLabel.textContent=measureMode?'Selecciona dos puntos. Acerca el cursor a una arista o vértice.':'';
 }
-function hideMeasureHover(){if(measureHover)measureHover.hidden=true;if(snapLayer)snapLayer.replaceChildren();measureEvent=null}
+function hideMeasureHover(){if(measureHover)measureHover.hidden=true;if(snapLayer)snapLayer.replaceChildren();measureEvent=null;clearProvisional()}
 function setMeasureMode(active,btn){
- measureMode=active;controls.enabled=!active&&!walkingMode;btn?.setAttribute('aria-pressed',String(active));
+ measureMode=active;controls.enabled=!walkingMode;btn?.setAttribute('aria-pressed',String(active));
  document.body.classList.toggle('measuring',active);setTechnicalMode(active);
  if(!measureLabel){measureLabel=document.createElement('div');measureLabel.style.cssText='position:fixed;bottom:12px;left:12px;z-index:30;max-width:calc(100% - 24px);background:#142034ed;color:#7eeaff;padding:10px;border-radius:8px;pointer-events:none;font:13px system-ui';document.body.append(measureLabel)}
  if(!measureHover){measureHover=document.createElement('div');measureHover.className='measure-snap';measureHover.hidden=true;document.body.append(measureHover)}
  if(!snapLayer){snapLayer=document.createElement('div');snapLayer.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:24';document.body.append(snapLayer)}
- measureLabel.hidden=!active;measureLabel.textContent='Selecciona dos puntos · Los enganches cercanos aparecen al mover el cursor.';
- if(!active){measurePoints=[];hideMeasureHover()}
+ measureLabel.hidden=!active;measureLabel.textContent='Clic: medir · Arrastrar: girar · Derecho: panear · Rueda: zoom';
+ if(!active){clearMeasures();hideMeasureHover()}
 }
 function toggleMeasure(btn){
  if(!model)return;
@@ -1300,12 +1301,12 @@ function measureTarget(x,y,pointerType){
  // Probe near the pointer as well, so exposed corners can be snapped from outside the silhouette.
  const hits=[hit];for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]])hits.push(cast(x+dx*radius*.8,y+dy*radius*.8));
  const candidates=new Map();for(const h of hits)if(h&&!candidates.has(h.object))candidates.set(h.object,h);
- let best=null;const features=new Map(), picks=[];
+ let best=null;const picks=[];
  function offer(p,kind,penalty=0){
  const q=projectMeasure(p,r);if(q.z<-1||q.z>1)return;
  const d=Math.hypot(q.x-x,q.y-y);if(d>PREVIEW_RADIUS)return;
  const score=d+penalty, candidate={p:p.clone(),kind,score,x:q.x,y:q.y};
- if(kind!=='Arista'){const key=p.toArray().map(v=>Math.round(v*100000)).join(',');if(!features.has(key)||features.get(key).score>score)features.set(key,candidate)}
+ 
  if(d<=radius)picks.push(candidate);
  }
  for(const [mesh,h] of candidates){
@@ -1325,40 +1326,71 @@ function measureTarget(x,y,pointerType){
  }
  }
  const visible=c=>{const f=cast(c.x,c.y);return !f||f.point.clone().sub(c.p).dot(camera.getWorldDirection(new THREE.Vector3()))>=-Math.max(.002,f.distance*.0001)};
- const nearby=[...features.values()].sort((a,b)=>a.score-b.score).slice(0,18).filter(visible);
  best=picks.sort((a,b)=>a.score-b.score).slice(0,24).find(visible)||null;
- if(best)return {...best,nearby};
- if(hit){const q=projectMeasure(hit.point,r);return {p:hit.point.clone(),kind:'Superficie libre',x:q.x,y:q.y,nearby}}
- return nearby.length?{nearby}:null;
+ return best;
+}
+function clearProvisional(){
+ if(provisionalLine){scene.remove(provisionalLine);provisionalLine.geometry.dispose();provisionalLine.material.dispose();provisionalLine=null}
+ if(provisionalLabel){provisionalLabel.remove();provisionalLabel=null}
 }
 function previewMeasure(target){
  if(!measureHover)return;
- if(snapLayer){snapLayer.replaceChildren();for(const c of target?.nearby||[]){const dot=document.createElement('span');dot.style.cssText='position:absolute;transform:translate(-50%,-50%);width:4px;height:4px;border:1px solid #78f8ff;background:#142034;border-radius:'+(c.kind==='Punto medio'?'0':'50%')+';left:'+c.x+'px;top:'+c.y+'px;box-shadow:0 0 1px #000';snapLayer.append(dot)}}
- measureHover.hidden=!target?.p;if(!target?.p)return;
+ measureHover.hidden=!target?.p;
+ if(!target?.p){clearProvisional();return}
  measureHover.style.left=target.x+'px';measureHover.style.top=target.y+'px';measureHover.dataset.kind=target.kind;
- measureHover.textContent=target.kind==='Superficie libre'?'':target.kind;
- measureHover.classList.toggle('free',target.kind==='Superficie libre');
+ measureHover.textContent='';measureHover.classList.remove('free');
+ if(measurePoints.length!==1){clearProvisional();return}
+ const a=measurePoints[0],b=target.p;
+ if(!provisionalLine){
+ provisionalLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),new THREE.LineBasicMaterial({color:0x0078b8,transparent:true,opacity:.65,depthTest:false,depthWrite:false}));provisionalLine.renderOrder=999;scene.add(provisionalLine);
+ provisionalLabel=document.createElement('span');provisionalLabel.className='dimension-label';provisionalLabel.style.cssText='position:fixed;z-index:23;pointer-events:none;opacity:.8';document.body.append(provisionalLabel);
+ }else{const p=provisionalLine.geometry.attributes.position;p.setXYZ(0,a.x,a.y,a.z);p.setXYZ(1,b.x,b.y,b.z);p.needsUpdate=true;provisionalLine.geometry.computeBoundingSphere()}
+ const r=renderer.domElement.getBoundingClientRect(),q=projectMeasure(a,r);
+ provisionalLabel.textContent=Math.round(a.distanceTo(b)*1000).toLocaleString('es-ES')+' mm';provisionalLabel.style.left=(q.x+target.x)/2+'px';provisionalLabel.style.top=((q.y+target.y)/2-10)+'px';
 }
+const measureTouches=new Set();let measurePress=null;
+renderer.domElement.addEventListener('pointerdown',e=>{
+ if(!measureMode)return;
+ if(e.pointerType==='touch'){measureTouches.add(e.pointerId);if(measureTouches.size>1){measurePress=null;hideMeasureHover();return}}
+ if(e.button!==0){measurePress=null;hideMeasureHover();return}
+ measurePress={id:e.pointerId,x:e.clientX,y:e.clientY,drag:false,type:e.pointerType};hideMeasureHover();
+},true);
 renderer.domElement.addEventListener('pointermove',e=>{
- if(!measureMode||e.pointerType==='touch'||e.buttons)return;
+ if(!measureMode)return;
+ if(measurePress&&measurePress.id===e.pointerId&&Math.hypot(e.clientX-measurePress.x,e.clientY-measurePress.y)>5){measurePress.drag=true;hideMeasureHover()}
+ if(e.pointerType==='touch'||e.buttons)return;
  measureEvent={x:e.clientX,y:e.clientY,type:e.pointerType};
  if(!measureFrame)measureFrame=requestAnimationFrame(()=>{measureFrame=0;if(measureMode&&measureEvent)previewMeasure(measureTarget(measureEvent.x,measureEvent.y,measureEvent.type))});
 },true);
 renderer.domElement.addEventListener('pointerleave',hideMeasureHover);
-renderer.domElement.addEventListener('pointerdown',e=>{
- if(!measureMode||e.button!==0)return;e.preventDefault();e.stopImmediatePropagation();
- const target=measureTarget(e.clientX,e.clientY,e.pointerType);previewMeasure(target);if(!target?.p)return;
- const p=target.p;
+function selectMeasurePoint(target){
+ if(!target?.p)return;
+ if(measurePoints.length!==1)clearMeasures();
+ clearProvisional();
+ const p=target.p.clone();
  if(!measureMarks){measureMarks=new THREE.Group();scene.add(measureMarks)}
  const marker=new THREE.Points(new THREE.BufferGeometry().setFromPoints([p]),new THREE.PointsMaterial({color:0xff8300,size:2,sizeAttenuation:false,depthTest:false,depthWrite:false}));marker.renderOrder=999;measureMarks.add(marker);
  measurePoints.push(p);
- if(measurePoints.length===1){measureLabel.textContent=target.kind+' seleccionado. Selecciona el segundo punto.';return}
- const [a,b]=measurePoints;const delta=b.clone().sub(a);const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),new THREE.LineBasicMaterial({color:0x0078b8,depthTest:false,depthWrite:false}));line.renderOrder=999;measureMarks.add(line);
+ if(measurePoints.length===1){measureLabel.textContent='Primer punto seleccionado. Puedes girar y acercarte para buscar el segundo.';return}
+ const [a,b]=measurePoints,delta=b.clone().sub(a);
+ const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),new THREE.LineBasicMaterial({color:0x0078b8,depthTest:false,depthWrite:false}));line.renderOrder=999;measureMarks.add(line);
  const fmt=x=>Math.round(Math.abs(x)*1000).toLocaleString('es-ES');
  addDimension(a,b,fmt(delta.length()));
- measureLabel.textContent='Distancia: '+fmt(delta.length())+' mm · X: '+fmt(delta.x)+' · Altura: '+fmt(delta.y)+' · Z: '+fmt(delta.z)+' mm';
+ measureLabel.textContent='Distancia: '+fmt(delta.length())+' mm · Selecciona otro punto para empezar de nuevo.';
  measurePoints=[];
+}
+renderer.domElement.addEventListener('pointerup',e=>{
+ if(e.pointerType==='touch')measureTouches.delete(e.pointerId);
+ const press=measurePress;
+ if(!press||press.id!==e.pointerId)return;
+ measurePress=null;
+ if(!measureMode||press.drag||Math.hypot(e.clientX-press.x,e.clientY-press.y)>5)return;
+ const target=measureTarget(e.clientX,e.clientY,e.pointerType);
+ selectMeasurePoint(target);if(e.pointerType!=='touch')previewMeasure(target);
 },true);
+for(const event of ['pointercancel','lostpointercapture'])renderer.domElement.addEventListener(event,e=>{measureTouches.delete(e.pointerId);if(measurePress?.id===e.pointerId)measurePress=null},true);
+addEventListener('blur',()=>{measurePress=null;measureTouches.clear();hideMeasureHover()});
+addEventListener('keydown',e=>{if(measureMode&&e.key==='Escape'){clearMeasures();hideMeasureHover()}});
 let model, distance=4, vrStartDistance=1.5, height=2, generation=0, lastTime=0, canTurn=true, smoothTurnAxis=0;
 let worldOctree=null,verticalVelocity=0,isGrounded=false,collisionTriangles=0,collisionStops=0;
 const BODY_RADIUS=.29,GRAVITY=9.81;
@@ -1779,7 +1811,7 @@ function syncHeadAngles(){
  yaw=walkTargetYaw=headEuler.y;pitch=walkTargetPitch=headEuler.x;
 }
 function setPresentationMode(walk){
- if(measureMode)setMeasureMode(false,[...document.querySelectorAll('#presentationBar button')].find(b=>b.textContent==='Medir'));
+ if(measureMode&&walk)setMeasureMode(false,[...document.querySelectorAll('#presentationBar button')].find(b=>b.textContent==='Medir'));
  if(walkingMode===walk)return;
  if(walk){
    if(camera.isOrthographicCamera)setProjection(false);
