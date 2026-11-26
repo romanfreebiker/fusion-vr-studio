@@ -65,7 +65,7 @@ window.presentationProgress=function(message,percent,error=false){
 window.addEventListener('error',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo iniciar el visor. Comprueba la conexión.',null,true);});
 window.addEventListener('unhandledrejection',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo cargar el proyecto.',null,true);});
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=13"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=14"></script>
 <header>
 <h1>ESKALA Viewer</h1><span class="eskala-sign">by Roman · <b>62</b> SESENTA&amp;DOS</span>
 <label for="models">Diseño</label><select id="models" disabled></select>
@@ -142,8 +142,9 @@ import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import {Octree} from 'three/addons/math/Octree.js';
 import {Capsule} from 'three/addons/math/Capsule.js';
 
-const params=new URLSearchParams(location.search), access=params.get('acceso');
+const params=new URLSearchParams(location.search), access=params.get('acceso'), shareSecret=params.get('share')||'';
 const presentation=params.get('modo')==='presentacion';let distributedModel=null;
+FusionDistribution.configureStoredAdmin?.();
 document.body.classList.toggle('presentation',presentation);
 const status=document.querySelector('#status'), models=document.querySelector('#models');
 const orientation=document.querySelector('#orientation'), appearance=document.querySelector('#appearance');
@@ -226,14 +227,46 @@ if(presentation){
  document.addEventListener('fullscreenchange',()=>{full.setAttribute('aria-pressed',String(!!document.fullscreenElement));full.textContent=document.fullscreenElement?'Salir de pantalla completa':'Pantalla completa';});
  if(access==='director'){
    button('Mi biblioteca',()=>location.assign('direccion.html?v=95'));
-   const share=button('Copiar enlace para terceros',async()=>{if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}share.disabled=true;try{const url=await FusionDistribution.share(params.get('diseno'));try{await navigator.clipboard.writeText(url);share.textContent='¡Enlace copiado!';share.classList.add('confirmed');setTimeout(()=>{share.textContent='Copiar enlace para terceros';share.classList.remove('confirmed')},1600)}catch{prompt('Enlace individual para terceros',url)}}catch(e){alert(e.message)}finally{share.disabled=false}});
+   function askRecipient(){
+     const recipient=prompt('Nombre o empresa del destinatario:','');
+     if(recipient===null)return null;
+     if(!recipient.trim()){alert('Indica un nombre o empresa.');return null}
+     const contact=prompt('Contacto o referencia opcional. Teléfono/email se guardará enmascarado:','');
+     return {recipient:recipient.trim(),contact:contact||''};
+   }
+   const share=button('Copiar enlace para terceros',async()=>{if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}const details=askRecipient();if(!details)return;share.disabled=true;try{const url=await FusionDistribution.share(params.get('diseno'),details.recipient,details.contact);try{await navigator.clipboard.writeText(url);share.textContent='¡Enlace copiado!';share.classList.add('confirmed');setTimeout(()=>{share.textContent='Copiar enlace para terceros';share.classList.remove('confirmed')},1600)}catch{prompt('Enlace individual para '+details.recipient,url)}}catch(e){alert(e.message)}finally{share.disabled=false}});
    for(const [label,action] of [['WhatsApp','shareWhatsApp'],['Correo','shareEmail']]){
      button(label,async()=>{
        if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}
-       try{await FusionDistribution[action](params.get('diseno'),distributedModel.meta.nombre);}
+       const details=askRecipient();if(!details)return;
+       try{await FusionDistribution[action](params.get('diseno'),distributedModel.meta.nombre,details.recipient,details.contact);}
        catch(e){alert(e.message)}
      });
    }
+   button('Accesos terceros',async()=>{
+     if(!distributedModel)return;
+     let rows;
+     try{rows=await FusionDistribution.listThirdParty(params.get('diseno'),true)}catch(e){alert(e.message);return}
+     const panel=document.createElement('div');
+     Object.assign(panel.style,{position:'fixed',inset:'0',zIndex:'99999',background:'#07101be8',display:'grid',placeItems:'center',padding:'20px'});
+     const card=document.createElement('div');
+     Object.assign(card.style,{width:'min(720px,94vw)',maxHeight:'80vh',overflow:'auto',background:'#142236',border:'1px solid #42607d',borderRadius:'14px',padding:'18px',color:'#eef7ff',font:'14px system-ui'});
+     const title=document.createElement('h2');title.textContent='Accesos a terceros · '+distributedModel.meta.nombre;card.append(title);
+     const close=document.createElement('button');close.textContent='Cerrar';close.onclick=()=>panel.remove();card.append(close);
+     const list=document.createElement('div');list.style.marginTop='14px';card.append(list);panel.append(card);document.body.append(panel);
+     async function draw(){
+       rows=await FusionDistribution.listThirdParty(params.get('diseno'),true);list.replaceChildren();
+       if(!rows.length){const p=document.createElement('p');p.textContent='No hay destinatarios registrados.';list.append(p);return}
+       for(const row of rows){
+         const line=document.createElement('div');Object.assign(line.style,{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap',padding:'10px 0',borderBottom:'1px solid #31465e'});
+         const label=document.createElement('span');label.textContent=row.recipient+(row.contact?' · '+row.contact:'')+' · '+(row.status==='active'?'ACTIVO':'REVOCADO');label.style.flex='1';line.append(label);
+         const toggle=document.createElement('button');toggle.textContent=row.status==='active'?'Desactivar':'Reactivar';toggle.onclick=async()=>{try{await FusionDistribution.setThirdPartyStatus(row.id,row.status==='active'?'revoked':'active');await draw()}catch(e){alert(e.message)}};line.append(toggle);
+         const del=document.createElement('button');del.textContent='Eliminar';del.onclick=async()=>{if(!confirm('¿Eliminar el acceso de '+row.recipient+'?'))return;try{await FusionDistribution.deleteThirdPartyAccess(row.id);await draw()}catch(e){alert(e.message)}};line.append(del);
+         list.append(line);
+       }
+     }
+     draw().catch(e=>alert(e.message));
+   });
  }
 
  document.body.append(bar);
@@ -1968,8 +2001,8 @@ function exitWithdrawnDesign(){
 try{
     if(presentation&&access){
     const id=params.get('diseno');
-    distributedModel=await FusionDistribution.loadViewer(access,id);
-    FusionDistribution.watchViewer(access,id,exitWithdrawnDesign);
+    distributedModel=await FusionDistribution.loadViewer(access,id,shareSecret);
+    FusionDistribution.watchViewer(access,id,shareSecret,exitWithdrawnDesign);
     const item=distributedModel.meta;orientation.value='z';appearance.value='library';models.add(new Option(item.nombre,item.id));presentationTitle.textContent=item.nombre;document.title=item.nombre+' · ESKALA Viewer';await openModel();
   }else{
   const catalogURL=new URL('catalogo.json',location.href);
