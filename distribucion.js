@@ -265,8 +265,22 @@
  const hiddenKey='fusion-direction-hidden-v2';
  function hidden(){try{return JSON.parse(localStorage.getItem(hiddenKey)||'{}')}catch{return {}}}
  function clearHidden(){try{localStorage.removeItem(hiddenKey)}catch{}}
+ function clearHiddenDesign(id){
+   try{
+     const h=hidden();
+     if(Object.prototype.hasOwnProperty.call(h,id)){
+       delete h[id];
+       if(Object.keys(h).length)localStorage.setItem(hiddenKey,JSON.stringify(h));
+       else localStorage.removeItem(hiddenKey);
+     }
+   }catch{}
+ }
  async function list(role,force=false){const rows=await published(force);return role==='director'?rows.filter(m=>m.status==='active'):rows}
- async function send(m){await write(rows=>{const next={...safe(m),status:'active',updated:new Date().toISOString()};const i=rows.findIndex(x=>x.id===m.id);if(i<0)rows.push(next);else rows[i]=next})}
+ async function send(m){
+   await write(rows=>{const next={...safe(m),status:'active',updated:new Date().toISOString()};const i=rows.findIndex(x=>x.id===m.id);if(i<0)rows.push(next);else rows[i]=next});
+   clearHiddenDesign(m.id);
+   snapshots.delete(path);
+ }
  async function setStatus(id,status,role){
    if(role==='director'&&status!=='inactive')throw Error('Dirección solo puede retirar diseños de su biblioteca.');
    if(!['admin','director'].includes(role))throw Error('Permiso de distribución no válido.');
@@ -346,5 +360,5 @@
    window.addEventListener('focus',check);
    window.addEventListener('pageshow',check);
  }
- window.FusionDistribution={version:19,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
+ window.FusionDistribution={version:20,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
 })();
