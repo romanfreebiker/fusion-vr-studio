@@ -195,8 +195,9 @@
    const secret=randomToken(),hash=await tokenHash(secret),nowMs=Date.now(),now=new Date(nowMs).toISOString();
    base.searchParams.set('share',secret);
    const longUrl=base.href;
-   let shortUrl=longUrl;
-   try{shortUrl=await shortenExternal(longUrl)}catch(error){console.warn('ESKALA: enlace corto no disponible, se usa el enlace completo.',error)}
+   let shortUrl;
+   try{shortUrl=await shortenExternal(longUrl)}
+   catch(error){throw Error('No se pudo crear el enlace corto de ESKALA. Vuelve a intentarlo.')}
    const access={id:'acc_'+nowMs.toString(36)+'_'+Math.random().toString(36).slice(2,8),designId,recipient:clean,contact:maskContact(contact),channel,tokenHash:hash,status:'active',createdAt:now,updatedAt:now};
    await writeThird(data=>{
      const hours=Math.max(1,Math.min(24*30,Math.round(Number(data.defaultTtlHours)||24)));
@@ -297,5 +298,5 @@
    window.addEventListener('pageshow',check);
  }
  function removalUrl(m){const u=new URL('https://github.com/'+repo+'/issues/new');u.searchParams.set('title','[Dirección] Retirar diseño '+m.id);u.searchParams.set('body','Solicito retirar de la biblioteca de dirección el diseño '+m.nombre+'.\n\nIdentificador: '+m.id+'\nVersión: '+m.updated);return u.href}
- window.FusionDistribution={version:9,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,loadViewer,watchViewer,refreshInterval,hide,removalUrl};
+ window.FusionDistribution={version:10,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,loadViewer,watchViewer,refreshInterval,hide,removalUrl};
 })();
