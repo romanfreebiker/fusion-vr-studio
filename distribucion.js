@@ -307,10 +307,10 @@
  async function share(id,origin='central'){
    return (await createThirdPartyAccess(id,'','', 'link',24,origin)).url;
  }
- async function shareWhatsApp(id,name,ttlHours=24,origin='central'){
+ async function shareWhatsApp(id,name,ttlHours=24,origin='central',recipient=''){
    const page=window.open('about:blank','_blank');
    try{
-     const {url}=await createThirdPartyAccess(id,'','', 'whatsapp',ttlHours,origin);
+     const {url}=await createThirdPartyAccess(id,recipient,'', 'whatsapp',ttlHours,origin);
      const message='ESKALA Studio · '+(name||'Diseño 3D')+'\n'+url;
      const target='https://wa.me/?text='+encodeURIComponent(message);
      if(page){page.opener=null;page.location.replace(target);}else window.location.assign(target);
@@ -360,5 +360,5 @@
    window.addEventListener('focus',check);
    window.addEventListener('pageshow',check);
  }
- window.FusionDistribution={version:20,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
+ window.FusionDistribution={version:21,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
 })();
