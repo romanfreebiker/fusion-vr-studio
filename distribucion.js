@@ -225,10 +225,12 @@
    const secret=randomToken(),hash=await tokenHash(secret),nowMs=Date.now(),now=new Date(nowMs).toISOString();
    base.searchParams.set('share',secret);
    const longUrl=base.href;
-   // El is.gd publicado apunta siempre a la pagina estatica ESKALA con sus OG.
-   // El token individual viaja en el fragmento: no lo ve el crawler de WhatsApp,
-   // pero el navegador lo conserva al seguir la redireccion.
-   const shareUrl=published.shortUrl?published.shortUrl+'#'+secret:longUrl;
+   // Cada acceso recibe su propio is.gd corto, como en las versiones que
+   // mostraban correctamente la miniatura en WhatsApp. El token queda oculto
+   // en el destino del acortador y la pagina ESKALA conserva sus metadatos OG.
+   let shareUrl;
+   try{shareUrl=await shortenExternal(longUrl)}
+   catch(error){throw Error('No se pudo crear el enlace corto de ESKALA. Vuelve a intentarlo.')}
    const hours=Math.max(1,Math.min(24*30,Number(ttlHours)||24));
    const access={id:'acc_'+nowMs.toString(36)+'_'+Math.random().toString(36).slice(2,8),designId,recipient:clean,contact:maskContact(contact),channel,origin:origin==='direction'?'direction':'central',tokenHash:hash,status:'active',createdAt:now,updatedAt:now,expiresAt:new Date(nowMs+hours*3600000).toISOString()};
    await writeThird(data=>data.accesses.push(access));
@@ -368,5 +370,5 @@
    window.addEventListener('focus',check);
    window.addEventListener('pageshow',check);
  }
- window.FusionDistribution={version:25,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
+ window.FusionDistribution={version:26,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
 })();
