@@ -13,7 +13,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=12"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=13"></script>
 <script>
 /* Three.js
 The MIT License
@@ -4447,8 +4447,8 @@ function render(){
       send.textContent=active?'Enviado a dirección':d?.status==='inactive'?'Reactivar en dirección':'Enviar a dirección';
       send.disabled=active;revoke.hidden=!active;
       for(const button of shareButtons){
-        button.disabled=!active;
-        button.title=active?'':'Activa el diseño en Dirección para compartirlo.';
+        button.disabled=false;
+        button.title='Compartir con terceros es independiente de Dirección.';
       }
     }
     const updateDistribution=async()=>{try{const d=(await FusionDistribution.list('admin')).find(x=>x.id===m.id);displayDistribution(d)}catch(e){distribution.textContent='Distribución: '+e.message}};
