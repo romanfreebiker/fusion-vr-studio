@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado": "2026-11-26T10:44:45.786Z",
+  "actualizado": "2026-11-26T10:44:55.861Z",
   "modelos": [
     {
       "id": "puerta-zona-generador-abierta-mwvp69l8",
@@ -51,16 +51,6 @@
       "miniatura": "miniaturas/escalera-antracita-prova-mws85q1l.jpg",
       "bytes": 470768,
       "fecha": "2026-11-22T19:23:25.732Z"
-    },
-    {
-      "id": "escalera-madera-prova-mws83g4g",
-      "nombre": "escalera madera prova",
-      "categoria": "Viviendas",
-      "descripcion": "",
-      "archivo": "modelos/escalera-madera-prova-mws83g4g.glb",
-      "miniatura": "miniaturas/escalera-madera-prova-mws83g4g.jpg",
-      "bytes": 4489584,
-      "fecha": "2026-11-22T19:21:43.959Z"
     },
     {
       "id": "garaje2-mws3nfb6",
