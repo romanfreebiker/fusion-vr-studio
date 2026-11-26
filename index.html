@@ -3981,7 +3981,7 @@ three/examples/jsm/libs/fflate.module.js:
 .third-access-row .state.active{color:#78e6af}.third-access-row .state.revoked{color:#ff9aa4}
 .third-access-row button{padding:5px 8px!important;font-size:11px!important}
 </style>
-<script src="taller.js"></script></head>
+<script src="taller.js?v=3"></script></head>
 <body>
 <!-- ESKALA: cabecera corporativa compartida. Los controles conservan data-view. -->
 <header class="eskala-corpbar" role="banner">
@@ -4427,12 +4427,12 @@ async function workshopDialog(model=null){
  const dialog=document.createElement('dialog');dialog.style.cssText='width:min(620px,92vw);max-height:85vh;overflow:auto;background:#152436;color:#eef7ff;border:1px solid #52718a;border-radius:12px;padding:18px';
  const heading=textNode('h2',model?'Asignar a taller: '+model.nombre:'Operarios y trabajos');const close=textNode('button','Cerrar','button secondary small');close.onclick=()=>dialog.close();dialog.append(heading,close);const area=document.createElement('div');dialog.append(area);document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove());dialog.showModal();
  const keyName=id=>'eskala-taller-key:'+id;
- const run=async fn=>{try{await fn();await draw()}catch(e){toast(e.message,true)}};
+ let saving=false; const feedback=textNode('p','','muted');feedback.setAttribute('role','status');dialog.insertBefore(feedback,area); const run=async fn=>{if(saving)return;saving=true;feedback.textContent='Guardando…';area.querySelectorAll('button').forEach(b=>b.disabled=true);try{const updated=await fn();await draw(updated&&Array.isArray(updated.workers)?updated:null);feedback.textContent='Cambios guardados.'}catch(e){feedback.textContent=e.message;toast(e.message,true)}finally{saving=false;area.querySelectorAll('button').forEach(b=>b.disabled=false)}};
  const btn=(label,fn)=>{const b=textNode('button',label,'button secondary small');b.type='button';b.onclick=fn;return b};
  const choose=(options,value)=>{const x=document.createElement('select');x.className='input';for(const o of options)x.add(new Option(o,o));x.value=value||options[0];return x};
- async function draw(){
- const d=await T.data();area.replaceChildren();
- if(!model){const name=document.createElement('input');name.className='input';name.placeholder='Nombre o alias del operario';area.append(name,btn('Crear operario',()=>run(async()=>{const label=name.value.trim();if(!label)throw Error('Introduce un nombre');const key=T.secret(),hash=await T.hash(key),id=crypto.randomUUID();await T.change(state.token,x=>x.workers.push({id,label,hash,active:true}));localStorage.setItem(keyName(id),key);toast('Operario creado')})));}
+ async function draw(updated=null){
+ const d=updated||await T.data(state.token);area.replaceChildren();
+ if(!model){const name=document.createElement('input');name.className='input';name.placeholder='Nombre y apellidos del operario';name.autocapitalize='words';const capitalize=v=>v.replace(/(^|[\s'-])(\p{L})/gu,(_,sep,c)=>sep+c.toLocaleUpperCase('es'));name.addEventListener('input',()=>{const p=name.selectionStart;name.value=capitalize(name.value);name.setSelectionRange(p,p)});const create=btn('Crear operario',()=>run(async()=>{const label=capitalize(name.value.trim().replace(/\s+/g,' '));if(!label)throw Error('Introduce un nombre');const key=T.secret(),hash=await T.hash(key),id=crypto.randomUUID();const updated=await T.change(state.token,x=>{if(x.workers.some(w=>w.active&&w.label.toLocaleLowerCase('es')===label.toLocaleLowerCase('es')))throw Error('Ya existe un operario con ese nombre');x.workers.push({id,label,hash,active:true})});try{localStorage.setItem(keyName(id),key)}catch{feedback.textContent='Operario guardado; no se pudo conservar el enlace local.'}toast('Operario creado');return updated}));name.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();create.click()}});area.append(name,create);}
  for(const w of d.workers.filter(x=>x.active)){
  const panel=document.createElement('div');panel.style.cssText='border-top:1px solid #456;padding:12px 0;display:grid;gap:8px';panel.append(textNode('strong',w.label));const key=localStorage.getItem(keyName(w.id));
  if(!model){
