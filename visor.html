@@ -394,7 +394,7 @@ const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.ShaderMat
       float minor=lineCoverage(fine,.018)*fineFade;
       float major=lineCoverage(vGridWorld.xz*.5,.012);
       // Inversión de prueba: fondo azul luminoso y líneas oscuras.
-      vec3 base=vec3(.16,.40,.67);
+      vec3 base=vec3(.21,.46,.72);
       vec3 color=mix(base,vec3(.075,.145,.235),max(minor*.45,major*.60)*fade);
       gl_FragColor=vec4(color,1.0);
     }`,
