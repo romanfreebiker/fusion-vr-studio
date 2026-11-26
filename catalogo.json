@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado": "2026-11-26T10:38:53.472Z",
+  "actualizado": "2026-11-26T10:39:08.301Z",
   "modelos": [
     {
       "id": "puerta-zona-generador-abierta-mwvp69l8",
@@ -41,16 +41,6 @@
       "miniatura": "miniaturas/escalera-butano-y-altillo-mwsuyq54.jpg",
       "bytes": 2088648,
       "fecha": "2026-11-23T06:01:50.795Z"
-    },
-    {
-      "id": "mesa-empaquetado-completa-mwstduga",
-      "nombre": "mesa empaquetado completa",
-      "categoria": "Viviendas",
-      "descripcion": "",
-      "archivo": "modelos/mesa-empaquetado-completa-mwstduga.glb",
-      "miniatura": "miniaturas/mesa-empaquetado-completa-mwstduga.jpg",
-      "bytes": 6791336,
-      "fecha": "2026-11-23T05:17:39.402Z"
     },
     {
       "id": "escalera-antracita-prova-mws85q1l",
