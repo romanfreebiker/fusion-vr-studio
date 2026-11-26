@@ -1,5 +1,12 @@
 {
   "version": 1,
-  "workers": [],
+  "workers": [
+    {
+      "id": "50a9fb84-2282-4768-a7f5-19a70f3b3e00",
+      "label": "Roman",
+      "hash": "957a6784dc017a6a2cb30f15a0d8dd1a9ecb7cdd1e6dc16ee7849c974c648b27",
+      "active": true
+    }
+  ],
   "jobs": []
 }
