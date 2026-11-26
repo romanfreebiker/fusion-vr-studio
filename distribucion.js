@@ -131,7 +131,8 @@
    return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
  }
  function randomToken(){
-   const bytes=crypto.getRandomValues(new Uint8Array(24));
+   // 64 bits aleatorios: suficiente para accesos temporales y mucho mas compacto.
+   const bytes=crypto.getRandomValues(new Uint8Array(8));
    let s='';for(const b of bytes)s+=String.fromCharCode(b);
    return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
  }
@@ -227,7 +228,7 @@
    // El is.gd publicado apunta siempre a la pagina estatica ESKALA con sus OG.
    // El token individual viaja en el fragmento: no lo ve el crawler de WhatsApp,
    // pero el navegador lo conserva al seguir la redireccion.
-   const shareUrl=published.shortUrl?published.shortUrl+'#share='+encodeURIComponent(secret):longUrl;
+   const shareUrl=published.shortUrl?published.shortUrl+'#'+secret:longUrl;
    const hours=Math.max(1,Math.min(24*30,Number(ttlHours)||24));
    const access={id:'acc_'+nowMs.toString(36)+'_'+Math.random().toString(36).slice(2,8),designId,recipient:clean,contact:maskContact(contact),channel,origin:origin==='direction'?'direction':'central',tokenHash:hash,status:'active',createdAt:now,updatedAt:now,expiresAt:new Date(nowMs+hours*3600000).toISOString()};
    await writeThird(data=>data.accesses.push(access));
@@ -367,5 +368,5 @@
    window.addEventListener('focus',check);
    window.addEventListener('pageshow',check);
  }
- window.FusionDistribution={version:23,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
+ window.FusionDistribution={version:24,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
 })();
