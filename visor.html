@@ -227,55 +227,6 @@ if(presentation){
  if(access==='director'){
    button('Mi biblioteca',()=>location.assign('direccion.html?v=95'));
    const share=button('Copiar enlace para terceros',async()=>{if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}share.disabled=true;try{const url=await FusionDistribution.share(params.get('diseno'));try{await navigator.clipboard.writeText(url);share.textContent='¡Enlace copiado!';share.classList.add('confirmed');setTimeout(()=>{share.textContent='Copiar enlace para terceros';share.classList.remove('confirmed')},1600)}catch{prompt('Enlace individual para terceros',url)}}catch(e){alert(e.message)}finally{share.disabled=false}});
-   // Alternativa garantizada a las vistas previas externas: compartir una imagen
-   // real con el enlace. En móviles usa la hoja de compartir del sistema; en PC
-   // prepara la tarjeta para adjuntarla a WhatsApp o a un correo electrónico.
-   const shareCard=button('Compartir imagen',async()=>{
-     if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}
-     shareCard.disabled=true;
-     shareCard.textContent='Preparando imagen…';
-     try{
-       const id=params.get('diseno')||'';
-       const slug=id.split('-').at(-1);
-       if(!/^[a-zA-Z0-9_-]+$/.test(slug))throw Error('Identificador de diseño no válido.');
-       const link=await FusionDistribution.share(id);
-       const title=distributedModel.nombre||'Diseño 3D';
-       const imageUrl=new URL('./social/'+slug+'.jpg',location.href);
-       const response=await fetch(imageUrl.href,{cache:'no-store'});
-       if(!response.ok)throw Error('La imagen todavía no está publicada. Vuelve a intentarlo.');
-       const blob=await response.blob();
-       if(blob.size<1000||!blob.type.startsWith('image/'))throw Error('La tarjeta no tiene un formato de imagen válido.');
-       const filename='ESKALA-'+slug+'.jpg';
-       const file=new File([blob],filename,{type:'image/jpeg'});
-       const message='ESKALA · '+title+'\n'+link;
-       if(typeof navigator.share==='function'&&typeof navigator.canShare==='function'&&navigator.canShare({files:[file]})){
-         try{
-           await navigator.share({files:[file],title:'ESKALA · '+title,text:message});
-           return;
-         }catch(err){
-           if(err&&err.name==='AbortError')return;
-           // Si el destino no admite archivos, continuar con la descarga manual.
-         }
-       }
-       const objectUrl=URL.createObjectURL(blob);
-       const a=document.createElement('a');
-       a.href=objectUrl;a.download=filename;a.style.display='none';
-       document.body.append(a);a.click();a.remove();
-       setTimeout(()=>URL.revokeObjectURL(objectUrl),30000);
-       let copied=false;
-       try{await navigator.clipboard.writeText(message);copied=true}catch{}
-       if(copied){
-         alert('Tarjeta ESKALA descargada y mensaje con enlace copiado.\n\nEn WhatsApp adjunta la imagen descargada y pega (Ctrl+V) el texto en el pie de foto.\n\nAsí se ve el diseño y tu logotipo aunque WhatsApp no genere vista previa.');
-       }else{
-         prompt('Tarjeta ESKALA descargada. Adjunta la imagen en WhatsApp y copia este texto como pie de foto:',message);
-       }
-     }catch(err){
-       alert('No se pudo preparar la tarjeta: '+(err?.message||err));
-     }finally{
-       shareCard.disabled=false;
-       shareCard.textContent='Compartir imagen';
-     }
-   });
    // Compartir siempre el enlace corto: su imagen de vista previa combina el diseño y ESKALA.
    button('WhatsApp',async()=>{
      if(!distributedModel){alert('Espera a que se cargue el diseño.');return;}
