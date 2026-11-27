@@ -16,13 +16,13 @@ main{padding:18px clamp(12px,2.5vw,28px) 40px;max-width:1500px;margin:auto}.summ
 .jobs{padding:10px;display:grid;gap:9px}.job{background:#0f1c25;border:1px solid #284558;border-radius:11px;padding:12px;display:grid;gap:7px}
 .job h3{margin:0;font-size:16px}.meta{display:flex;gap:7px;flex-wrap:wrap;color:var(--muted);font-size:12px}.tag{border:1px solid #395c71;border-radius:6px;padding:3px 7px}
 .tag.high{color:#ffd27e;border-color:#8a6931}.tag.urgent{color:#ff9c9c;border-color:#894646}.phase{color:var(--ok);font-weight:700}.note{color:#c8dbe5;white-space:pre-wrap}
-.actions{display:flex;gap:7px;flex-wrap:wrap}.actions a{background:#12384c;border:1px solid #18a8c8;color:white;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:700}
+.actions{display:flex;gap:7px;flex-wrap:wrap}.actions a,.actions button{background:#12384c;border:1px solid #18a8c8;color:white;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:700;cursor:pointer}.actions button.danger{border-color:#8b4c55;background:#482530}.job select{background:#132634;color:#eef7ff;border:1px solid #365b70;border-radius:7px;padding:7px}
 .empty{color:var(--muted);padding:12px}.error{color:#ffadad}
 @media(max-width:650px){header{align-items:flex-start}.status{width:100%;margin-left:0}main{padding:12px}#workers{grid-template-columns:1fr}}
 </style>
 <header>
  <img src="./assets/eskala-corporativa.webp?v=2" alt="ESKALA">
- <div class="status" id="status">Conectando con Taller…</div>
+ <button id="editAuth" style="display:none;background:#12384c;border:1px solid #18a8c8;color:white;padding:8px 11px;border-radius:8px;font-weight:700">Activar gestión</button><div class="status" id="status">Conectando con Taller…</div>
 </header>
 <main>
  <div class="summary" id="summary"></div>
@@ -36,6 +36,17 @@ let key=location.hash.slice(1);
 if(key){try{localStorage.setItem(storageKey,key);localStorage.removeItem(legacyKey)}catch{} history.replaceState(null,'',location.pathname+location.search)}
 else{try{key=localStorage.getItem(storageKey)||localStorage.getItem(legacyKey)||'';if(key&&!localStorage.getItem(storageKey)){localStorage.setItem(storageKey,key);localStorage.removeItem(legacyKey)}}catch{}}
 const adminMode=new URLSearchParams(location.search).get('adminTablet')==='1';
+const authOrigin='https://fusion-vr-studio-roman-auth.independentoffer16.chatgpt.site';
+const writeAuthKey='eskala-tablet-write-auth-v1';
+let writeToken='',writeExpires=0,authWindow=null,authState=null;
+const editAuth=document.getElementById('editAuth');
+function restoreWriteAuth(){try{const a=JSON.parse(localStorage.getItem(writeAuthKey)||'null');if(a?.token&&a.expiresAt>Date.now()){writeToken=a.token;writeExpires=a.expiresAt;return true}}catch{}return false}
+function setWriteAuth(token,expiresIn){const seconds=Number(expiresIn);const lifetime=Number.isFinite(seconds)&&seconds>0?Math.min(seconds,86400):28800;writeToken=token;writeExpires=Date.now()+lifetime*1000;try{localStorage.setItem(writeAuthKey,JSON.stringify({token,expiresAt:writeExpires}))}catch{}editAuth.style.display='none';load()}
+function needWriteAuth(){if(adminMode)return true;if(writeToken&&writeExpires>Date.now())return true;editAuth.style.display='inline-block';statusNode.textContent='Consulta activa · pulsa “Activar gestión” para asignar o cambiar trabajos';return false}
+editAuth.onclick=()=>{if(authWindow&&!authWindow.closed){authWindow.focus();return}authState=crypto.randomUUID();authWindow=window.open(authOrigin+'/?state='+encodeURIComponent(authState),'eskalaTabletGitHub','popup,width=520,height=560');if(!authWindow)statusNode.textContent='Permite ventanas emergentes para activar la gestión.'};
+window.addEventListener('message',event=>{const data=event.data;if(!authWindow||event.source!==authWindow||event.origin!==authOrigin||data?.type!=='fusion-github-connected'||data.state!==authState||typeof data.token!=='string'||!data.token)return;authWindow=null;authState=null;setWriteAuth(data.token,data.expiresIn)});
+restoreWriteAuth();
+async function mutate(fn){if(adminMode){const a=(()=>{for(const st of [sessionStorage,localStorage]){try{const x=JSON.parse(st.getItem('fusion-vr-studio-auth-v1')||'null');if(x?.token&&x.expiresAt>Date.now())return x.token}catch{}}return ''})();if(!a)throw Error('La autorización de Central ha caducado.');return T.change(a,fn)}if(!needWriteAuth())throw Error('Activa primero la gestión en esta tablet.');try{return await T.change(writeToken,fn)}catch(e){if(/401|403|Conecta GitHub/.test(e.message)){writeToken='';writeExpires=0;try{localStorage.removeItem(writeAuthKey)}catch{}editAuth.style.display='inline-block'}throw e}}
 let signature='';
 function el(tag,text='',cls=''){const n=document.createElement(tag);n.textContent=text;if(cls)n.className=cls;return n}
 function priorityClass(value){return value==='Urgente'?'urgent':value==='Alta'?'high':''}
@@ -59,7 +70,9 @@ async function load(){
     for(const j of data.tabletJobs){
       const card=el('article','','job');card.append(el('h3',j.model.nombre));
       const meta=el('div','','meta');meta.append(el('span','Sin asignar','tag'));meta.append(el('span','Visible solo en Tablet','phase'));card.append(meta);
-      const actions=el('div','','actions');const open=el('a','Abrir visor y medir');if(adminMode){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('adminTablet','1');u.searchParams.set('v','51');u.searchParams.set('diseno',j.design);open.href=u.href}else open.href=T.tabletViewer(key,j.design);actions.append(open);card.append(actions);jobs.append(card);
+      const actions=el('div','','actions');const open=el('a','Abrir visor y medir');if(adminMode){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('adminTablet','1');u.searchParams.set('v','52');u.searchParams.set('diseno',j.design);open.href=u.href}else open.href=T.tabletViewer(key,j.design);actions.append(open);
+      const activeWorkers=data.workers.filter(w=>w.active);if(activeWorkers.length){const sel=document.createElement('select');for(const w of activeWorkers)sel.add(new Option(w.label,w.id));actions.append(sel);const assign=el('button','Asignar');assign.onclick=async()=>{try{await mutate(x=>{x.jobs=(x.jobs||[]).filter(r=>r.design!==j.design);x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(r=>r.design!==j.design);x.jobs.push({worker:sel.value,design:j.design,type:'Fabricación e instalación',priority:'Normal',phase:'Pendiente',note:''})});signature='';await load()}catch(e){alert(e.message)}};actions.append(assign)}
+      const remove=el('button','Retirar de Tablet','danger');remove.onclick=async()=>{if(!confirm('¿Retirar este trabajo de la Tablet?'))return;try{await mutate(x=>{x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(r=>r.design!==j.design)});signature='';await load()}catch(e){alert(e.message)}};actions.append(remove);card.append(actions);jobs.append(card);
     }
     box.append(jobs);grid.append(box);
   }
@@ -78,7 +91,12 @@ async function load(){
       card.append(meta);
       if(j.note)card.append(el('div',j.note,'note'));
       const actions=el('div','','actions');
-      const open=el('a','Abrir visor y medir');if(adminMode){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('adminTablet','1');u.searchParams.set('v','51');u.searchParams.set('diseno',j.design);open.href=u.href}else open.href=T.tabletViewer(key,j.design);actions.append(open);card.append(actions);
+      const open=el('a','Abrir visor y medir');if(adminMode){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('adminTablet','1');u.searchParams.set('v','52');u.searchParams.set('diseno',j.design);open.href=u.href}else open.href=T.tabletViewer(key,j.design);actions.append(open);
+      const workerSel=document.createElement('select');for(const ww of data.workers.filter(x=>x.active))workerSel.add(new Option(ww.label,ww.id));workerSel.value=j.worker;actions.append(workerSel);
+      const phaseSel=document.createElement('select');for(const p of T.phases)phaseSel.add(new Option(p,p));phaseSel.value=j.phase||'Pendiente';actions.append(phaseSel);
+      const save=el('button','Guardar cambios');save.onclick=async()=>{try{await mutate(x=>{const row=(x.jobs||[]).find(r=>r.design===j.design&&r.worker===j.worker);if(row){row.worker=workerSel.value;row.phase=phaseSel.value}});signature='';await load()}catch(e){alert(e.message)}};actions.append(save);
+      const unassign=el('button','Quitar asignación');unassign.onclick=async()=>{try{await mutate(x=>{x.jobs=(x.jobs||[]).filter(r=>!(r.design===j.design&&r.worker===j.worker));const rows=Array.isArray(x.tabletJobs)?x.tabletJobs:[];if(!rows.some(r=>r.design===j.design))rows.push({design:j.design,addedAt:new Date().toISOString()});x.tabletJobs=rows});signature='';await load()}catch(e){alert(e.message)}};actions.append(unassign);
+      const remove=el('button','Retirar de Tablet','danger');remove.onclick=async()=>{if(!confirm('¿Retirar este trabajo de la Tablet y del operario?'))return;try{await mutate(x=>{x.jobs=(x.jobs||[]).filter(r=>!(r.design===j.design&&r.worker===j.worker));x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(r=>r.design!==j.design)});signature='';await load()}catch(e){alert(e.message)}};actions.append(remove);card.append(actions);
       jobs.append(card);
     }
     box.append(jobs);grid.append(box);
