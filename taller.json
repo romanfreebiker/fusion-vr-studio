@@ -54,6 +54,14 @@
       "priority": "Normal",
       "phase": "Pendiente",
       "note": ""
+    },
+    {
+      "worker": "06eca541-4964-4f90-afdf-a9e7023afac6",
+      "design": "escalera-recta-lateral-interior-mwyk90ue",
+      "type": "Instalación",
+      "priority": "Normal",
+      "phase": "Pendiente",
+      "note": ""
     }
   ],
   "tablet": {
