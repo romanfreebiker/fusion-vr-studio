@@ -12,6 +12,12 @@
       "label": "Manolo",
       "hash": "fee82467f9066e0f4afe5a953cb39657c054cd6ea9f565fef1a451d3a964d2cc",
       "active": true
+    },
+    {
+      "id": "06eca541-4964-4f90-afdf-a9e7023afac6",
+      "label": "Pep",
+      "hash": "e75cbf7d3a502ee48159794b0afa542c17393ddfd9581a7d3500b8721ccc6c5a",
+      "active": true
     }
   ],
   "jobs": [
