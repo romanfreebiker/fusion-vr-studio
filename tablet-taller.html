@@ -38,15 +38,26 @@ else{try{key=localStorage.getItem(storageKey)||localStorage.getItem(legacyKey)||
 const adminMode=new URLSearchParams(location.search).get('adminTablet')==='1';
 const authOrigin='https://fusion-vr-studio-roman-auth.independentoffer16.chatgpt.site';
 const writeAuthKey='eskala-tablet-write-auth-v1';
-let writeToken='',writeExpires=0,authWindow=null,authState=null;
+let writeToken='',writeExpires=0,authWindow=null,authState=null,directApi=false;
 const editAuth=document.getElementById('editAuth');
 function restoreWriteAuth(){try{const a=JSON.parse(localStorage.getItem(writeAuthKey)||'null');if(a?.token&&a.expiresAt>Date.now()){writeToken=a.token;writeExpires=a.expiresAt;return true}}catch{}return false}
 function setWriteAuth(token,expiresIn){const seconds=Number(expiresIn);const lifetime=Number.isFinite(seconds)&&seconds>0?Math.min(seconds,86400):28800;writeToken=token;writeExpires=Date.now()+lifetime*1000;try{localStorage.setItem(writeAuthKey,JSON.stringify({token,expiresAt:writeExpires}))}catch{}editAuth.style.display='none';load()}
-function needWriteAuth(){if(adminMode)return true;if(writeToken&&writeExpires>Date.now())return true;editAuth.style.display='inline-block';statusNode.textContent='Consulta activa · pulsa “Activar gestión” para asignar o cambiar trabajos';return false}
+function needWriteAuth(){if(adminMode||directApi)return true;if(writeToken&&writeExpires>Date.now())return true;editAuth.style.display='inline-block';statusNode.textContent='Consulta activa · pulsa “Activar gestión” para asignar o cambiar trabajos';return false}
 editAuth.onclick=()=>{if(authWindow&&!authWindow.closed){try{authWindow.focus()}catch{}return}authState=crypto.randomUUID();authWindow=window.open(authOrigin+'/?state='+encodeURIComponent(authState),'_blank');if(!authWindow)statusNode.textContent='Permite ventanas emergentes para activar la gestión.';else statusNode.textContent='Completa la autorización de GitHub y vuelve a esta pestaña.'};
 window.addEventListener('message',event=>{const data=event.data;if(event.origin!==authOrigin||data?.type!=='fusion-github-connected'||data.state!==authState||typeof data.token!=='string'||!data.token)return;authWindow=null;authState=null;setWriteAuth(data.token,data.expiresIn)});
 restoreWriteAuth();
-async function mutate(fn){if(adminMode){const a=(()=>{for(const st of [sessionStorage,localStorage]){try{const x=JSON.parse(st.getItem('fusion-vr-studio-auth-v1')||'null');if(x?.token&&x.expiresAt>Date.now())return x.token}catch{}}return ''})();if(!a)throw Error('La autorización de Central ha caducado.');return T.change(a,fn)}if(!needWriteAuth())throw Error('Activa primero la gestión en esta tablet.');try{return await T.change(writeToken,fn)}catch(e){if(/401|403|Conecta GitHub/.test(e.message)){writeToken='';writeExpires=0;try{localStorage.removeItem(writeAuthKey)}catch{}editAuth.style.display='inline-block'}throw e}}
+async function detectDirectApi(){if(adminMode)return false;try{directApi=!!(await T.tabletApiBase());if(directApi)editAuth.style.display='none';return directApi}catch{return false}}
+async function mutate(payload,fn){
+ if(adminMode){
+   const a=(()=>{for(const st of [sessionStorage,localStorage]){try{const x=JSON.parse(st.getItem('fusion-vr-studio-auth-v1')||'null');if(x?.token&&x.expiresAt>Date.now())return x.token}catch{}}return ''})();
+   if(!a)throw Error('La autorización de Central ha caducado.');
+   return T.change(a,fn);
+ }
+ if(directApi||await detectDirectApi())return T.tabletAction(key,payload);
+ if(!needWriteAuth())throw Error('Activa primero la gestión en esta tablet.');
+ try{return await T.change(writeToken,fn)}
+ catch(e){if(/401|403|Conecta GitHub/.test(e.message)){writeToken='';writeExpires=0;try{localStorage.removeItem(writeAuthKey)}catch{}editAuth.style.display='inline-block'}throw e}
+}
 let signature='';
 function el(tag,text='',cls=''){const n=document.createElement(tag);n.textContent=text;if(cls)n.className=cls;return n}
 function priorityClass(value){return value==='Urgente'?'urgent':value==='Alta'?'high':''}
@@ -71,8 +82,8 @@ async function load(){
       const card=el('article','','job');card.append(el('h3',j.model.nombre));
       const meta=el('div','','meta');meta.append(el('span','Sin asignar','tag'));meta.append(el('span','Visible solo en Tablet','phase'));card.append(meta);
       const actions=el('div','','actions');const open=el('a','Abrir visor y medir');if(adminMode){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('adminTablet','1');u.searchParams.set('v','52');u.searchParams.set('diseno',j.design);open.href=u.href}else open.href=T.tabletViewer(key,j.design);actions.append(open);
-      const activeWorkers=data.workers.filter(w=>w.active);if(activeWorkers.length){const sel=document.createElement('select');for(const w of activeWorkers)sel.add(new Option(w.label,w.id));actions.append(sel);const assign=el('button','Asignar');assign.onclick=async()=>{try{await mutate(x=>{x.jobs=(x.jobs||[]).filter(r=>r.design!==j.design);x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(r=>r.design!==j.design);x.jobs.push({worker:sel.value,design:j.design,type:'Fabricación e instalación',priority:'Normal',phase:'Pendiente',note:''})});signature='';await load()}catch(e){alert(e.message)}};actions.append(assign)}
-      const remove=el('button','Retirar de Tablet','danger');remove.onclick=async()=>{if(!confirm('¿Retirar este trabajo de la Tablet?'))return;try{await mutate(x=>{x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(r=>r.design!==j.design)});signature='';await load()}catch(e){alert(e.message)}};actions.append(remove);card.append(actions);jobs.append(card);
+      const activeWorkers=data.workers.filter(w=>w.active);if(activeWorkers.length){const sel=document.createElement('select');for(const w of activeWorkers)sel.add(new Option(w.label,w.id));actions.append(sel);const assign=el('button','Asignar');assign.onclick=async()=>{try{await mutate({action:'assign',design:j.design,worker:sel.value,type:'Fabricación e instalación',priority:'Normal',phase:'Pendiente',note:''},x=>{x.jobs=(x.jobs||[]).filter(r=>r.design!==j.design);x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(r=>r.design!==j.design);x.jobs.push({worker:sel.value,design:j.design,type:'Fabricación e instalación',priority:'Normal',phase:'Pendiente',note:''})});signature='';await load()}catch(e){alert(e.message)}};actions.append(assign)}
+      const remove=el('button','Retirar de Tablet','danger');remove.onclick=async()=>{if(!confirm('¿Retirar este trabajo de la Tablet?'))return;try{await mutate({action:'remove',design:j.design},x=>{x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(r=>r.design!==j.design)});signature='';await load()}catch(e){alert(e.message)}};actions.append(remove);card.append(actions);jobs.append(card);
     }
     box.append(jobs);grid.append(box);
   }
@@ -94,9 +105,9 @@ async function load(){
       const open=el('a','Abrir visor y medir');if(adminMode){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('adminTablet','1');u.searchParams.set('v','52');u.searchParams.set('diseno',j.design);open.href=u.href}else open.href=T.tabletViewer(key,j.design);actions.append(open);
       const workerSel=document.createElement('select');for(const ww of data.workers.filter(x=>x.active))workerSel.add(new Option(ww.label,ww.id));workerSel.value=j.worker;actions.append(workerSel);
       const phaseSel=document.createElement('select');for(const p of T.phases)phaseSel.add(new Option(p,p));phaseSel.value=j.phase||'Pendiente';actions.append(phaseSel);
-      const save=el('button','Guardar cambios');save.onclick=async()=>{try{await mutate(x=>{const row=(x.jobs||[]).find(r=>r.design===j.design&&r.worker===j.worker);if(row){row.worker=workerSel.value;row.phase=phaseSel.value}});signature='';await load()}catch(e){alert(e.message)}};actions.append(save);
-      const unassign=el('button','Quitar asignación');unassign.onclick=async()=>{try{await mutate(x=>{x.jobs=(x.jobs||[]).filter(r=>!(r.design===j.design&&r.worker===j.worker));const rows=Array.isArray(x.tabletJobs)?x.tabletJobs:[];if(!rows.some(r=>r.design===j.design))rows.push({design:j.design,addedAt:new Date().toISOString()});x.tabletJobs=rows});signature='';await load()}catch(e){alert(e.message)}};actions.append(unassign);
-      const remove=el('button','Retirar de Tablet','danger');remove.onclick=async()=>{if(!confirm('¿Retirar este trabajo de la Tablet y del operario?'))return;try{await mutate(x=>{x.jobs=(x.jobs||[]).filter(r=>!(r.design===j.design&&r.worker===j.worker));x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(r=>r.design!==j.design)});signature='';await load()}catch(e){alert(e.message)}};actions.append(remove);card.append(actions);
+      const save=el('button','Guardar cambios');save.onclick=async()=>{try{await mutate({action:'update',design:j.design,worker:workerSel.value,phase:phaseSel.value},x=>{const row=(x.jobs||[]).find(r=>r.design===j.design&&r.worker===j.worker);if(row){row.worker=workerSel.value;row.phase=phaseSel.value}});signature='';await load()}catch(e){alert(e.message)}};actions.append(save);
+      const unassign=el('button','Quitar asignación');unassign.onclick=async()=>{try{await mutate({action:'unassign',design:j.design},x=>{x.jobs=(x.jobs||[]).filter(r=>!(r.design===j.design&&r.worker===j.worker));const rows=Array.isArray(x.tabletJobs)?x.tabletJobs:[];if(!rows.some(r=>r.design===j.design))rows.push({design:j.design,addedAt:new Date().toISOString()});x.tabletJobs=rows});signature='';await load()}catch(e){alert(e.message)}};actions.append(unassign);
+      const remove=el('button','Retirar de Tablet','danger');remove.onclick=async()=>{if(!confirm('¿Retirar este trabajo de la Tablet y del operario?'))return;try{await mutate({action:'remove',design:j.design},x=>{x.jobs=(x.jobs||[]).filter(r=>!(r.design===j.design&&r.worker===j.worker));x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(r=>r.design!==j.design)});signature='';await load()}catch(e){alert(e.message)}};actions.append(remove);card.append(actions);
       jobs.append(card);
     }
     box.append(jobs);grid.append(box);
@@ -105,6 +116,6 @@ async function load(){
   statusNode.textContent=e.message;statusNode.className='status error';grid.replaceChildren();summary.replaceChildren();
  }
 }
-load();setInterval(()=>{if(!document.hidden)load()},15000);addEventListener('focus',load);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
+detectDirectApi();load();setInterval(()=>{if(!document.hidden)load()},15000);addEventListener('focus',load);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 </script>
 </html>
