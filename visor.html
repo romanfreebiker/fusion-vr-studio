@@ -65,7 +65,7 @@ window.presentationProgress=function(message,percent,error=false){
 window.addEventListener('error',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo iniciar el visor. Comprueba la conexión.',null,true);});
 window.addEventListener('unhandledrejection',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo cargar el proyecto.',null,true);});
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=32"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=33"></script>
 <header>
 <h1>ESKALA Viewer</h1><span class="eskala-sign">by Roman · <b>62</b> SESENTA&amp;DOS</span>
 <label for="models">Diseño</label><select id="models" disabled></select>
@@ -217,7 +217,7 @@ if(presentation){
  controls.enabled=true;
  controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;controls.mouseButtons.RIGHT=null;controls.mouseButtons.MIDDLE=THREE.MOUSE.PAN;
  controls.touches.ONE=THREE.TOUCH.ROTATE;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;
- const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent='v126';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px';bar.append(buildTag);
+ const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent='v127';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px';bar.append(buildTag);
  presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
  orbitButton=button('Vista 3D',()=>setPresentationMode(false));walkButton=button('Recorrer a pie',()=>setPresentationMode(true));
@@ -300,21 +300,21 @@ if(presentation){
  document.body.append(marker,readout);
  const loupe=document.createElement('div');
  Object.assign(loupe.style,{position:'fixed',top:'max(105px, 20vh)',right:'12px',width:'min(38vw,160px)',aspectRatio:'1',border:'2px solid #91b6d2',borderRadius:'12px',overflow:'hidden',background:'#182432',zIndex:'9001',display:'none',pointerEvents:'none',boxShadow:'0 4px 18px #0008'});
- const loupeCanvas=document.createElement('canvas');Object.assign(loupeCanvas.style,{width:'100%',height:'100%',display:'block'});loupe.append(loupeCanvas);
+ const loupeCanvas=document.createElement('canvas');Object.assign(loupeCanvas.style,{width:'100%',height:'100%',display:'block',imageRendering:'auto'});loupe.append(loupeCanvas);
  const cross=document.createElement('div');Object.assign(cross.style,{position:'absolute',left:'50%',top:'50%',width:'24px',height:'24px',border:'1px solid #55efab',borderRadius:'50%',transform:'translate(-50%,-50%)',boxShadow:'0 0 2px black'});cross.textContent='+';Object.assign(cross.style,{color:'#55efab',textAlign:'center',lineHeight:'22px',font:'bold 22px monospace'});loupe.append(cross);document.body.append(loupe);
- const loupeRenderer=new THREE.WebGLRenderer({canvas:loupeCanvas,antialias:true,alpha:false});loupeRenderer.setPixelRatio(Math.max(3,Math.min(devicePixelRatio||1,4)));loupeRenderer.outputColorSpace=renderer.outputColorSpace;loupeRenderer.toneMapping=renderer.toneMapping;loupeRenderer.toneMappingExposure=renderer.toneMappingExposure;
+ const loupeRenderer=new THREE.WebGLRenderer({canvas:loupeCanvas,antialias:true,alpha:false});loupeRenderer.setPixelRatio(4);loupeRenderer.outputColorSpace=renderer.outputColorSpace;loupeRenderer.toneMapping=renderer.toneMapping;loupeRenderer.toneMappingExposure=renderer.toneMappingExposure;
  const loupeCamera=camera.clone();let loupeAim=null,loupeCenter=null;
  function drawLoupe(){
    if(!loupeAim||loupe.style.display==='none')return;
    const size=Math.round(loupe.clientWidth);if(!size)return;
    if(loupeCanvas.width!==Math.floor(size*loupeRenderer.getPixelRatio()))loupeRenderer.setSize(size,size,false);
    camera.updateMatrixWorld(true);camera.getWorldPosition(loupeCamera.position);camera.getWorldQuaternion(loupeCamera.quaternion);
-   loupeCamera.fov=camera.fov;loupeCamera.aspect=camera.aspect;loupeCamera.near=camera.near;loupeCamera.far=camera.far;
-   const crop=Math.min(innerWidth,innerHeight)*.24;
-   loupeCamera.setViewOffset(innerWidth,innerHeight,loupeCenter.x-crop/2,loupeCenter.y-crop/2,crop,crop);
+   loupeCamera.zoom=camera.zoom;loupeCamera.fov=camera.fov;loupeCamera.aspect=camera.aspect;loupeCamera.near=camera.near;loupeCamera.far=camera.far;
+   const crop=Math.min(innerWidth,innerHeight)*.13;
+   loupeCamera.setViewOffset(innerWidth,innerHeight,loupeAim.x-crop/2,loupeAim.y-crop/2,crop,crop);
    loupeCamera.updateMatrixWorld(true);
    loupeRenderer.render(scene,loupeCamera);
-   cross.style.left=(50+100*(loupeAim.x-loupeCenter.x)/crop)+'%';cross.style.top=(50+100*(loupeAim.y-loupeCenter.y)/crop)+'%';
+   cross.style.left='50%';cross.style.top='50%';
  }
  canvas.addEventListener('pointerdown',e=>{controls.rotateSpeed=e.pointerType==='touch'?-1:1;},true);
 
@@ -343,7 +343,7 @@ if(presentation){
    }
    return best;
  }
- function preview(x,y){if(touchGuide){if(!loupeCenter){loupeCenter={x,y};loupe.style.right=x>innerWidth*.55?'auto':'12px';loupe.style.left=x>innerWidth*.55?'12px':'auto';}const limit=Math.min(innerWidth,innerHeight)*.105;x=THREE.MathUtils.clamp(x,loupeCenter.x-limit,loupeCenter.x+limit);y=THREE.MathUtils.clamp(y,loupeCenter.y-limit,loupeCenter.y+limit);loupeAim={x,y};loupe.style.display='block';}candidate=pickPoint(x,y);const p=candidate?projectPoint(candidate):{x,y};marker.style.left=p.x+'px';marker.style.top=p.y+'px';marker.style.borderColor=candidate?'#55efab':'#ffffff';marker.style.display='block';}
+ function preview(x,y){if(touchGuide){if(!loupeCenter){loupeCenter={x,y};loupe.style.right=x>innerWidth*.55?'auto':'12px';loupe.style.left=x>innerWidth*.55?'12px':'auto';}x=THREE.MathUtils.clamp(x,0,innerWidth);y=THREE.MathUtils.clamp(y,0,innerHeight);loupeAim={x,y};loupe.style.display='block';}candidate=pickPoint(x,y);const p=touchGuide?{x,y}:candidate?projectPoint(candidate):{x,y};marker.style.left=p.x+'px';marker.style.top=p.y+'px';marker.style.borderColor=candidate?'#55efab':'#ffffff';marker.style.display='block';marker.textContent=touchGuide?'+':'';marker.style.color='#55efab';marker.style.textAlign='center';marker.style.font='bold 18px/16px monospace';}
  function commitPoint(){if(!candidate)return;if(!first||second){first=candidate.clone();second=null;}else{second=candidate.clone();}candidate=null;marker.style.display='none';if(navigator.vibrate&&touchGuide)navigator.vibrate(18);}
  const confirmPoint=button('✓ Punto',()=>{if(!measuring||!loupeAim)return;commitPoint();stopGesture();controls.enabled=!walkingMode;});confirmPoint.style.display='none';
  function cancelHold(){clearTimeout(holdTimer);holdTimer=0;}
