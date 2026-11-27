@@ -59,7 +59,7 @@ async function load(){
     for(const j of data.tabletJobs){
       const card=el('article','','job');card.append(el('h3',j.model.nombre));
       const meta=el('div','','meta');meta.append(el('span','Sin asignar','tag'));meta.append(el('span','Visible solo en Tablet','phase'));card.append(meta);
-      const actions=el('div','','actions');const open=el('a','Abrir visor y medir');open.href=T.tabletViewer(key,j.design);actions.append(open);card.append(actions);jobs.append(card);
+      const actions=el('div','','actions');const open=el('a','Abrir visor y medir');if(adminMode){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('adminTablet','1');u.searchParams.set('v','51');u.searchParams.set('diseno',j.design);open.href=u.href}else open.href=T.tabletViewer(key,j.design);actions.append(open);card.append(actions);jobs.append(card);
     }
     box.append(jobs);grid.append(box);
   }
@@ -78,7 +78,7 @@ async function load(){
       card.append(meta);
       if(j.note)card.append(el('div',j.note,'note'));
       const actions=el('div','','actions');
-      const open=el('a','Abrir visor y medir');open.href=T.tabletViewer(key,j.design);actions.append(open);card.append(actions);
+      const open=el('a','Abrir visor y medir');if(adminMode){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('adminTablet','1');u.searchParams.set('v','51');u.searchParams.set('diseno',j.design);open.href=u.href}else open.href=T.tabletViewer(key,j.design);actions.append(open);card.append(actions);
       jobs.append(card);
     }
     box.append(jobs);grid.append(box);
