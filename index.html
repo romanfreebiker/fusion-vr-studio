@@ -4432,7 +4432,27 @@ async function workshopDialog(model=null){
  const choose=(options,value)=>{const x=document.createElement('select');x.className='input';for(const o of options)x.add(new Option(o,o));x.value=value||options[0];return x};
  async function draw(updated=null){
  const d=updated||await T.data(state.token);area.replaceChildren();
- if(!model){const name=document.createElement('input');name.className='input';name.placeholder='Nombre y apellidos del operario';name.autocapitalize='words';const capitalize=v=>v.replace(/(^|[\s'-])(\p{L})/gu,(_,sep,c)=>sep+c.toLocaleUpperCase('es'));name.addEventListener('input',()=>{const p=name.selectionStart;name.value=capitalize(name.value);name.setSelectionRange(p,p)});const create=btn('Crear operario',()=>run(async()=>{const label=capitalize(name.value.trim().replace(/\s+/g,' '));if(!label)throw Error('Introduce un nombre');const key=T.secret(),hash=await T.hash(key),id=crypto.randomUUID();const updated=await T.change(state.token,x=>{if(x.workers.some(w=>w.active&&w.label.toLocaleLowerCase('es')===label.toLocaleLowerCase('es')))throw Error('Ya existe un operario con ese nombre');x.workers.push({id,label,hash,active:true})});try{localStorage.setItem(keyName(id),key)}catch{feedback.textContent='Operario guardado; no se pudo conservar el enlace local.'}toast('Operario creado');return updated}));name.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();create.click()}});area.append(name,create);}
+ if(!model){
+ const centralKeyName='eskala-taller-central-key';
+ const centralPanel=document.createElement('div');centralPanel.style.cssText='border:1px solid #2e7089;background:#102633;border-radius:12px;padding:12px;margin:8px 0 14px;display:grid;gap:8px';
+ centralPanel.append(textNode('strong','Central Taller · tablet'));
+ centralPanel.append(textNode('span','Vista global de todos los operarios y trabajos. Se actualiza automáticamente; no necesita WhatsApp ni número de teléfono.','muted tiny'));
+ const centralActions=document.createElement('div');centralActions.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
+ const storedCentralKey=()=>{try{return localStorage.getItem(centralKeyName)||''}catch{return ''}};
+ async function ensureCentral(force=false){
+   let key=storedCentralKey();
+   if(d.central?.active&&key&&!force)return key;
+   if(d.central?.active&&!key&&!force)throw Error('Esta Central ya tiene un acceso creado en otro navegador. Pulsa Regenerar acceso Central para crear uno nuevo.');
+   key=T.secret();const h=await T.hash(key);
+   await T.change(state.token,x=>{x.central={hash:h,active:true,updatedAt:new Date().toISOString()}});
+   try{localStorage.setItem(centralKeyName,key)}catch{}
+   return key;
+ }
+ centralActions.append(btn('Abrir Central Taller',async()=>{try{const key=await ensureCentral(false);window.open(T.centralLink(key),'_blank','noopener')}catch(e){feedback.textContent=e.message}}));
+ centralActions.append(btn('Copiar enlace de la tablet',async()=>{try{const key=await ensureCentral(false),url=T.centralLink(key);try{await navigator.clipboard.writeText(url);toast('Enlace de Central Taller copiado')}catch{prompt('Enlace de Central Taller',url)}}catch(e){feedback.textContent=e.message}}));
+ centralActions.append(btn('Regenerar acceso Central',async()=>{if(!confirm('El enlace anterior de la tablet dejará de funcionar. ¿Continuar?'))return;try{const key=await ensureCentral(true);toast('Nuevo acceso de Central Taller creado');prompt('Nuevo enlace de Central Taller',T.centralLink(key))}catch(e){feedback.textContent=e.message}}));
+ centralPanel.append(centralActions);area.append(centralPanel);
+ const name=document.createElement('input');name.className='input';name.placeholder='Nombre y apellidos del operario';name.autocapitalize='words';const capitalize=v=>v.replace(/(^|[\s'-])(\p{L})/gu,(_,sep,c)=>sep+c.toLocaleUpperCase('es'));name.addEventListener('input',()=>{const p=name.selectionStart;name.value=capitalize(name.value);name.setSelectionRange(p,p)});const create=btn('Crear operario',()=>run(async()=>{const label=capitalize(name.value.trim().replace(/\s+/g,' '));if(!label)throw Error('Introduce un nombre');const key=T.secret(),hash=await T.hash(key),id=crypto.randomUUID();const updated=await T.change(state.token,x=>{if(x.workers.some(w=>w.active&&w.label.toLocaleLowerCase('es')===label.toLocaleLowerCase('es')))throw Error('Ya existe un operario con ese nombre');x.workers.push({id,label,hash,active:true})});try{localStorage.setItem(keyName(id),key)}catch{feedback.textContent='Operario guardado; no se pudo conservar el enlace local.'}toast('Operario creado');return updated}));name.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();create.click()}});area.append(name,create);}
  for(const w of d.workers.filter(x=>!model||x.active)){
  const panel=document.createElement('div');panel.style.cssText='border-top:1px solid #456;padding:12px 0;display:grid;gap:8px';panel.append(textNode('strong',w.label));const key=localStorage.getItem(keyName(w.id));
  if(!model&&!w.active){panel.append(textNode('span','Acceso dado de baja · trabajos conservados'),btn('Reactivar operario',()=>run(async()=>{if(!confirm('¿Reactivar? Se generará un enlace nuevo; el anterior seguirá invalidado.'))return;const k=T.secret(),h=await T.hash(k);const updated=await T.change(state.token,x=>{const row=x.workers.find(y=>y.id===w.id);row.active=true;row.hash=h});localStorage.setItem(keyName(w.id),k);return updated})));area.append(panel);continue;}
