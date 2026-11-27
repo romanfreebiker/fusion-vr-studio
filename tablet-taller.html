@@ -48,11 +48,7 @@ window.addEventListener('message',event=>{const data=event.data;if(event.origin!
 restoreWriteAuth();
 async function detectDirectApi(){if(adminMode)return false;try{directApi=!!(await T.tabletApiBase());if(directApi)editAuth.style.display='none';return directApi}catch{return false}}
 async function mutate(payload,fn){
- if(adminMode){
-   const a=(()=>{for(const st of [sessionStorage,localStorage]){try{const x=JSON.parse(st.getItem('fusion-vr-studio-auth-v1')||'null');if(x?.token&&x.expiresAt>Date.now())return x.token}catch{}}return ''})();
-   if(!a)throw Error('La autorización de Central ha caducado.');
-   return T.change(a,fn);
- }
+ if(adminMode)return T.change('',fn);
  if(directApi||await detectDirectApi())return T.tabletAction(key,payload);
  if(!needWriteAuth())throw Error('Activa primero la gestión en esta tablet.');
  try{return await T.change(writeToken,fn)}
@@ -116,6 +112,6 @@ async function load(){
   statusNode.textContent=e.message;statusNode.className='status error';grid.replaceChildren();summary.replaceChildren();
  }
 }
-detectDirectApi();load();setInterval(()=>{if(!document.hidden)load()},15000);addEventListener('focus',load);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
+detectDirectApi();load();T.subscribe?.(()=>{signature='';load()},e=>console.warn('[ESKALA Tablet] sync',e));setInterval(()=>{if(!document.hidden)load()},15000);addEventListener('focus',load);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 </script>
 </html>
