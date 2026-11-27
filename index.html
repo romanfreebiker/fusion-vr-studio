@@ -3985,7 +3985,7 @@ three/examples/jsm/libs/fflate.module.js:
 dialog.eskala-board-dialog{width:min(1500px,96vw)!important;max-width:96vw;max-height:92vh!important;box-sizing:border-box;padding:18px!important;overflow-x:hidden!important;overflow-y:auto!important}
 .ek-board{margin:12px 0;display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}.ek-board-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.ek-board-top h3{margin:0;flex:1}.ek-board-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.ek-stat{border:1px solid #294b60;border-radius:9px;padding:9px 12px;background:#102633;display:grid;gap:3px}.ek-stat b{font-size:26px;color:#49c9e8}.ek-board-track{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,215px),1fr));align-items:start;gap:12px;padding:3px 2px 15px;min-height:200px;min-width:0;width:100%;box-sizing:border-box}.ek-column{min-width:0;border:1px solid #355367;border-radius:12px;background:#10202d;padding:9px;display:grid;gap:9px;min-height:180px}.ek-column.ek-over{outline:2px solid #49c9e8;background:#183949}.ek-column-head{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 2px 8px;border-bottom:1px solid #355367}.ek-column-head b{overflow-wrap:anywhere}.ek-job{border:1px solid #3a5569;border-left:4px solid #64748b;border-radius:9px;overflow:hidden;background:#1b3040;display:grid;gap:7px;padding:8px;cursor:grab}.ek-job:active{cursor:grabbing}.ek-job[data-priority="Urgente"]{border-left-color:#f87171}.ek-job[data-priority="Alta"]{border-left-color:#fbbf24}.ek-job.ek-finished{opacity:.73}.ek-job.ek-dragging{opacity:.4}.ek-thumb{height:90px;background:#0d1c27;border-radius:6px;display:grid;place-items:center;overflow:hidden;color:#7199ae;font-size:26px}.ek-thumb img{width:100%;height:100%;object-fit:contain}.ek-job strong{overflow-wrap:anywhere}.ek-job-meta{display:flex;gap:5px;flex-wrap:wrap;font-size:11px}.ek-chip{border:1px solid #547185;border-radius:5px;padding:3px 6px;color:#d8e5ef}.ek-phase{color:#8ed7fa}.ek-job[data-priority="Urgente"] .ek-priority{color:#ff9e9e}.ek-job[data-priority="Alta"] .ek-priority{color:#ffdb91}.ek-job-actions{display:flex;gap:5px;flex-wrap:wrap}.ek-job-actions .button{font-size:11px;padding:5px 7px}.ek-details{border:1px solid #3c5b71;border-radius:10px;background:#132837;padding:12px;display:grid;gap:9px}.ek-details[hidden],.ek-board[hidden],.ek-legacy[hidden]{display:none!important}.ek-details-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px}.ek-details-fields label{display:grid;gap:4px;font-size:12px;color:#b3cfde}.ek-board-empty{padding:16px 5px;border:1px dashed #355367;border-radius:7px;text-align:center;color:#8ba6b7;font-size:12px}.ek-legacy summary{cursor:pointer;font-weight:600;color:#aadbed;padding:10px 0}.ek-board-track .input{width:100%;min-width:0}.ek-board-actions{display:flex;gap:7px;flex-wrap:wrap}.ek-board-hint{font-size:12px;color:#a3bdce;margin:0}@media(max-width:650px){.ek-board-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.ek-board-track{grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))}.ek-thumb{height:70px}}
 </style>
-</head>
+<style id="eskala-destination-status">.ek-destinations{display:grid;gap:5px;margin:4px 0 8px}.ek-destination{padding:6px 8px;border-radius:6px;border:1px solid #43566e;background:#1a2535;color:#aabbd0;font-size:12px;font-weight:650;overflow-wrap:anywhere}.ek-destination[data-kind="assigned"]{background:#123b32;border-color:#35b985;color:#92f6c4}.ek-destination[data-kind="tablet"]{background:#433414;border-color:#ce9b33;color:#ffe09a}.ek-destination[data-kind="direction"]{background:#123b58;border-color:#3b9ee3;color:#a4deff}.ek-destination[data-kind="third"]{background:#39254c;border-color:#a68ade;color:#e6d4ff}.ek-destination[data-kind="unknown"]{border-style:dashed;color:#f6cc89}.ek-destination[data-kind="none"]{color:#91a0b5;background:#141e2b}</style></head>
 <body>
 <!-- ESKALA: cabecera corporativa compartida. Los controles conservan data-view. -->
 <header class="eskala-corpbar" role="banner">
@@ -4438,7 +4438,7 @@ async function workshopDialog(model=null){
  const T=window.EskalaTaller;
  const dialog=document.createElement('dialog');dialog.style.cssText='width:min(620px,92vw);max-height:85vh;overflow:auto;background:#152436;color:#eef7ff;border:1px solid #52718a;border-radius:12px;padding:18px';
  if(!model)dialog.classList.add('eskala-board-dialog');
- const heading=textNode('h2',model?'Asignar a taller: '+model.nombre:'Operarios y trabajos');const close=textNode('button','Cerrar','button secondary small');close.onclick=()=>dialog.close();dialog.append(heading,close);const area=document.createElement('div');dialog.append(area);document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove());dialog.showModal();
+ const heading=textNode('h2',model?'Asignar a taller: '+model.nombre:'Operarios y trabajos');const close=textNode('button','Cerrar','button secondary small');close.onclick=()=>dialog.close();dialog.append(heading,close);const area=document.createElement('div');dialog.append(area);document.body.append(dialog);dialog.addEventListener('close',()=>{dialog.remove();document.querySelectorAll('#gallery .tile').forEach(t=>t.dispatchEvent(new Event('eskala-workshop-refresh')))});dialog.showModal();
  const keyName=id=>'eskala-taller-key:'+id;
  let saving=false; const feedback=textNode('p','','muted');feedback.setAttribute('role','status');dialog.insertBefore(feedback,area); const run=async fn=>{if(saving)return;saving=true;feedback.textContent='Guardando…';area.querySelectorAll('button').forEach(b=>b.disabled=true);try{const updated=await fn();await draw(updated&&Array.isArray(updated.workers)?updated:null);feedback.textContent='Cambios guardados.'}catch(e){feedback.textContent=e.message;toast(e.message,true)}finally{saving=false;area.querySelectorAll('button').forEach(b=>b.disabled=false)}};
  const btn=(label,fn)=>{const b=textNode('button',label,'button secondary small');b.type='button';b.onclick=fn;return b};
@@ -4610,6 +4610,10 @@ function render(){
     if(m.miniatura){const img=document.createElement('img');img.alt='Miniatura de '+m.nombre;img.loading='lazy';cover.append(img);attachImage(img,m.miniatura)}else{cover.append(textNode('span','◈','fallback'))}
     cover.append(textNode('span','GLB · 3D','type-chip'));tile.append(cover);
     const body=document.createElement('div');body.className='tile-body';body.append(textNode('h3',m.nombre||'Diseño sin nombre'));
+    const destinations=document.createElement('div');destinations.className='ek-destinations';
+    const workshopStatus=textNode('div','Taller · consultando…','ek-destination'),directionStatus=textNode('div','Dirección · consultando…','ek-destination'),thirdStatus=textNode('div','Terceros · consultando…','ek-destination');
+    destinations.append(workshopStatus,directionStatus,thirdStatus);body.append(destinations);
+    function dest(node,kind,label){node.dataset.kind=kind;node.textContent=label;node.title=label}
     body.append(textNode('div',humanSize(Number(m.bytes)||0),'muted tiny'));
     const uploaded=new Date(m.fecha);
     if(m.fecha&&Number.isFinite(uploaded.getTime())){
@@ -4643,7 +4647,7 @@ function render(){
     async function updateThirdPartyAccesses(){
       try{
         const rows=await FusionDistribution.listThirdParty(m.id,true,'all');
-        const active=rows.length;
+        const active=rows.length;dest(thirdStatus,active?'third':'none',active?'Terceros · '+active+' activo'+(active===1?'':'s'):'Terceros · sin accesos');
         accessSummary.textContent=active?'Compartido con terceros · '+active+' activo'+(active===1?'':'s'):'Sin accesos activos a terceros';
         accessList.replaceChildren();
         for(const row of rows){
@@ -4656,7 +4660,7 @@ function render(){
           line.append(who,stateLabel,disable);accessList.append(line);
         }
         if(!rows.length)accessList.append(textNode('div','Todavía no hay destinatarios registrados.','muted tiny'));
-      }catch(e){accessSummary.textContent='Accesos terceros: '+e.message}
+      }catch(e){dest(thirdStatus,'unknown','Terceros · no comprobado');accessSummary.textContent='Accesos terceros: '+e.message}
     }
     const shareActions=[
       ['Copiar enlace',async()=>{
@@ -4665,7 +4669,7 @@ function render(){
         catch{prompt('Enlace individual',url)}
         await updateThirdPartyAccesses();
       }],
-      ['WhatsApp',async()=>{const details=await askShareDetails();if(!details)return;await FusionDistribution.shareWhatsApp(m.id,m.nombre,details.hours,'central',details.recipient)}],
+      ['WhatsApp',async()=>{const details=await askShareDetails();if(!details)return;await FusionDistribution.shareWhatsApp(m.id,m.nombre,details.hours,'central',details.recipient);await updateThirdPartyAccesses()}],
       ['Correo',async()=>{await FusionDistribution.shareEmail(m.id,m.nombre,'central');await updateThirdPartyAccesses()}]
     ];
     const shareButtons=shareActions.map(([label,action])=>{
@@ -4678,7 +4682,7 @@ function render(){
     updateThirdPartyAccesses();
     function displayDistribution(d){
       const active=d?.status==='active';
-      distribution.textContent=active?'Activo en dirección':'No enviado a dirección';
+      distribution.textContent=active?'Activo en dirección':'No enviado a dirección';dest(directionStatus,active?'direction':'none',active?'Dirección · activo':'Dirección · no enviado');
       send.textContent=active?'Enviado a dirección':'Enviar a dirección';
       send.disabled=active;revoke.hidden=!active;
       for(const button of shareButtons){
@@ -4686,22 +4690,21 @@ function render(){
         button.title='Compartir con terceros es independiente de Dirección.';
       }
     }
-    const updateDistribution=async()=>{try{const d=(await FusionDistribution.list('admin',true)).find(x=>x.id===m.id);displayDistribution(d)}catch(e){distribution.textContent='Distribución: '+e.message}};
+    const updateDistribution=async()=>{try{const d=(await FusionDistribution.list('admin',true)).find(x=>x.id===m.id);displayDistribution(d)}catch(e){dest(directionStatus,'unknown','Dirección · no comprobado');distribution.textContent='Distribución: '+e.message}};
     send.onclick=async()=>{send.disabled=true;try{await FusionDistribution.send(m);toast('Diseño enviado a dirección');await updateDistribution()}catch(e){toast(e.message,true);send.disabled=false}};
     revoke.onclick=async()=>{try{await FusionDistribution.setStatus(m.id,'inactive','admin');await updateDistribution()}catch(e){toast(e.message,true)}};
-    displayDistribution(null);
     updateDistribution();
     distribution.onclick=updateDistribution;distribution.style.cursor='pointer';
     const tabletBtn=textNode('button','Comprobando Tablet…','button secondary small');tabletBtn.type='button';tabletBtn.disabled=true;foot.append(tabletBtn);
     async function refreshTabletState(){
       try{
         const d=await window.EskalaTaller.data(state.token||'');
-        const assigned=(d.jobs||[]).some(j=>j.design===m.id);
+        const assignments=(d.jobs||[]).filter(j=>j.design===m.id);const assigned=assignments.length>0;const names=[...new Set(assignments.map(j=>{const w=(d.workers||[]).find(w=>w.id===j.worker);return w?w.label+(w.active?'':' (baja)'):'Operario no disponible'}))];
         const direct=(Array.isArray(d.tabletJobs)?d.tabletJobs:[]).some(j=>j.design===m.id);
-        if(assigned){tabletBtn.textContent='En Tablet · asignado';tabletBtn.disabled=true;tabletBtn.dataset.mode='assigned';}
-        else if(direct){tabletBtn.textContent='Retirar de Tablet';tabletBtn.disabled=false;tabletBtn.dataset.mode='remove';}
-        else{tabletBtn.textContent='Enviar a Tablet';tabletBtn.disabled=false;tabletBtn.dataset.mode='add';}
-      }catch(e){tabletBtn.textContent='Tablet no disponible';tabletBtn.disabled=true;tabletBtn.title=e.message}
+        if(assigned){dest(workshopStatus,'assigned','Adjudicado · '+names.join(', '));assign.textContent='Gestionar adjudicación';tabletBtn.textContent='En Tablet · adjudicado';tabletBtn.disabled=true;tabletBtn.dataset.mode='assigned';}
+        else if(direct){dest(workshopStatus,'tablet','Tablet · sin adjudicar');assign.textContent='Adjudicar a operario';tabletBtn.textContent='Retirar de Tablet';tabletBtn.disabled=false;tabletBtn.dataset.mode='remove';}
+        else{dest(workshopStatus,'none','Taller · no enviado');assign.textContent='Adjudicar a operario';tabletBtn.textContent='Enviar a Tablet';tabletBtn.disabled=false;tabletBtn.dataset.mode='add';}
+      }catch(e){dest(workshopStatus,'unknown','Taller · no comprobado');tabletBtn.textContent='Tablet no disponible';tabletBtn.disabled=true;tabletBtn.title=e.message}
     }
     tabletBtn.onclick=async()=>{
       tabletBtn.disabled=true;
@@ -4720,8 +4723,9 @@ function render(){
         await refreshTabletState();
       }catch(e){toast(e.message,true);await refreshTabletState()}
     };
+    const assign=textNode('button','Adjudicar a operario','button secondary small');assign.onclick=()=>workshopDialog(m);foot.append(assign);
     refreshTabletState();
-    const assign=textNode('button','Asignar a taller','button secondary small');assign.onclick=()=>workshopDialog(m);foot.append(assign);
+    tile.addEventListener('eskala-workshop-refresh',refreshTabletState);
     const dl=document.createElement('button');dl.className='button secondary small';dl.textContent='↓ Descargar GLB';dl.addEventListener('click',()=>downloadModel(m));foot.append(dl);
     const remove=textNode('button','Eliminar','button secondary small delete-design');
     remove.type='button';
