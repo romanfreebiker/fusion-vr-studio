@@ -6,6 +6,21 @@
  const hash=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))),b=>b.toString(16).padStart(2,'0')).join('');
  const secret=()=>Array.from(crypto.getRandomValues(new Uint8Array(24)),b=>b.toString(16).padStart(2,'0')).join('');
  async function read(file){const r=await fetch(raw+file+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('No se pudo cargar '+file);return r.json()}
+ let tabletApiCache=null;
+ async function tabletApiBase(){
+   if(tabletApiCache!==null)return tabletApiCache;
+   try{const cfg=await read('taller-api.json');tabletApiCache=String(cfg.baseUrl||'').trim().replace(/\/$/,'')}catch{tabletApiCache=''}
+   return tabletApiCache;
+ }
+ async function tabletAction(key,payload){
+   if(!/^[a-f0-9]{48}$/.test(key||''))throw Error('Enlace de Tablet Taller no válido');
+   const base=await tabletApiBase();
+   if(!base)throw Error('La gestión directa de Tablet aún no está activada en el servidor');
+   const r=await fetch(base+'/api/taller/action',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(payload),cache:'no-store'});
+   let body={};try{body=await r.json()}catch{}
+   if(!r.ok)throw Error(body.error||('Servicio Tablet '+r.status));
+   return body;
+ }
  async function data(token=''){let d;if(token){const r=await fetch(api+'?ref=main&_='+Date.now(),{headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'},cache:'no-store'});if(!r.ok)throw Error('GitHub '+r.status+' al consultar operarios');const f=await r.json();d=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(f.content.replace(/\s/g,'')),c=>c.charCodeAt(0))))}else d=await read('taller.json');if(!Array.isArray(d.workers)||!Array.isArray(d.jobs))throw Error('Datos de taller no válidos');return d}
  async function worker(key){if(!/^[a-f0-9]{48}$/.test(key||''))throw Error('Enlace de operario no válido');const [d,h,c]=await Promise.all([data(),hash(key),read('catalogo.json')]);const w=d.workers.find(x=>x.hash===h&&x.active);if(!w)throw Error('Acceso de operario retirado');const jobs=d.jobs.filter(j=>j.worker===w.id).map(j=>({...j,model:c.modelos.find(m=>m.id===j.design)})).filter(j=>j.model);return {w,jobs}}
  async function tablet(key){if(!/^[a-f0-9]{48}$/.test(key||''))throw Error('Enlace de Tablet Taller no válido');const [d,h,c]=await Promise.all([data(),hash(key),read('catalogo.json')]);const access=d.tablet||d.central;if(!access?.active||access.hash!==h)throw Error('Acceso de Tablet Taller retirado');const workers=d.workers||[];const assigned=(d.jobs||[]).map(j=>({...j,tabletOnly:false,workerInfo:workers.find(w=>w.id===j.worker)||null,model:c.modelos.find(m=>m.id===j.design)})).filter(j=>j.model&&j.workerInfo);const assignedIds=new Set(assigned.map(j=>j.design));const tabletJobs=(Array.isArray(d.tabletJobs)?d.tabletJobs:[]).filter(j=>!assignedIds.has(j.design)).map(j=>({...j,tabletOnly:true,worker:null,workerInfo:null,model:c.modelos.find(m=>m.id===j.design)})).filter(j=>j.model);return {tablet:access,workers,assignedJobs:assigned,tabletJobs,jobs:[...tabletJobs,...assigned]}}
@@ -19,5 +34,5 @@
  function tabletViewer(key,id){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('v','50');u.searchParams.set('diseno',id);u.hash=key;return u.href}
  const centralViewer=tabletViewer;
  async function change(token,fn){if(!token)throw Error('Conecta GitHub en Gestión');for(let i=0;i<3;i++){const headers={Authorization:'Bearer '+token,Accept:'application/vnd.github+json','Content-Type':'application/json'};const r=await fetch(api+'?ref=main',{headers,cache:'no-store'});if(!r.ok)throw Error('GitHub '+r.status);const f=await r.json();const d=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(f.content.replace(/\s/g,'')),c=>c.charCodeAt(0))));await fn(d);const bytes=new TextEncoder().encode(JSON.stringify(d,null,2)+'\n');let str='';for(let j=0;j<bytes.length;j+=8192)str+=String.fromCharCode(...bytes.subarray(j,j+8192));const put=await fetch(api,{method:'PUT',headers,body:JSON.stringify({message:'ESKALA: actualizar taller',branch:'main',sha:f.sha,content:btoa(str)})});if(put.ok)return d;if(put.status!==409)throw Error('GitHub '+put.status)}throw Error('Cambios simultáneos: reintenta')}
- window.EskalaTaller={data,worker,tablet,central,adminTablet,adminWorker,link,tabletLink,centralLink,viewer,tabletViewer,centralViewer,change,hash,secret,phases};
+ window.EskalaTaller={data,worker,tablet,central,adminTablet,adminWorker,link,tabletLink,centralLink,viewer,tabletViewer,centralViewer,change,tabletAction,tabletApiBase,hash,secret,phases};
 })();
