@@ -30,6 +30,12 @@
       "label": "Manel",
       "hash": "dbad2755dccf44e5c6e3f74772c71322bffab3be6518044f117bc1960dd78f6e",
       "active": true
+    },
+    {
+      "id": "1c6c2af6-efe3-4f66-9111-a907ee005197",
+      "label": "Javi",
+      "hash": "6d1a6bcc4e55544eefc827a59ad3d15e79b5eeeb6443b0fe7d4bd8ff758eb848",
+      "active": true
     }
   ],
   "jobs": [
