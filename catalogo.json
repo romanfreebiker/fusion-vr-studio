@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado": "2026-11-27T05:49:17.566Z",
+  "actualizado": "2026-11-27T05:49:21.338Z",
   "modelos": [
     {
       "id": "escalera-recta-lateral-interior-mwyk90ue",
@@ -15,7 +15,7 @@
     {
       "id": "escalera-emergencia-falsa-escuadra-olaso-mwyk8nuz",
       "nombre": "escalera emergencia falsa escuadra Olaso",
-      "categoria": "",
+      "categoria": "Escaleras",
       "descripcion": "",
       "archivo": "modelos/escalera-emergencia-falsa-escuadra-olaso-mwyk8nuz.glb",
       "miniatura": "miniaturas/escalera-emergencia-falsa-escuadra-olaso-mwyk8nuz.jpg",
