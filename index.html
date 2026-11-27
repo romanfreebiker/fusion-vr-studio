@@ -3981,7 +3981,11 @@ three/examples/jsm/libs/fflate.module.js:
 .third-access-row .state.active{color:#78e6af}.third-access-row .state.revoked{color:#ff9aa4}
 .third-access-row button{padding:5px 8px!important;font-size:11px!important}
 </style>
-<script src="taller.js?v=142"></script></head>
+<script src="taller.js?v=142"></script><style id="eskala-board-css">
+dialog.eskala-board-dialog{width:min(1500px,96vw)!important;max-width:96vw;max-height:92vh!important;box-sizing:border-box;padding:18px!important}
+.ek-board{margin:12px 0;display:grid;gap:12px}.ek-board-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.ek-board-top h3{margin:0;flex:1}.ek-board-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.ek-stat{border:1px solid #294b60;border-radius:9px;padding:9px 12px;background:#102633;display:grid;gap:3px}.ek-stat b{font-size:26px;color:#49c9e8}.ek-board-track{display:flex;align-items:flex-start;gap:12px;overflow-x:auto;padding:3px 2px 15px;min-height:200px;scrollbar-color:#52718a #10232e}.ek-column{flex:0 0 254px;min-width:0;border:1px solid #355367;border-radius:12px;background:#10202d;padding:9px;display:grid;gap:9px;min-height:180px}.ek-column.ek-over{outline:2px solid #49c9e8;background:#183949}.ek-column-head{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 2px 8px;border-bottom:1px solid #355367}.ek-column-head b{overflow-wrap:anywhere}.ek-job{border:1px solid #3a5569;border-left:4px solid #64748b;border-radius:9px;overflow:hidden;background:#1b3040;display:grid;gap:7px;padding:8px;cursor:grab}.ek-job:active{cursor:grabbing}.ek-job[data-priority="Urgente"]{border-left-color:#f87171}.ek-job[data-priority="Alta"]{border-left-color:#fbbf24}.ek-job.ek-finished{opacity:.73}.ek-job.ek-dragging{opacity:.4}.ek-thumb{height:90px;background:#0d1c27;border-radius:6px;display:grid;place-items:center;overflow:hidden;color:#7199ae;font-size:26px}.ek-thumb img{width:100%;height:100%;object-fit:contain}.ek-job strong{overflow-wrap:anywhere}.ek-job-meta{display:flex;gap:5px;flex-wrap:wrap;font-size:11px}.ek-chip{border:1px solid #547185;border-radius:5px;padding:3px 6px;color:#d8e5ef}.ek-phase{color:#8ed7fa}.ek-job[data-priority="Urgente"] .ek-priority{color:#ff9e9e}.ek-job[data-priority="Alta"] .ek-priority{color:#ffdb91}.ek-job-actions{display:flex;gap:5px;flex-wrap:wrap}.ek-job-actions .button{font-size:11px;padding:5px 7px}.ek-details{border:1px solid #3c5b71;border-radius:10px;background:#132837;padding:12px;display:grid;gap:9px}.ek-details[hidden],.ek-board[hidden],.ek-legacy[hidden]{display:none!important}.ek-details-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px}.ek-details-fields label{display:grid;gap:4px;font-size:12px;color:#b3cfde}.ek-board-empty{padding:16px 5px;border:1px dashed #355367;border-radius:7px;text-align:center;color:#8ba6b7;font-size:12px}.ek-legacy summary{cursor:pointer;font-weight:600;color:#aadbed;padding:10px 0}.ek-board-track .input{width:100%;min-width:0}.ek-board-actions{display:flex;gap:7px;flex-wrap:wrap}.ek-board-hint{font-size:12px;color:#a3bdce;margin:0}@media(max-width:650px){.ek-board-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.ek-column{flex-basis:230px}.ek-thumb{height:70px}}
+</style>
+</head>
 <body>
 <!-- ESKALA: cabecera corporativa compartida. Los controles conservan data-view. -->
 <header class="eskala-corpbar" role="banner">
@@ -4425,13 +4429,84 @@ const dateLabel=new Intl.DateTimeFormat('es-ES',{dateStyle:'medium',timeStyle:'s
 async function workshopDialog(model=null){
  const T=window.EskalaTaller;
  const dialog=document.createElement('dialog');dialog.style.cssText='width:min(620px,92vw);max-height:85vh;overflow:auto;background:#152436;color:#eef7ff;border:1px solid #52718a;border-radius:12px;padding:18px';
+ if(!model)dialog.classList.add('eskala-board-dialog');
  const heading=textNode('h2',model?'Asignar a taller: '+model.nombre:'Operarios y trabajos');const close=textNode('button','Cerrar','button secondary small');close.onclick=()=>dialog.close();dialog.append(heading,close);const area=document.createElement('div');dialog.append(area);document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove());dialog.showModal();
  const keyName=id=>'eskala-taller-key:'+id;
  let saving=false; const feedback=textNode('p','','muted');feedback.setAttribute('role','status');dialog.insertBefore(feedback,area); const run=async fn=>{if(saving)return;saving=true;feedback.textContent='Guardando…';area.querySelectorAll('button').forEach(b=>b.disabled=true);try{const updated=await fn();await draw(updated&&Array.isArray(updated.workers)?updated:null);feedback.textContent='Cambios guardados.'}catch(e){feedback.textContent=e.message;toast(e.message,true)}finally{saving=false;area.querySelectorAll('button').forEach(b=>b.disabled=false)}};
  const btn=(label,fn)=>{const b=textNode('button',label,'button secondary small');b.type='button';b.onclick=fn;return b};
  const choose=(options,value)=>{const x=document.createElement('select');x.className='input';for(const o of options)x.add(new Option(o,o));x.value=value||options[0];return x};
+
+ function buildBoard(d){
+ const el=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e};
+ const board=el('section','ek-board');const top=el('div','ek-board-top');top.append(el('h3','','Tablero de adjudicaciones'),el('span','muted tiny','Central · Tablero v1'));
+ const search=el('input','input');search.placeholder='Buscar trabajo…';search.setAttribute('aria-label','Buscar trabajo');search.style.maxWidth='220px';top.append(search);board.append(top);
+ const jobs=d.jobs||[],direct=d.tabletJobs||[],workers=d.workers.filter(w=>w.active),assignedIds=new Set(jobs.map(j=>j.design));
+ const stats=el('div','ek-board-stats');for(const [label,value] of [['Operarios activos',workers.length],['En Tablet sin adjudicar',direct.filter(j=>!assignedIds.has(j.design)).length],['Trabajos en curso',jobs.filter(j=>j.phase!=='Pendiente'&&j.phase!=='Finalizado').length],['Pendientes',jobs.filter(j=>j.phase==='Pendiente').length]]){const stat=el('div','ek-stat');stat.append(el('span','muted tiny',label),el('b','',String(value)));stats.append(stat)}board.append(stats);
+ board.append(el('p','ek-board-hint','Arrastra un trabajo entre operarios o a Tablet sin adjudicar. También puedes seleccionarlo y cambiar su destino. Los diseños de la biblioteca no se envían hasta que los adjudicas o envías a Tablet.'));
+ const details=el('section','ek-details');details.hidden=true;board.append(details);
+ const track=el('div','ek-board-track');board.append(track);
+ const destinations=[{id:'tablet',label:'Tablet · sin adjudicar'},...workers.map(w=>({id:w.id,label:w.label}))];
+ let dragging=null;
+ function move(row,to,before=null){
+ if(!row||saving||to==='library')return;
+ if(row.from===to&&!before)return;
+ return run(()=>T.change(state.token,x=>{
+ const all=x.jobs||[],pending=x.tabletJobs||[];
+ const current=row.from==='library'?null:row.from==='tablet'?pending.find(j=>j.design===row.design):all.find(j=>j.design===row.design&&j.worker===row.from);
+ if(row.from!=='library'&&!current)throw Error('El trabajo ha cambiado. Actualiza el tablero.');
+ if(to!=='tablet'&&!x.workers.some(w=>w.id===to&&w.active))throw Error('Operario no disponible');
+ if(row.from==='library'&&(all.some(j=>j.design===row.design)||pending.some(j=>j.design===row.design)))throw Error('El diseño ya está distribuido al taller');
+ if(to==='tablet'&&all.some(j=>j.design===row.design&&j.worker!==row.from))throw Error('El diseño tiene otra adjudicación activa. Retírala antes de devolverlo a Tablet.');
+ if(to!=='tablet'&&all.some(j=>j.design===row.design&&j.worker===to)&&row.from!==to)throw Error('El operario ya tiene este diseño asignado');
+ x.jobs=all.filter(j=>!(j.design===row.design&&j.worker===row.from));
+ x.tabletJobs=pending.filter(j=>!(row.from==='tablet'&&j.design===row.design));
+ if(to==='tablet'){if(!x.tabletJobs.some(j=>j.design===row.design))x.tabletJobs.push({design:row.design,addedAt:current?.addedAt||new Date().toISOString()})}
+ else{const next={...(row.from!=='tablet'&&row.from!=='library'?current:{}),worker:to,design:row.design,type:current?.type||'Fabricación e instalación',priority:current?.priority||'Normal',phase:current?.phase||'Pendiente',note:current?.note||''};x.tabletJobs=x.tabletJobs.filter(j=>j.design!==row.design);const i=before?x.jobs.findIndex(j=>j.worker===to&&j.design===before):-1;if(i<0)x.jobs.push(next);else x.jobs.splice(i,0,next)}
+ }));
+ }
+ function showDetails(row){
+ const m=state.models.find(x=>x.id===row.design);details.replaceChildren();details.hidden=false;
+ const heading=el('div','ek-board-top');heading.append(el('h3','',m?.nombre||row.design),btn('Cerrar detalles',()=>{details.hidden=true}));details.append(heading);
+ const fields=el('div','ek-details-fields');const dest=el('select','input');for(const w of destinations)dest.add(new Option(w.label,w.id));dest.value=row.from==='library'?'tablet':row.from;
+ const type=choose(['Fabricación','Instalación','Fabricación e instalación'],row.type||'Fabricación e instalación'),priority=choose(['Normal','Alta','Urgente'],row.priority||'Normal'),phase=choose(T.phases,row.phase||'Pendiente');
+ for(const [label,input] of [['Destino',dest],['Tipo',type],['Prioridad',priority],['Fase',phase]]){const wrap=el('label');wrap.append(el('span','',label),input);fields.append(wrap)}details.append(fields);
+ const note=el('textarea','input');note.placeholder='Instrucciones del trabajo';note.value=row.note||'';note.rows=2;details.append(note);
+ const actions=el('div','ek-board-actions');actions.append(btn('Guardar adjudicación',()=>run(()=>T.change(state.token,x=>{
+ const to=dest.value,all=x.jobs||[],pending=x.tabletJobs||[];
+ const current=row.from==='library'?null:row.from==='tablet'?pending.find(j=>j.design===row.design):all.find(j=>j.design===row.design&&j.worker===row.from);
+ if(row.from!=='library'&&!current)throw Error('El trabajo ha cambiado. Actualiza el tablero.');
+ if(row.from==='library'&&(all.some(j=>j.design===row.design)||pending.some(j=>j.design===row.design)))throw Error('El diseño ya está distribuido al taller');
+ if(to==='tablet'&&all.some(j=>j.design===row.design&&j.worker!==row.from))throw Error('El diseño tiene otra adjudicación activa.');
+ if(to!=='tablet'&&!x.workers.some(w=>w.id===to&&w.active))throw Error('Operario no disponible');
+ if(to!=='tablet'&&to!==row.from&&all.some(j=>j.design===row.design&&j.worker===to))throw Error('El operario ya tiene este diseño');
+ const next={...current,worker:to,design:row.design,type:type.value,priority:priority.value,phase:phase.value,note:note.value.trim().slice(0,500)};
+ if(to===row.from&&to!=='tablet'){x.jobs=all.map(j=>j===current?next:j);return}
+ x.jobs=all.filter(j=>!(j.design===row.design&&j.worker===row.from));x.tabletJobs=pending.filter(j=>!(j.design===row.design&&row.from==='tablet'));
+ if(to==='tablet'){if(!x.tabletJobs.some(j=>j.design===row.design))x.tabletJobs.push({design:row.design,addedAt:current?.addedAt||new Date().toISOString()})}else{x.tabletJobs=x.tabletJobs.filter(j=>j.design!==row.design);x.jobs.push(next)}
+ }))));
+ if(row.from!=='library')actions.append(btn('Retirar del taller',()=>{if(!confirm('¿Retirar este trabajo del taller? El diseño seguirá en la biblioteca.'))return;run(()=>T.change(state.token,x=>{if(row.from==='tablet')x.tabletJobs=(x.tabletJobs||[]).filter(j=>j.design!==row.design);else x.jobs=(x.jobs||[]).filter(j=>!(j.design===row.design&&j.worker===row.from))}))}));
+ details.append(actions);details.scrollIntoView({block:'nearest',behavior:'smooth'});
+ }
+ function card(row){const m=state.models.find(x=>x.id===row.design);const c=el('article','ek-job'+(row.phase==='Finalizado'?' ek-finished':''));c.dataset.priority=row.priority||'Normal';c.dataset.search=((m?.nombre||row.design)+' '+(row.type||'')+' '+(row.note||'')).toLocaleLowerCase('es');c.draggable=true;
+ const thumb=el('div','ek-thumb');if(m?.miniatura){const img=el('img');img.alt='';img.loading='lazy';img.draggable=false;attachImage(img,m.miniatura);thumb.append(img)}else thumb.textContent='◇';c.append(thumb,el('strong','',m?.nombre||row.design));
+ const meta=el('div','ek-job-meta');meta.append(el('span','ek-chip ek-phase',row.phase||(row.from==='library'?'Biblioteca':'Sin adjudicar')));if(row.from!=='library'&&row.from!=='tablet'){meta.append(el('span','ek-chip ek-priority',row.priority||'Normal'));meta.append(el('span','ek-chip',row.type||'Fabricación e instalación'))}c.append(meta);
+ const actions=el('div','ek-job-actions');actions.append(btn(row.from==='library'||row.from==='tablet'?'Adjudicar':'Detalles',()=>showDetails(row)));
+ if(row.from!=='library'){actions.append(btn('Ver 3D',()=>{const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',row.design);u.searchParams.set('v','142');if(row.from==='tablet'){u.searchParams.set('acceso','tablet');u.searchParams.set('adminTablet','1')}else{u.searchParams.set('acceso','taller');u.searchParams.set('adminWorker',row.from)}window.open(u.href,'_blank','noopener')}))}
+ c.append(actions);c.ondragstart=e=>{dragging=row;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',row.design);c.classList.add('ek-dragging')};c.ondragend=()=>{dragging=null;c.classList.remove('ek-dragging');track.querySelectorAll('.ek-over').forEach(e=>e.classList.remove('ek-over'))};
+ if(row.from!=='library'&&row.from!=='tablet'){c.ondragover=e=>{if(dragging){e.preventDefault()}};c.ondrop=e=>{if(!dragging)return;e.preventDefault();e.stopPropagation();const a=dragging;dragging=null;if(a.design!==row.design||a.from!==row.from)move(a,row.from,row.design)}}
+ return c}
+ function column(id,label,rows){const col=el('section','ek-column');const head=el('div','ek-column-head');head.append(el('b','',label),el('span','ek-chip',String(rows.length)));col.append(head);for(const row of rows)col.append(card({...row,from:id}));if(!rows.length)col.append(el('div','ek-board-empty','Sin trabajos'));if(id!=='library'){col.ondragover=e=>{if(dragging){e.preventDefault();col.classList.add('ek-over')}};col.ondragleave=e=>{if(!col.contains(e.relatedTarget))col.classList.remove('ek-over')};col.ondrop=e=>{e.preventDefault();col.classList.remove('ek-over');const a=dragging;dragging=null;if(a)move(a,id)}}track.append(col)}
+ column('library','Biblioteca · disponible',state.models.filter(m=>!assignedIds.has(m.id)&&!direct.some(j=>j.design===m.id)).map(m=>({design:m.id})));
+ column('tablet','Tablet · sin adjudicar',direct.filter(j=>!assignedIds.has(j.design)));
+ for(const w of workers)column(w.id,w.label,jobs.filter(j=>j.worker===w.id));
+ search.oninput=()=>{const q=search.value.trim().toLocaleLowerCase('es');track.querySelectorAll('.ek-job').forEach(c=>c.hidden=!!q&&!c.dataset.search.includes(q))};
+ return board;
+ }
+
  async function draw(updated=null){
  const d=updated||await T.data(state.token);area.replaceChildren();
+ const originalArea=area;let legacy=null;if(!model){area.append(buildBoard(d));legacy=document.createElement('details');legacy.className='ek-legacy';legacy.append(textNode('summary','Gestión clásica · accesos, operarios y acciones avanzadas'));area.append(legacy);}
+ const appendTarget=legacy||area;
  if(!model){
  const centralKeyName='eskala-taller-tablet-key';
  const centralPanel=document.createElement('div');centralPanel.style.cssText='border:1px solid #2e7089;background:#102633;border-radius:12px;padding:12px;margin:8px 0 14px;display:grid;gap:8px';
@@ -4471,11 +4546,11 @@ async function workshopDialog(model=null){
    }
    centralPanel.append(tabletList);
  }
- area.append(centralPanel);
- const name=document.createElement('input');name.className='input';name.placeholder='Nombre y apellidos del operario';name.autocapitalize='words';const capitalize=v=>v.replace(/(^|[\s'-])(\p{L})/gu,(_,sep,c)=>sep+c.toLocaleUpperCase('es'));name.addEventListener('input',()=>{const p=name.selectionStart;name.value=capitalize(name.value);name.setSelectionRange(p,p)});const create=btn('Crear operario',()=>run(async()=>{const label=capitalize(name.value.trim().replace(/\s+/g,' '));if(!label)throw Error('Introduce un nombre');const key=T.secret(),hash=await T.hash(key),id=crypto.randomUUID();const updated=await T.change(state.token,x=>{if(x.workers.some(w=>w.active&&w.label.toLocaleLowerCase('es')===label.toLocaleLowerCase('es')))throw Error('Ya existe un operario con ese nombre');x.workers.push({id,label,hash,active:true})});try{localStorage.setItem(keyName(id),key)}catch{feedback.textContent='Operario guardado; no se pudo conservar el enlace local.'}toast('Operario creado');return updated}));name.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();create.click()}});area.append(name,create);}
+ appendTarget.append(centralPanel);
+ const name=document.createElement('input');name.className='input';name.placeholder='Nombre y apellidos del operario';name.autocapitalize='words';const capitalize=v=>v.replace(/(^|[\s'-])(\p{L})/gu,(_,sep,c)=>sep+c.toLocaleUpperCase('es'));name.addEventListener('input',()=>{const p=name.selectionStart;name.value=capitalize(name.value);name.setSelectionRange(p,p)});const create=btn('Crear operario',()=>run(async()=>{const label=capitalize(name.value.trim().replace(/\s+/g,' '));if(!label)throw Error('Introduce un nombre');const key=T.secret(),hash=await T.hash(key),id=crypto.randomUUID();const updated=await T.change(state.token,x=>{if(x.workers.some(w=>w.active&&w.label.toLocaleLowerCase('es')===label.toLocaleLowerCase('es')))throw Error('Ya existe un operario con ese nombre');x.workers.push({id,label,hash,active:true})});try{localStorage.setItem(keyName(id),key)}catch{feedback.textContent='Operario guardado; no se pudo conservar el enlace local.'}toast('Operario creado');return updated}));name.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();create.click()}});appendTarget.append(name,create);}
  for(const w of d.workers.filter(x=>!model||x.active)){
  const panel=document.createElement('div');panel.style.cssText='border-top:1px solid #456;padding:12px 0;display:grid;gap:8px';panel.append(textNode('strong',w.label));const key=localStorage.getItem(keyName(w.id));
- if(!model&&!w.active){panel.append(textNode('span','Acceso dado de baja · trabajos conservados'),btn('Reactivar operario',()=>run(async()=>{if(!confirm('¿Reactivar? Se generará un enlace nuevo; el anterior seguirá invalidado.'))return;const k=T.secret(),h=await T.hash(k);const updated=await T.change(state.token,x=>{const row=x.workers.find(y=>y.id===w.id);row.active=true;row.hash=h});localStorage.setItem(keyName(w.id),k);return updated})));area.append(panel);continue;}
+ if(!model&&!w.active){panel.append(textNode('span','Acceso dado de baja · trabajos conservados'),btn('Reactivar operario',()=>run(async()=>{if(!confirm('¿Reactivar? Se generará un enlace nuevo; el anterior seguirá invalidado.'))return;const k=T.secret(),h=await T.hash(k);const updated=await T.change(state.token,x=>{const row=x.workers.find(y=>y.id===w.id);row.active=true;row.hash=h});localStorage.setItem(keyName(w.id),k);return updated})));appendTarget.append(panel);continue;}
  if(!model){
  const links=document.createElement('div');links.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
  links.append(btn('Entrar en su aplicación',()=>{const u=new URL('taller.html',location.href);u.searchParams.set('adminWorker',w.id);location.assign(u.href)}));
@@ -4488,8 +4563,8 @@ async function workshopDialog(model=null){
  const j=d.jobs.find(x=>x.worker===w.id&&x.design===model.id);const type=choose(['Fabricación','Instalación','Fabricación e instalación'],j?.type||'Fabricación e instalación'),priority=choose(['Normal','Alta','Urgente'],j?.priority),phase=choose(T.phases,j?.phase);const note=document.createElement('textarea');note.className='input';note.placeholder='Instrucciones';note.value=j?.note||'';
  panel.append(textNode('span',j?'Trabajo asignado':'Sin asignar'),type,priority,phase,note,btn(j?'Actualizar asignación':'Asignar trabajo',()=>run(()=>T.change(state.token,x=>{x.jobs=x.jobs.filter(y=>!(y.worker===w.id&&y.design===model.id));x.jobs.push({worker:w.id,design:model.id,type:type.value,priority:priority.value,phase:phase.value,note:note.value.trim().slice(0,500)});if(Array.isArray(x.tabletJobs))x.tabletJobs=x.tabletJobs.filter(y=>y.design!==model.id)}))));
  if(j)panel.append(btn('Retirar trabajo',()=>run(()=>T.change(state.token,x=>{x.jobs=x.jobs.filter(y=>!(y.worker===w.id&&y.design===model.id))}))));
- }area.append(panel)}
- if(!d.workers.some(w=>w.active))area.append(textNode('p','Crea primero un operario desde Gestionar taller.'));
+ }appendTarget.append(panel)}
+ if(!d.workers.some(w=>w.active))appendTarget.append(textNode('p','Crea primero un operario desde Gestionar taller.'));
  }
  try{await draw()}catch(e){area.textContent=e.message}
  let liveBusy=false;
@@ -4505,7 +4580,7 @@ function render(){
     copy.onclick=async()=>{try{await navigator.clipboard.writeText(url.href);copy.textContent='¡Enlace copiado!';toast('Enlace general de dirección copiado');setTimeout(()=>copy.textContent='Copiar enlace para dirección',1600)}catch{prompt('Copia el enlace general de dirección',url.href)}};
     const link=textNode('a','Probar acceso de dirección','button secondary small');link.id='distributionNav';link.href=url.href;link.target='_blank';link.rel='noopener';
     const note=textNode('p','Distribución sincronizada en GitHub · archivos públicos','muted tiny');note.style.flexBasis='100%';
-    const workshop=textNode('button','Gestionar taller','button secondary small');workshop.onclick=()=>workshopDialog();panel.append(copy,link,workshop,note);$('gallery').before(panel);
+    const workshop=textNode('button','Gestionar taller · tablero','button secondary small');workshop.onclick=()=>workshopDialog();panel.append(copy,link,workshop,note);$('gallery').before(panel);
   }
   $('statCount').textContent=state.models.length;
   $('statCategories').textContent=state.families.length;
