@@ -24,6 +24,12 @@
       "label": "Christian",
       "hash": "2f98002ffde827de78de1cb1d765c2af0788fcb200309c40c5df2fab9c3b0744",
       "active": true
+    },
+    {
+      "id": "5d99e0f3-ca56-477b-b90e-44d05a7331db",
+      "label": "Manel",
+      "hash": "dbad2755dccf44e5c6e3f74772c71322bffab3be6518044f117bc1960dd78f6e",
+      "active": true
     }
   ],
   "jobs": [
