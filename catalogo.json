@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado": "2026-11-26T12:47:18.864Z",
+  "actualizado": "2026-11-27T05:47:09.241Z",
   "modelos": [
     {
       "id": "puerta-zona-generador-mwvotkdj",
@@ -11,16 +11,6 @@
       "miniatura": "miniaturas/puerta-zona-generador-mwvotkdj.jpg",
       "bytes": 5489964,
       "fecha": "2026-11-25T05:33:13.195Z"
-    },
-    {
-      "id": "escalera-bascula-mwswzrjg",
-      "nombre": "escalera bascula",
-      "categoria": "Escaleras",
-      "descripcion": "",
-      "archivo": "modelos/escalera-bascula-mwswzrjg.glb",
-      "miniatura": "miniaturas/escalera-bascula-mwswzrjg.jpg",
-      "bytes": 4764848,
-      "fecha": "2026-11-23T06:58:40.852Z"
     },
     {
       "id": "garaje2-mws3nfb6",

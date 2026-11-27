@@ -52,16 +52,6 @@
       "updated": "2026-11-26T12:30:06.600Z"
     },
     {
-      "id": "escalera-bascula-mwswzrjg",
-      "nombre": "escalera bascula",
-      "descripcion": "",
-      "categoria": "Escaleras",
-      "archivo": "modelos/escalera-bascula-mwswzrjg.glb",
-      "miniatura": "miniaturas/escalera-bascula-mwswzrjg.jpg",
-      "status": "inactive",
-      "updated": "2026-11-26T12:30:06.600Z"
-    },
-    {
       "id": "puerta-zona-generador-mwvotkdj",
       "nombre": "puerta zona generador",
       "descripcion": "",
