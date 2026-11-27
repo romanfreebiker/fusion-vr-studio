@@ -4294,6 +4294,13 @@ async function githubRequest(method,path,payload=null,missingOk=false,asBlob=fal
 function jsonToB64(o){const bytes=new TextEncoder().encode(JSON.stringify(o,null,2)+'\n');let str='';for(let i=0;i<bytes.length;i+=8192)str+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(str)}
 function b64ToJson(b){const bin=atob((b||'').replace(/\s/g,''));const a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return JSON.parse(new TextDecoder().decode(a))}
 function rawUrl(p){return `https://raw.githubusercontent.com/${encodeURIComponent(state.owner)}/${encodeURIComponent(state.repo)}/${encPath(state.branch)}/${encPath(p)}`}
+async function loadPublicCatalog(){
+  const response=await fetch(rawUrl('catalogo.json')+'?revision='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error('No se pudo leer el catálogo público ('+response.status+').');
+  const data=await response.json();
+  if(!Array.isArray(data?.modelos))throw Error('El catálogo público no tiene el formato esperado.');
+  return data;
+}
 async function loadCatalog(){
   const result=await request('GET','catalogo.json',null,true);
   if(!result)throw Error('No se encuentra el catálogo de diseños. No se modificará la biblioteca.');
@@ -4405,6 +4412,7 @@ async function checkStorage(){
   const sequence=++storageCheckSequence;
   const node=$('storageStatus');
   if(!node)return;
+  if(!state.token){node.textContent='Almacenamiento: conecta GitHub para consultar el uso del repositorio.';return;}
   node.textContent='Comprobando almacenamiento de GitHub…';
   try{
     const ref=await githubRequest('GET','/git/ref/heads/'+encPath(state.branch));
@@ -4420,7 +4428,7 @@ async function checkStorage(){
 async function refresh(){
   if(!state.owner||!state.repo){setConnection('Sin conectar');render();return}
   setConnection('Consultando...');$('refreshBtn').disabled=true;
-  try{const result=await loadCatalog();catalogLoadFailed=false;updateCatalogState(result);setConnection(state.token?'GitHub autorizado':'Biblioteca disponible · sin autorización',!!state.token);$('repoLabel').textContent=state.owner+'/'+state.repo+' · '+state.branch;render();}
+  try{let result;if(!state.token&&!state.repoPrivate){result=await loadPublicCatalog()}else{try{result=await loadCatalog()}catch(error){if(state.repoPrivate)throw error;result=await loadPublicCatalog()}}catalogLoadFailed=false;updateCatalogState(result);setConnection(state.token?'GitHub autorizado':'Biblioteca disponible · sin autorización',!!state.token);$('repoLabel').textContent=state.owner+'/'+state.repo+' · '+state.branch;render();}
   catch(e){catalogLoadFailed=true;setConnection('Error de conexión');toast(e.message,true);render()}
   finally{$('refreshBtn').disabled=false;void checkStorage()}
 }
