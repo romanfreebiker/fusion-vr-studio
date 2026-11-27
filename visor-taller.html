@@ -221,7 +221,7 @@ if(presentation){
  controls.enabled=true;
  controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;controls.mouseButtons.RIGHT=null;controls.mouseButtons.MIDDLE=THREE.MOUSE.PAN;
  controls.touches.ONE=THREE.TOUCH.ROTATE;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;
- const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent='Taller · v137';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px;opacity:.85';bar.append(buildTag);
+ const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent='Taller · v138';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px;opacity:.85';bar.append(buildTag);
  presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
  button(access==='tablet'?'Tablet Taller':'Mis trabajos',()=>{const key=location.hash.slice(1);let u;if(access==='tablet'&&params.get('adminTablet')==='1'){u=new URL('tablet-taller.html',location.href);u.searchParams.set('adminTablet','1')}else{u=new URL(access==='tablet'?EskalaTaller.tabletLink(key):EskalaTaller.link(key));if(access!=='tablet'&&params.get('adminWorker'))u.searchParams.set('adminWorker',params.get('adminWorker'))}location.assign(u.href)});
@@ -1447,7 +1447,7 @@ let mobileTapTimer=0,mobilePendingTap=null;const MOBILE_DOUBLE_MS=300;
 function cancelMobileTap(){clearTimeout(mobileTapTimer);mobileTapTimer=0;mobilePendingTap=null}
 function mobileTap(){const now=performance.now();if(mobilePendingTap&&now-mobilePendingTap.time<=MOBILE_DOUBLE_MS){cancelMobileTap();clearMeasures();hideMeasureHover();mobileDirty=true;mobileUpdate(true);return;}cancelMobileTap();const c=mobileCenter(),t=measureTarget(c.x,c.y,'touch');mobilePendingTap={time:now,target:t?.p?{...t,p:t.p.clone()}:null};mobileTapTimer=setTimeout(()=>{const pending=mobilePendingTap;cancelMobileTap();if(measureMode&&mobileActive()&&pending?.target){selectMeasurePoint(pending.target);mobileDirty=true;mobileUpdate(true)}else if(measureMode&&mobileActive()&&pending){mobileDirty=true;mobileUpdate(true);if(mobileStatus)mobileStatus.textContent='Sin enganche · Busca una arista o un punto';}},MOBILE_DOUBLE_MS);}
 let aimOffsetX=0,aimOffsetY=0,miraHandleDrag=null;function mobileCenter(){const r=renderer.domElement.getBoundingClientRect();return {x:r.left+r.width/2+aimOffsetX,y:r.top+r.height/2+aimOffsetY}} function moveAim(dx,dy){const r=renderer.domElement.getBoundingClientRect();aimOffsetX=THREE.MathUtils.clamp(aimOffsetX+dx,-r.width/2+15,r.width/2-15);aimOffsetY=THREE.MathUtils.clamp(aimOffsetY+dy,-r.height/2+15,r.height/2-15);mobileDirty=true;}
-function mobileActive(){return presentation&&touchGuide&&!walkingMode}
+function mobileActive(){return presentation&&!walkingMode&&(touchGuide||measureMode)}
 function mobileUpdate(force=false){
  if(!mobileActive()){document.body.classList.remove('taller-mobile');if(mobilePanel)mobilePanel.hidden=true;if(mobileCross)mobileCross.hidden=true;hideLoupe();return}
  if(!mobilePanel){
@@ -1468,10 +1468,11 @@ function mobileUpdate(force=false){
  for(const type of ['pointerup','pointercancel','lostpointercapture'])handle.addEventListener(type,e=>{if(miraHandleDrag?.id!==e.pointerId)return;e.preventDefault();e.stopPropagation();const d=miraHandleDrag;miraHandleDrag=null;if(type==='pointerup'&&!d.drag&&Math.hypot(e.clientX-d.startX,e.clientY-d.startY)<=7)mobileTap();handle.style.cursor='grab';if(handle.hasPointerCapture(e.pointerId))handle.releasePointerCapture(e.pointerId)});
  document.body.append(mobileCross);
  }
- document.body.classList.add('taller-mobile');mobilePanel.hidden=false;mobileCross.hidden=!measureMode;const mt=document.getElementById('mobileMeasureToggle');if(mt){mt.textContent=measureMode?'Salir de medir':'Medir';mt.setAttribute('aria-pressed',String(measureMode))}
+ document.body.classList.add('taller-mobile');mobilePanel.hidden=false;mobileCross.hidden=!measureMode||!touchGuide;const mt=document.getElementById('mobileMeasureToggle');if(mt){mt.textContent=measureMode?'Salir de medir':'Medir';mt.setAttribute('aria-pressed',String(measureMode))}
  if(presentationHint)presentationHint.hidden=true;
- if(measureLabel)measureLabel.hidden=true;
+ if(measureLabel)measureLabel.hidden=touchGuide;
  if(!measureMode){hideLoupe();mobileStatus.textContent='Un dedo: girar · Dos dedos: desplazar y zoom';return}
+ if(!touchGuide){hideLoupe();mobileStatus.textContent='Clic: fijar · Arrastrar: girar · Rueda: zoom';return}
  const c=mobileCenter(),now=performance.now();mobileCross.style.left=c.x+'px';mobileCross.style.top=c.y+'px';
  if(force||(mobileDirty&&now-mobileLastAim>65)||now-mobileLastAim>400){mobileLastAim=now;mobileDirty=false;mobileAim=measureTarget(c.x,c.y,'touch');previewMeasure(mobileAim,c.x,c.y)}
  mobileStatus.textContent=(measurePoints.length===1?'Segundo punto':'Primer punto')+' · '+(mobileAim?.p?(mobileAim.alignment?mobileAim.alignment+' ✓'+(mobileAim.projected?' (proyección)':'')+' · ':'')+'Toca para fijar · Doble toque: reiniciar':'Sin enganche · Busca una arista o un punto');
