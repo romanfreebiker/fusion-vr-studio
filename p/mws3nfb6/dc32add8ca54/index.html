@@ -38,11 +38,12 @@ noscript a{display:block;padding:1rem;color:#73daf0}
   const token=queryToken||hashToken;
   const frame=document.getElementById('eskalaViewer');
   if(!token){frame.remove();document.getElementById('eskalaDenied').hidden=false;return;}
-  const target=new URL("https://romanfreebiker.github.io/fusion-vr-studio/visor.html?modo=presentacion&diseno=garaje2-mws3nfb6&acceso=invitado&v=120");
+  const target=new URL("https://romanfreebiker.github.io/fusion-vr-studio/visor.html?modo=presentacion&diseno=garaje2-mws3nfb6&acceso=invitado&v=127");
   target.searchParams.set('share',token);
+  target.searchParams.set('refresh',String(Date.now()));
   frame.src=target.href;
 })();
 </script>
-<noscript><a href="https://romanfreebiker.github.io/fusion-vr-studio/visor.html?modo=presentacion&amp;diseno=garaje2-mws3nfb6&amp;acceso=invitado&amp;v=120">Activa JavaScript para abrir el diseño en ESKALA Studio</a></noscript>
+<noscript><a href="https://romanfreebiker.github.io/fusion-vr-studio/visor.html?modo=presentacion&amp;diseno=garaje2-mws3nfb6&amp;acceso=invitado&amp;v=127">Activa JavaScript para abrir el diseño en ESKALA Studio</a></noscript>
 </body>
 </html>
