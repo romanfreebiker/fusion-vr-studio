@@ -43,7 +43,7 @@ async function load(){
   const data=await T.tablet(key);
   const sig=JSON.stringify([data.workers,data.jobs]);
   const active=data.workers.filter(w=>w.active).length;
-  const pending=data.jobs.filter(j=>j.phase!=='Finalizado').length;
+  const pending=data.jobs.filter(j=>j.tabletOnly||j.phase!=='Finalizado').length;
   statusNode.textContent='Sincronizado · '+new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
   summary.replaceChildren(
     Object.assign(el('span','','pill'),{innerHTML:'Operarios: <b>'+active+'</b>'}),
@@ -51,6 +51,17 @@ async function load(){
     Object.assign(el('span','','pill'),{innerHTML:'Pendientes: <b>'+pending+'</b>'})
   );
   if(sig===signature)return;signature=sig;grid.replaceChildren();
+  if(data.tabletJobs.length){
+    const box=el('article','','worker');
+    box.append(el('h2','Sin asignar · Tablet'));
+    const jobs=el('div','','jobs');
+    for(const j of data.tabletJobs){
+      const card=el('article','','job');card.append(el('h3',j.model.nombre));
+      const meta=el('div','','meta');meta.append(el('span','Sin asignar','tag'));meta.append(el('span','Visible solo en Tablet','phase'));card.append(meta);
+      const actions=el('div','','actions');const open=el('a','Abrir visor y medir');open.href=T.tabletViewer(key,j.design);actions.append(open);card.append(actions);jobs.append(card);
+    }
+    box.append(jobs);grid.append(box);
+  }
   for(const w of data.workers){
     const box=el('article','',w.active?'worker':'worker inactive');
     box.append(el('h2',w.label+(w.active?'':' · baja')));
