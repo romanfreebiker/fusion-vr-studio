@@ -1,7 +1,17 @@
 {
   "version": 1,
-  "actualizado": "2026-11-27T05:47:09.241Z",
+  "actualizado": "2026-11-27T05:48:03.124Z",
   "modelos": [
+    {
+      "id": "escalera-bascula-mwyk8cuf",
+      "nombre": "escalera bascula",
+      "categoria": "",
+      "descripcion": "",
+      "archivo": "modelos/escalera-bascula-mwyk8cuf.glb",
+      "miniatura": "miniaturas/escalera-bascula-mwyk8cuf.jpg",
+      "bytes": 4625264,
+      "fecha": "2026-11-27T05:48:03.124Z"
+    },
     {
       "id": "puerta-zona-generador-mwvotkdj",
       "nombre": "puerta zona generador",
