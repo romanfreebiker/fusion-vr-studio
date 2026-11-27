@@ -302,18 +302,19 @@ if(presentation){
  Object.assign(loupe.style,{position:'fixed',top:'max(105px, 20vh)',right:'12px',width:'min(38vw,160px)',aspectRatio:'1',border:'2px solid #91b6d2',borderRadius:'12px',overflow:'hidden',background:'#182432',zIndex:'9001',display:'none',pointerEvents:'none',boxShadow:'0 4px 18px #0008'});
  const loupeCanvas=document.createElement('canvas');Object.assign(loupeCanvas.style,{width:'100%',height:'100%',display:'block'});loupe.append(loupeCanvas);
  const cross=document.createElement('div');Object.assign(cross.style,{position:'absolute',left:'50%',top:'50%',width:'24px',height:'24px',border:'1px solid #55efab',borderRadius:'50%',transform:'translate(-50%,-50%)',boxShadow:'0 0 2px black'});cross.textContent='+';Object.assign(cross.style,{color:'#55efab',textAlign:'center',lineHeight:'22px',font:'bold 22px monospace'});loupe.append(cross);document.body.append(loupe);
- const loupeRenderer=new THREE.WebGLRenderer({canvas:loupeCanvas,antialias:true,alpha:false});loupeRenderer.setPixelRatio(Math.min(devicePixelRatio||1,3));loupeRenderer.outputColorSpace=renderer.outputColorSpace;loupeRenderer.toneMapping=renderer.toneMapping;loupeRenderer.toneMappingExposure=renderer.toneMappingExposure;
- const loupeCamera=camera.clone();let loupeAim=null;
+ const loupeRenderer=new THREE.WebGLRenderer({canvas:loupeCanvas,antialias:true,alpha:false});loupeRenderer.setPixelRatio(Math.max(3,Math.min(devicePixelRatio||1,4)));loupeRenderer.outputColorSpace=renderer.outputColorSpace;loupeRenderer.toneMapping=renderer.toneMapping;loupeRenderer.toneMappingExposure=renderer.toneMappingExposure;
+ const loupeCamera=camera.clone();let loupeAim=null,loupeCenter=null;
  function drawLoupe(){
    if(!loupeAim||loupe.style.display==='none')return;
    const size=Math.round(loupe.clientWidth);if(!size)return;
-   if(loupeCanvas.clientWidth!==size||loupeCanvas.width!==Math.round(size*loupeRenderer.getPixelRatio()))loupeRenderer.setSize(size,size,false);
+   if(loupeCanvas.width!==Math.floor(size*loupeRenderer.getPixelRatio()))loupeRenderer.setSize(size,size,false);
    camera.updateMatrixWorld(true);camera.getWorldPosition(loupeCamera.position);camera.getWorldQuaternion(loupeCamera.quaternion);
    loupeCamera.fov=camera.fov;loupeCamera.aspect=camera.aspect;loupeCamera.near=camera.near;loupeCamera.far=camera.far;
-   const crop=Math.min(innerWidth,innerHeight)*.16;
-   loupeCamera.setViewOffset(innerWidth,innerHeight,loupeAim.x-crop/2,loupeAim.y-crop/2,crop,crop);
+   const crop=Math.min(innerWidth,innerHeight)*.24;
+   loupeCamera.setViewOffset(innerWidth,innerHeight,loupeCenter.x-crop/2,loupeCenter.y-crop/2,crop,crop);
    loupeCamera.updateMatrixWorld(true);
    loupeRenderer.render(scene,loupeCamera);
+   cross.style.left=(50+100*(loupeAim.x-loupeCenter.x)/crop)+'%';cross.style.top=(50+100*(loupeAim.y-loupeCenter.y)/crop)+'%';
  }
  canvas.addEventListener('pointerdown',e=>{controls.rotateSpeed=e.pointerType==='touch'?-1:1;},true);
 
@@ -322,7 +323,7 @@ if(presentation){
  const fixedMarker=document.createElement('div');
  Object.assign(fixedMarker.style,{position:'fixed',width:'12px',height:'12px',background:'#55efab',border:'2px solid white',borderRadius:'50%',transform:'translate(-50%,-50%)',pointerEvents:'none',zIndex:'8999',display:'none'});
  document.body.append(fixedMarker);
- function toggleTouchMeasure(){measuring=!measuring;measureButton.setAttribute('aria-pressed',String(measuring));first=second=candidate=null;line.visible=false;marker.style.display=fixedMarker.style.display=loupe.style.display='none';readout.style.display=measuring?'block':'none';readout.textContent=touchGuide?'Mantén pulsado para marcar un punto':'Pulsa un punto del modelo';}
+ function toggleTouchMeasure(){measuring=!measuring;measureButton.setAttribute('aria-pressed',String(measuring));first=second=candidate=null;loupeAim=loupeCenter=null;line.visible=false;marker.style.display=fixedMarker.style.display=loupe.style.display='none';readout.style.display=measuring?'block':'none';readout.textContent=touchGuide?'Mantén pulsado para marcar un punto':'Pulsa un punto del modelo';}
  function projectPoint(p){const q=p.clone().project(camera);return {x:(q.x+1)*innerWidth/2,y:(1-q.y)*innerHeight/2,z:q.z};}
  function pickPoint(x,y){
    if(!model)return null;
@@ -342,10 +343,11 @@ if(presentation){
    }
    return best;
  }
- function preview(x,y){if(touchGuide){loupeAim={x,y};loupe.style.display='block';loupe.style.right=x>innerWidth*.55?'auto':'12px';loupe.style.left=x>innerWidth*.55?'12px':'auto';}candidate=pickPoint(x,y);const p=candidate?projectPoint(candidate):{x,y};marker.style.left=p.x+'px';marker.style.top=p.y+'px';marker.style.borderColor=candidate?'#55efab':'#ffffff';marker.style.display='block';}
+ function preview(x,y){if(touchGuide){if(!loupeCenter){loupeCenter={x,y};loupe.style.right=x>innerWidth*.55?'auto':'12px';loupe.style.left=x>innerWidth*.55?'12px':'auto';}const limit=Math.min(innerWidth,innerHeight)*.105;x=THREE.MathUtils.clamp(x,loupeCenter.x-limit,loupeCenter.x+limit);y=THREE.MathUtils.clamp(y,loupeCenter.y-limit,loupeCenter.y+limit);loupeAim={x,y};loupe.style.display='block';}candidate=pickPoint(x,y);const p=candidate?projectPoint(candidate):{x,y};marker.style.left=p.x+'px';marker.style.top=p.y+'px';marker.style.borderColor=candidate?'#55efab':'#ffffff';marker.style.display='block';}
  function commitPoint(){if(!candidate)return;if(!first||second){first=candidate.clone();second=null;}else{second=candidate.clone();}candidate=null;marker.style.display='none';if(navigator.vibrate&&touchGuide)navigator.vibrate(18);}
+ const confirmPoint=button('✓ Punto',()=>{if(!measuring||!loupeAim)return;commitPoint();stopGesture();controls.enabled=!walkingMode;});confirmPoint.style.display='none';
  function cancelHold(){clearTimeout(holdTimer);holdTimer=0;}
- function stopGesture(){cancelHold();gesture=null;candidate=null;marker.style.display=loupe.style.display='none';loupeAim=null;}
+ function stopGesture(){cancelHold();gesture=null;candidate=null;marker.style.display=loupe.style.display='none';loupeAim=null;loupeCenter=null;}
  canvas.addEventListener('pointerdown',e=>{
    if(!measuring||walkingMode)return;
    if(e.pointerType==='touch'){
@@ -357,7 +359,7 @@ if(presentation){
  },true);
  canvas.addEventListener('pointermove',e=>{
    if(!gesture||gesture.id!==e.pointerId)return;
-   if(gesture.held){e.preventDefault();e.stopImmediatePropagation();preview(e.clientX,Math.max(8,e.clientY-52));}
+   if(gesture.held){e.preventDefault();e.stopImmediatePropagation();preview(gesture.x+(e.clientX-gesture.x)*.35,Math.max(8,gesture.y-52)+(e.clientY-gesture.y)*.35);}
    else if(Math.hypot(e.clientX-gesture.x,e.clientY-gesture.y)>8){cancelHold();gesture=null;}
  },true);
  function finishMeasure(e){
@@ -366,7 +368,7 @@ if(presentation){
    cancelHold();
    if(e.type==='pointerup'&&(gesture.held||e.pointerType==='mouse')){
      if(!gesture.held)preview(e.clientX,e.clientY);
-     commitPoint();
+     if(gesture.held){gesture=null;controls.enabled=!walkingMode;return;}commitPoint();
    }
    stopGesture();controls.enabled=!walkingMode;
  }
@@ -374,6 +376,7 @@ if(presentation){
  canvas.addEventListener('pointerdown',e=>{if(activeTouches.size>1)controls.enabled=!walkingMode;},true);
  window.addEventListener('blur',()=>{activeTouches.clear();stopGesture();controls.enabled=!walkingMode;});
  window.eskalaMeasureFrame=()=>{
+   confirmPoint.style.display=measuring&&touchGuide&&loupeAim?'':'none';
    if(!measuring)return;
    drawLoupe();
    const end=second||candidate;
