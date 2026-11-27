@@ -4438,20 +4438,35 @@ async function workshopDialog(model=null){
  centralPanel.append(textNode('strong','Tablet Taller · terminal'));
  centralPanel.append(textNode('span','Terminal global de Taller. Muestra todos los operarios y trabajos, pero no tiene acceso administrativo.','muted tiny'));
  const centralActions=document.createElement('div');centralActions.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
- const storedCentralKey=()=>{try{return localStorage.getItem(centralKeyName)||''}catch{return ''}};
+ const legacyCentralKey='eskala-central-taller-key';
+ const storedCentralKey=()=>{try{const key=localStorage.getItem(centralKeyName)||localStorage.getItem(legacyCentralKey)||'';if(key&&!localStorage.getItem(centralKeyName)){localStorage.setItem(centralKeyName,key);localStorage.removeItem(legacyCentralKey)}return key}catch{return ''}};
  async function ensureCentral(force=false){
    let key=storedCentralKey();
    if((d.tablet||d.central)?.active&&key&&!force)return key;
-   if((d.tablet||d.central)?.active&&!key&&!force)throw Error('Esta Central ya tiene un acceso creado en otro navegador. Pulsa Regenerar acceso Tablet para crear uno nuevo.');
+   if((d.tablet||d.central)?.active&&!key&&!force)force=true;
    key=T.secret();const h=await T.hash(key);
    await T.change(state.token,x=>{x.tablet={hash:h,active:true,updatedAt:new Date().toISOString()};delete x.central});
    try{localStorage.setItem(centralKeyName,key)}catch{}
    return key;
  }
- centralActions.append(btn('Abrir Tablet Taller',async()=>{try{const key=await ensureCentral(false);window.open(T.tabletLink(key),'_blank','noopener')}catch(e){feedback.textContent=e.message}}));
+ centralActions.append(btn('Abrir Tablet Taller',async()=>{try{const u=new URL('tablet-taller.html',location.href);u.searchParams.set('adminTablet','1');window.open(u.href,'_blank','noopener')}catch(e){feedback.textContent=e.message}}));
  centralActions.append(btn('Copiar enlace Tablet',async()=>{try{const key=await ensureCentral(false),url=T.tabletLink(key);try{await navigator.clipboard.writeText(url);toast('Enlace de Tablet Taller copiado')}catch{prompt('Enlace de Central Taller',url)}}catch(e){feedback.textContent=e.message}}));
  centralActions.append(btn('Regenerar acceso Tablet',async()=>{if(!confirm('El enlace anterior de la Tablet dejará de funcionar. ¿Continuar?'))return;try{const key=await ensureCentral(true);toast('Nuevo acceso de Tablet Taller creado');prompt('Nuevo enlace de Tablet Taller',T.tabletLink(key))}catch(e){feedback.textContent=e.message}}));
- centralPanel.append(centralActions);area.append(centralPanel);
+ centralPanel.append(centralActions);
+ const directTablet=Array.isArray(d.tabletJobs)?d.tabletJobs:[];
+ if(directTablet.length){
+   const tabletList=document.createElement('div');tabletList.style.cssText='display:grid;gap:6px;margin-top:6px';
+   tabletList.append(textNode('strong','En Tablet · sin asignar'));
+   for(const row of directTablet){
+     const mm=state.models.find(x=>x.id===row.design);if(!mm)continue;
+     const line=document.createElement('div');line.style.cssText='display:flex;gap:8px;align-items:center;justify-content:space-between;border-top:1px solid #28495d;padding-top:6px';
+     line.append(textNode('span',mm.nombre,'muted tiny'));
+     line.append(btn('Retirar de Tablet',()=>run(()=>T.change(state.token,x=>{x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(j=>j.design!==row.design)}))));
+     tabletList.append(line);
+   }
+   centralPanel.append(tabletList);
+ }
+ area.append(centralPanel);
  const name=document.createElement('input');name.className='input';name.placeholder='Nombre y apellidos del operario';name.autocapitalize='words';const capitalize=v=>v.replace(/(^|[\s'-])(\p{L})/gu,(_,sep,c)=>sep+c.toLocaleUpperCase('es'));name.addEventListener('input',()=>{const p=name.selectionStart;name.value=capitalize(name.value);name.setSelectionRange(p,p)});const create=btn('Crear operario',()=>run(async()=>{const label=capitalize(name.value.trim().replace(/\s+/g,' '));if(!label)throw Error('Introduce un nombre');const key=T.secret(),hash=await T.hash(key),id=crypto.randomUUID();const updated=await T.change(state.token,x=>{if(x.workers.some(w=>w.active&&w.label.toLocaleLowerCase('es')===label.toLocaleLowerCase('es')))throw Error('Ya existe un operario con ese nombre');x.workers.push({id,label,hash,active:true})});try{localStorage.setItem(keyName(id),key)}catch{feedback.textContent='Operario guardado; no se pudo conservar el enlace local.'}toast('Operario creado');return updated}));name.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();create.click()}});area.append(name,create);}
  for(const w of d.workers.filter(x=>!model||x.active)){
  const panel=document.createElement('div');panel.style.cssText='border-top:1px solid #456;padding:12px 0;display:grid;gap:8px';panel.append(textNode('strong',w.label));const key=localStorage.getItem(keyName(w.id));
