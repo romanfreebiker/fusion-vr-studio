@@ -46,6 +46,14 @@
       "priority": "Normal",
       "phase": "Pendiente",
       "note": ""
+    },
+    {
+      "worker": "6f7b8bd4-a045-4021-b050-d342a3b6c533",
+      "design": "escalera-recta-lateral-interior-mwyk90ue",
+      "type": "Instalación",
+      "priority": "Normal",
+      "phase": "Pendiente",
+      "note": ""
     }
   ],
   "tablet": {
@@ -54,10 +62,6 @@
     "updatedAt": "2026-11-27T06:13:05.111Z"
   },
   "tabletJobs": [
-    {
-      "design": "escalera-recta-lateral-interior-mwyk90ue",
-      "addedAt": "2026-11-27T06:16:53.178Z"
-    },
     {
       "design": "escalera-emergencia-falsa-escuadra-olaso-mwyk8nuz",
       "addedAt": "2026-11-27T06:16:59.810Z"
