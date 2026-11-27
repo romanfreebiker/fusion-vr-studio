@@ -31,16 +31,17 @@ main{padding:18px clamp(12px,2.5vw,28px) 40px;max-width:1500px;margin:auto}.summ
 <script src="taller.js?v=4"></script>
 <script>
 const T=window.EskalaTaller,statusNode=document.getElementById('status'),grid=document.getElementById('workers'),summary=document.getElementById('summary');
-const storageKey='eskala-tablet-taller-key';
+const storageKey='eskala-tablet-taller-key',legacyKey='eskala-central-taller-key';
 let key=location.hash.slice(1);
-if(key){try{localStorage.setItem(storageKey,key)}catch{} history.replaceState(null,'',location.pathname+location.search)}
-else{try{key=localStorage.getItem(storageKey)||''}catch{}}
+if(key){try{localStorage.setItem(storageKey,key);localStorage.removeItem(legacyKey)}catch{} history.replaceState(null,'',location.pathname+location.search)}
+else{try{key=localStorage.getItem(storageKey)||localStorage.getItem(legacyKey)||'';if(key&&!localStorage.getItem(storageKey)){localStorage.setItem(storageKey,key);localStorage.removeItem(legacyKey)}}catch{}}
+const adminMode=new URLSearchParams(location.search).get('adminTablet')==='1';
 let signature='';
 function el(tag,text='',cls=''){const n=document.createElement(tag);n.textContent=text;if(cls)n.className=cls;return n}
 function priorityClass(value){return value==='Urgente'?'urgent':value==='Alta'?'high':''}
 async function load(){
  try{
-  const data=await T.tablet(key);
+  const data=adminMode?await T.adminTablet():await T.tablet(key);
   const sig=JSON.stringify([data.workers,data.jobs]);
   const active=data.workers.filter(w=>w.active).length;
   const pending=data.jobs.filter(j=>j.tabletOnly||j.phase!=='Finalizado').length;
