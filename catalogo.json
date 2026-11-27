@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "actualizado": "2026-11-27T05:49:21.338Z",
+  "actualizado": "2026-11-27T05:49:24.766Z",
   "modelos": [
     {
       "id": "escalera-recta-lateral-interior-mwyk90ue",
@@ -25,7 +25,7 @@
     {
       "id": "escalera-bascula-mwyk8cuf",
       "nombre": "escalera bascula",
-      "categoria": "",
+      "categoria": "Escaleras",
       "descripcion": "",
       "archivo": "modelos/escalera-bascula-mwyk8cuf.glb",
       "miniatura": "miniaturas/escalera-bascula-mwyk8cuf.jpg",
