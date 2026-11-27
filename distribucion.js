@@ -313,7 +313,7 @@
    clearHidden();
    return ids.length;
  }
- function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','142');return u}
+ function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','143');return u}
  async function share(id,origin='central'){
    return (await createThirdPartyAccess(id,'','', 'link',24,origin)).url;
  }

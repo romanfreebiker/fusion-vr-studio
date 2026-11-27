@@ -1,4 +1,4 @@
-// ESKALA — motor único de medición v142
+// ESKALA — motor único de medición v143
 export function createMeasurement(ctx){
 const {THREE,renderer,scene,controls,presentation,setPresentationMode,standardView,worldPerPixel,zoomAt}=ctx;
 let technicalMode=false,technicalOriginals=[],technicalEdges=[],technicalMaterial=null,technicalLineMaterial=null,dimensionLayer=null,dimensions=[],previousMeasureBackground=null;
@@ -247,9 +247,9 @@ let mobileTapTimer=0,mobilePendingTap=null;const MOBILE_DOUBLE_MS=300;
 function cancelMobileTap(){clearTimeout(mobileTapTimer);mobileTapTimer=0;mobilePendingTap=null}
 function mobileTap(){const now=performance.now();if(mobilePendingTap&&now-mobilePendingTap.time<=MOBILE_DOUBLE_MS){cancelMobileTap();clearMeasures();hideMeasureHover();mobileDirty=true;mobileUpdate(true);return;}cancelMobileTap();const c=mobileCenter(),t=measureTarget(c.x,c.y,'touch');mobilePendingTap={time:now,target:t?.p?{...t,p:t.p.clone()}:null};mobileTapTimer=setTimeout(()=>{const pending=mobilePendingTap;cancelMobileTap();if(measureMode&&mobileActive()&&pending?.target){selectMeasurePoint(pending.target);mobileDirty=true;mobileUpdate(true)}else if(measureMode&&mobileActive()&&pending){mobileDirty=true;mobileUpdate(true);if(mobileStatus)mobileStatus.textContent='Sin enganche · Busca una arista o un punto';}},MOBILE_DOUBLE_MS);}
 let aimOffsetX=0,aimOffsetY=0,miraHandleDrag=null;function mobileCenter(){const r=renderer.domElement.getBoundingClientRect();return {x:r.left+r.width/2+aimOffsetX,y:r.top+r.height/2+aimOffsetY}} function moveAim(dx,dy){const r=renderer.domElement.getBoundingClientRect();aimOffsetX=THREE.MathUtils.clamp(aimOffsetX+dx,-r.width/2+15,r.width/2-15);aimOffsetY=THREE.MathUtils.clamp(aimOffsetY+dy,-r.height/2+15,r.height/2-15);mobileDirty=true;}
-function mobileActive(){return presentation&&!ctx.walkingMode&&measureMode}
+function mobileActive(){return presentation&&!ctx.walkingMode&&measureMode&&ctx.touchGuide}
 function mobileUpdate(force=false){
- if(!mobileActive()){if(ctx.presentationHint)ctx.presentationHint.hidden=false;document.body.classList.remove('taller-mobile');if(mobilePanel)mobilePanel.hidden=true;if(mobileCross)mobileCross.hidden=true;hideLoupe();return}
+ if(!mobileActive()){if(measureLabel)measureLabel.hidden=!measureMode;if(ctx.presentationHint)ctx.presentationHint.hidden=false;document.body.classList.remove('taller-mobile');if(mobilePanel)mobilePanel.hidden=true;if(mobileCross)mobileCross.hidden=true;hideLoupe();return}
  if(!mobilePanel){
  document.body.classList.add('taller-mobile');mobilePanel=document.createElement('div');mobilePanel.id='mobileCAD';mobilePanel.style.cssText='position:fixed;bottom:max(10px,env(safe-area-inset-bottom));left:8px;right:8px;z-index:40;background:#142034f5;color:white;border:1px solid #52647b;border-radius:12px;padding:8px;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;font:13px system-ui';
  const make=(label,fn)=>{const b=document.createElement('button');b.textContent=label;b.style.cssText='font:600 13px system-ui;color:white;background:#304459;border:1px solid #7690a6;border-radius:6px;padding:9px 12px;touch-action:manipulation';b.onclick=fn;mobilePanel.append(b);return b};
@@ -345,7 +345,7 @@ function rotateDesktop(dx,dy,pivot){
 }
 renderer.domElement.addEventListener('pointerdown',e=>{
  if(measureMode&&presentation&&!ctx.walkingMode&&e.pointerType==='touch'){if(loupeDrag)endLoupeDrag();ctx.touchGuide=true;touchMeasureDown(e);return;}
- if(measureMode&&!ctx.walkingMode&&e.pointerType!=='touch'&&e.button===0){e.preventDefault();e.stopImmediatePropagation();desktopOrbit={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,drag:false,pivot:localOrbitPivot(e.clientX,e.clientY)||localOrbitPivot(innerWidth/2,innerHeight/2)||controls.target.clone()};renderer.domElement.setPointerCapture(e.pointerId);hideMeasureHover();return;}
+ if(presentation&&!ctx.walkingMode&&e.pointerType!=='touch'&&e.button===0){e.preventDefault();e.stopImmediatePropagation();desktopOrbit={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,drag:false,pivot:localOrbitPivot(e.clientX,e.clientY)||localOrbitPivot(innerWidth/2,innerHeight/2)||controls.target.clone()};renderer.domElement.setPointerCapture(e.pointerId);hideMeasureHover();return;}
  if(!measureMode)return;
  if(e.pointerType==='touch'){measureTouches.add(e.pointerId);if(measureTouches.size>1){measurePress=null;hideMeasureHover();return}}
  if(e.button!==0){measurePress=null;hideMeasureHover();return}
