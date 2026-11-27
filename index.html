@@ -4433,24 +4433,24 @@ async function workshopDialog(model=null){
  async function draw(updated=null){
  const d=updated||await T.data(state.token);area.replaceChildren();
  if(!model){
- const centralKeyName='eskala-taller-central-key';
+ const centralKeyName='eskala-taller-tablet-key';
  const centralPanel=document.createElement('div');centralPanel.style.cssText='border:1px solid #2e7089;background:#102633;border-radius:12px;padding:12px;margin:8px 0 14px;display:grid;gap:8px';
- centralPanel.append(textNode('strong','Central Taller · tablet'));
- centralPanel.append(textNode('span','Vista global de todos los operarios y trabajos. Se actualiza automáticamente; no necesita WhatsApp ni número de teléfono.','muted tiny'));
+ centralPanel.append(textNode('strong','Tablet Taller · terminal'));
+ centralPanel.append(textNode('span','Terminal global de Taller. Muestra todos los operarios y trabajos, pero no tiene acceso administrativo.','muted tiny'));
  const centralActions=document.createElement('div');centralActions.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
  const storedCentralKey=()=>{try{return localStorage.getItem(centralKeyName)||''}catch{return ''}};
  async function ensureCentral(force=false){
    let key=storedCentralKey();
-   if(d.central?.active&&key&&!force)return key;
-   if(d.central?.active&&!key&&!force)throw Error('Esta Central ya tiene un acceso creado en otro navegador. Pulsa Regenerar acceso Central para crear uno nuevo.');
+   if((d.tablet||d.central)?.active&&key&&!force)return key;
+   if((d.tablet||d.central)?.active&&!key&&!force)throw Error('Esta Central ya tiene un acceso creado en otro navegador. Pulsa Regenerar acceso Tablet para crear uno nuevo.');
    key=T.secret();const h=await T.hash(key);
-   await T.change(state.token,x=>{x.central={hash:h,active:true,updatedAt:new Date().toISOString()}});
+   await T.change(state.token,x=>{x.tablet={hash:h,active:true,updatedAt:new Date().toISOString()};delete x.central});
    try{localStorage.setItem(centralKeyName,key)}catch{}
    return key;
  }
- centralActions.append(btn('Abrir Central Taller',async()=>{try{const key=await ensureCentral(false);window.open(T.centralLink(key),'_blank','noopener')}catch(e){feedback.textContent=e.message}}));
- centralActions.append(btn('Copiar enlace de la tablet',async()=>{try{const key=await ensureCentral(false),url=T.centralLink(key);try{await navigator.clipboard.writeText(url);toast('Enlace de Central Taller copiado')}catch{prompt('Enlace de Central Taller',url)}}catch(e){feedback.textContent=e.message}}));
- centralActions.append(btn('Regenerar acceso Central',async()=>{if(!confirm('El enlace anterior de la tablet dejará de funcionar. ¿Continuar?'))return;try{const key=await ensureCentral(true);toast('Nuevo acceso de Central Taller creado');prompt('Nuevo enlace de Central Taller',T.centralLink(key))}catch(e){feedback.textContent=e.message}}));
+ centralActions.append(btn('Abrir Tablet Taller',async()=>{try{const key=await ensureCentral(false);window.open(T.tabletLink(key),'_blank','noopener')}catch(e){feedback.textContent=e.message}}));
+ centralActions.append(btn('Copiar enlace Tablet',async()=>{try{const key=await ensureCentral(false),url=T.tabletLink(key);try{await navigator.clipboard.writeText(url);toast('Enlace de Tablet Taller copiado')}catch{prompt('Enlace de Central Taller',url)}}catch(e){feedback.textContent=e.message}}));
+ centralActions.append(btn('Regenerar acceso Tablet',async()=>{if(!confirm('El enlace anterior de la Tablet dejará de funcionar. ¿Continuar?'))return;try{const key=await ensureCentral(true);toast('Nuevo acceso de Tablet Taller creado');prompt('Nuevo enlace de Tablet Taller',T.tabletLink(key))}catch(e){feedback.textContent=e.message}}));
  centralPanel.append(centralActions);area.append(centralPanel);
  const name=document.createElement('input');name.className='input';name.placeholder='Nombre y apellidos del operario';name.autocapitalize='words';const capitalize=v=>v.replace(/(^|[\s'-])(\p{L})/gu,(_,sep,c)=>sep+c.toLocaleUpperCase('es'));name.addEventListener('input',()=>{const p=name.selectionStart;name.value=capitalize(name.value);name.setSelectionRange(p,p)});const create=btn('Crear operario',()=>run(async()=>{const label=capitalize(name.value.trim().replace(/\s+/g,' '));if(!label)throw Error('Introduce un nombre');const key=T.secret(),hash=await T.hash(key),id=crypto.randomUUID();const updated=await T.change(state.token,x=>{if(x.workers.some(w=>w.active&&w.label.toLocaleLowerCase('es')===label.toLocaleLowerCase('es')))throw Error('Ya existe un operario con ese nombre');x.workers.push({id,label,hash,active:true})});try{localStorage.setItem(keyName(id),key)}catch{feedback.textContent='Operario guardado; no se pudo conservar el enlace local.'}toast('Operario creado');return updated}));name.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();create.click()}});area.append(name,create);}
  for(const w of d.workers.filter(x=>!model||x.active)){
