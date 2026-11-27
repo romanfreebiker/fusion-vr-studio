@@ -4454,10 +4454,10 @@ async function workshopDialog(model=null){
  const workerName=id=>{const w=workers.find(w=>w.id===id);return w?w.label+(w.active?'':' · baja'):'Operario no disponible'};
  const modelMap=new Map(state.models.map(m=>[m.id,m]));for(const j of [...jobs,...direct])if(!modelMap.has(j.design))modelMap.set(j.design,{id:j.design,nombre:j.design,missing:true});
  const board=el('section','ek-board ek-list-board'),stats=el('div','ek-board-stats');
- for(const [label,value] of [['Operarios activos',active.length],['Adjudicaciones',jobs.length],['En Tablet sin adjudicar',direct.filter(j=>!jobs.some(k=>k.design===j.design)).length],['Pendientes',jobs.filter(j=>j.phase==='Pendiente').length]]){const item=el('div','ek-stat');item.append(el('span','muted tiny',label),el('b','',String(value)));stats.append(item)}board.append(stats);
+ for(const [label,value] of [['Operarios activos',active.length],['Adjudicaciones',jobs.length],['Pendiente de adjudicar',direct.filter(j=>!jobs.some(k=>k.design===j.design)).length],['Pendientes',jobs.filter(j=>j.phase==='Pendiente').length]]){const item=el('div','ek-stat');item.append(el('span','muted tiny',label),el('b','',String(value)));stats.append(item)}board.append(stats);
  const toolbar=el('div','ek-board-top ek-list-toolbar');const tabs=el('div','ek-list-tabs');const byDesign=btn('Por diseños',()=>{boardMode='design';paint()}),byWorker=btn('Por operarios',()=>{boardMode='worker';paint()});tabs.append(byDesign,byWorker);toolbar.append(tabs);
  const search=el('input','input');search.placeholder='Buscar diseño u operario…';search.value=boardQuery;search.setAttribute('aria-label','Buscar diseño u operario');toolbar.append(search);
- const filter=el('select','input');for(const [v,label] of [['all','Todos los diseños'],['assigned','Adjudicados'],['tablet','Tablet sin adjudicar'],['available','Sin distribuir']])filter.add(new Option(label,v));filter.value=boardFilter;toolbar.append(filter);board.append(toolbar);
+ const filter=el('select','input');for(const [v,label] of [['all','Todos los diseños'],['assigned','Adjudicados'],['tablet','Pendientes de adjudicar'],['available','Sin gestionar']])filter.add(new Option(label,v));filter.value=boardFilter;toolbar.append(filter);board.append(toolbar);
  const list=el('div','ek-list');board.append(list);
  function open3D(m,j){const u=new URL(j?'visor-taller.html':'visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',m.id);u.searchParams.set('v','142');if(j){u.searchParams.set('acceso','taller');u.searchParams.set('adminWorker',j.worker)}else if(direct.some(x=>x.design===m.id)){u.pathname=u.pathname.replace('visor.html','visor-taller.html');u.searchParams.set('acceso','tablet');u.searchParams.set('adminTablet','1')}window.open(u.href,'_blank','noopener')}
  function row(m,subset=null){
@@ -4467,9 +4467,9 @@ async function workshopDialog(model=null){
  const item=el('article','ek-list-row');item.dataset.status=status;
  const thumb=el('div','ek-list-thumb');if(m.miniatura){const img=el('img');img.alt='';img.loading='lazy';attachImage(img,m.miniatura);thumb.append(img)}else thumb.textContent='◇';item.append(thumb);
  const main=el('div','ek-list-main');main.append(el('strong','',m.nombre||m.id));if(m.categoria)main.append(el('span','muted tiny',m.categoria));
- const tags=el('div','ek-list-tags');if(shown.length){for(const j of shown){const chip=el('span','ek-list-person',workerName(j.worker));chip.title=[j.type,j.priority,j.phase,j.note].filter(Boolean).join(' · ');tags.append(chip)}}else tags.append(el('span',tablet?'ek-list-pending':'ek-list-neutral',tablet?'Tablet · sin adjudicar':'Sin distribuir'));main.append(tags);item.append(main);
+ const tags=el('div','ek-list-tags');if(shown.length){for(const j of shown){const chip=el('span','ek-list-person',workerName(j.worker));chip.title=[j.type,j.priority,j.phase,j.note].filter(Boolean).join(' · ');tags.append(chip)}}else tags.append(el('span',tablet?'ek-list-pending':'ek-list-neutral',tablet?'Pendiente de adjudicar':'Sin gestionar'));main.append(tags);item.append(main);
  const phases=el('div','ek-list-phases');for(const j of shown){const line=el('div','ek-list-phase-line');line.append(el('span','ek-chip',j.phase||'Pendiente'));if(j.priority&&j.priority!=='Normal'){const priority=el('span','ek-chip ek-list-priority',j.priority);priority.dataset.priority=j.priority;line.append(priority)}if(shown.length>1)line.append(el('span','muted tiny',workerName(j.worker)));phases.append(line)}item.append(phases);
- const actions=el('div','ek-list-actions');if(!m.missing){actions.append(btn(all.length?'Gestionar':'Adjudicar',()=>workshopDialog(m)));if(all.length||tablet)actions.append(btn('Ver 3D',()=>open3D(m,shown[0])));if(!all.length){actions.append(btn(tablet?'Retirar de Tablet':'Enviar a Tablet',()=>run(()=>T.change(state.token,x=>{if((x.jobs||[]).some(j=>j.design===m.id))throw Error('El diseño ya está adjudicado');const rows=(x.tabletJobs||[]).filter(j=>j.design!==m.id);if(!tablet)rows.push({design:m.id,addedAt:new Date().toISOString()});x.tabletJobs=rows}))))}}else actions.append(el('span','muted tiny','Diseño no disponible'));item.append(actions);return item
+ const actions=el('div','ek-list-actions');if(!m.missing){actions.append(btn(all.length?'Gestionar':'Adjudicar',()=>workshopDialog(m)));if(all.length||tablet)actions.append(btn('Ver 3D',()=>open3D(m,shown[0])));if(!all.length){actions.append(btn(tablet?'Retirar de Terminal':'Enviar a Terminal',()=>run(()=>T.change(state.token,x=>{if((x.jobs||[]).some(j=>j.design===m.id))throw Error('El diseño ya está adjudicado');const rows=(x.tabletJobs||[]).filter(j=>j.design!==m.id);if(!tablet)rows.push({design:m.id,addedAt:new Date().toISOString()});x.tabletJobs=rows}))))}}else actions.append(el('span','muted tiny','Diseño no disponible'));item.append(actions);return item
  }
  function paint(){byDesign.classList.toggle('ek-selected',boardMode==='design');byWorker.classList.toggle('ek-selected',boardMode==='worker');byDesign.setAttribute('aria-pressed',String(boardMode==='design'));byWorker.setAttribute('aria-pressed',String(boardMode==='worker'));list.replaceChildren();
  if(boardMode==='design'){const sorted=[...modelMap.values()].sort((a,b)=>{const rank=m=>jobs.some(j=>j.design===m.id)?0:direct.some(j=>j.design===m.id)?1:2;return rank(a)-rank(b)||(a.nombre||'').localeCompare(b.nombre||'','es')});for(const m of sorted){const item=row(m);if(item)list.append(item)}}
@@ -4482,12 +4482,12 @@ async function workshopDialog(model=null){
 
  async function draw(updated=null){
  const d=updated||await T.data(state.token);area.replaceChildren();
- const originalArea=area;let legacy=null;if(!model){area.append(buildBoard(d));legacy=document.createElement('details');legacy.className='ek-legacy';legacy.open=legacyOpen;legacy.ontoggle=()=>{legacyOpen=legacy.open};legacy.append(textNode('summary','Accesos de Tablet, gestión de operarios y acciones avanzadas'));area.append(legacy);}
+ const originalArea=area;let legacy=null;if(!model){area.append(buildBoard(d));legacy=document.createElement('details');legacy.className='ek-legacy';legacy.open=legacyOpen;legacy.ontoggle=()=>{legacyOpen=legacy.open};legacy.append(textNode('summary','Accesos de Terminal, gestión de operarios y acciones avanzadas'));area.append(legacy);}
  const appendTarget=legacy||area;
  if(!model){
  const centralKeyName='eskala-taller-tablet-key';
  const centralPanel=document.createElement('div');centralPanel.style.cssText='border:1px solid #2e7089;background:#102633;border-radius:12px;padding:12px;margin:8px 0 14px;display:grid;gap:8px';
- centralPanel.append(textNode('strong','Tablet Taller · terminal'));
+ centralPanel.append(textNode('strong','Terminal Taller'));
  centralPanel.append(textNode('span','Terminal global sincronizado en tiempo real con Gestión Taller · Firestore.','muted tiny'));
  const centralActions=document.createElement('div');centralActions.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
  const legacyCentralKey='eskala-central-taller-key';
@@ -4506,19 +4506,19 @@ async function workshopDialog(model=null){
    try{localStorage.setItem(centralKeyName,key)}catch{}
    return key;
  }
- centralActions.append(btn('Abrir Tablet Taller',async()=>{try{const u=new URL('tablet-taller.html',location.href);u.searchParams.set('adminTablet','1');window.open(u.href,'_blank','noopener')}catch(e){feedback.textContent=e.message}}));
- centralActions.append(btn('Copiar enlace Tablet',async()=>{try{const key=await ensureCentral(false),url=T.tabletLink(key);try{await navigator.clipboard.writeText(url);toast('Enlace de Tablet Taller copiado')}catch{prompt('Enlace de Central Taller',url)}}catch(e){feedback.textContent=e.message}}));
- centralActions.append(btn('Regenerar acceso Tablet',async()=>{if(!confirm('El enlace anterior de la Tablet dejará de funcionar. ¿Continuar?'))return;try{const key=await ensureCentral(true);toast('Nuevo acceso de Tablet Taller creado');prompt('Nuevo enlace de Tablet Taller',T.tabletLink(key))}catch(e){feedback.textContent=e.message}}));
+ centralActions.append(btn('Abrir Terminal Taller',async()=>{try{const u=new URL('tablet-taller.html',location.href);u.searchParams.set('adminTablet','1');window.open(u.href,'_blank','noopener')}catch(e){feedback.textContent=e.message}}));
+ centralActions.append(btn('Copiar enlace Terminal',async()=>{try{const key=await ensureCentral(false),url=T.tabletLink(key);try{await navigator.clipboard.writeText(url);toast('Enlace de Terminal Taller copiado')}catch{prompt('Enlace de Central Taller',url)}}catch(e){feedback.textContent=e.message}}));
+ centralActions.append(btn('Regenerar acceso Terminal',async()=>{if(!confirm('El enlace anterior del Terminal dejará de funcionar. ¿Continuar?'))return;try{const key=await ensureCentral(true);toast('Nuevo acceso de Terminal Taller creado');prompt('Nuevo enlace de Terminal Taller',T.tabletLink(key))}catch(e){feedback.textContent=e.message}}));
  centralPanel.append(centralActions);
  const directTablet=Array.isArray(d.tabletJobs)?d.tabletJobs:[];
  if(directTablet.length){
    const tabletList=document.createElement('div');tabletList.style.cssText='display:grid;gap:6px;margin-top:6px';
-   tabletList.append(textNode('strong','En Tablet · sin asignar'));
+   tabletList.append(textNode('strong','Pendiente de adjudicar'));
    for(const row of directTablet){
      const mm=state.models.find(x=>x.id===row.design);if(!mm)continue;
      const line=document.createElement('div');line.style.cssText='display:flex;gap:8px;align-items:center;justify-content:space-between;border-top:1px solid #28495d;padding-top:6px';
      line.append(textNode('span',mm.nombre,'muted tiny'));
-     line.append(btn('Retirar de Tablet',()=>run(()=>T.change(state.token,x=>{x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(j=>j.design!==row.design)}))));
+     line.append(btn('Retirar de Terminal',()=>run(()=>T.change(state.token,x=>{x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(j=>j.design!==row.design)}))));
      tabletList.append(line);
    }
    centralPanel.append(tabletList);
@@ -4664,30 +4664,30 @@ function render(){
     revoke.onclick=async()=>{try{await FusionDistribution.setStatus(m.id,'inactive','admin');await updateDistribution()}catch(e){toast(e.message,true)}};
     updateDistribution();
     distribution.onclick=updateDistribution;distribution.style.cursor='pointer';
-    const tabletBtn=textNode('button','Comprobando Tablet…','button secondary small');tabletBtn.type='button';tabletBtn.disabled=true;foot.append(tabletBtn);
+    const tabletBtn=textNode('button','Comprobando Terminal…','button secondary small');tabletBtn.type='button';tabletBtn.disabled=true;foot.append(tabletBtn);
     async function refreshTabletState(){
       try{
         const d=await window.EskalaTaller.data(state.token||'');
         const assignments=(d.jobs||[]).filter(j=>j.design===m.id);const assigned=assignments.length>0;const names=[...new Set(assignments.map(j=>{const w=(d.workers||[]).find(w=>w.id===j.worker);return w?w.label+(w.active?'':' (baja)'):'Operario no disponible'}))];
         const direct=(Array.isArray(d.tabletJobs)?d.tabletJobs:[]).some(j=>j.design===m.id);
-        if(assigned){dest(workshopStatus,'assigned','Adjudicado · '+names.join(', '));assign.textContent='Gestionar adjudicación';tabletBtn.textContent='En Tablet · adjudicado';tabletBtn.disabled=true;tabletBtn.dataset.mode='assigned';}
-        else if(direct){dest(workshopStatus,'tablet','Tablet · sin adjudicar');assign.textContent='Adjudicar a operario';tabletBtn.textContent='Retirar de Tablet';tabletBtn.disabled=false;tabletBtn.dataset.mode='remove';}
-        else{dest(workshopStatus,'none','Taller · no enviado');assign.textContent='Adjudicar a operario';tabletBtn.textContent='Enviar a Tablet';tabletBtn.disabled=false;tabletBtn.dataset.mode='add';}
-      }catch(e){dest(workshopStatus,'unknown','Taller · no comprobado');tabletBtn.textContent='Tablet no disponible';tabletBtn.disabled=true;tabletBtn.title=e.message}
+        if(assigned){dest(workshopStatus,'assigned','Adjudicado · '+names.join(', '));assign.textContent='Gestionar adjudicación';tabletBtn.textContent='En Terminal · adjudicado';tabletBtn.disabled=true;tabletBtn.dataset.mode='assigned';}
+        else if(direct){dest(workshopStatus,'tablet','Pendiente de adjudicar');assign.textContent='Adjudicar a operario';tabletBtn.textContent='Retirar de Terminal';tabletBtn.disabled=false;tabletBtn.dataset.mode='remove';}
+        else{dest(workshopStatus,'none','Sin gestionar');assign.textContent='Adjudicar a operario';tabletBtn.textContent='Enviar a Terminal';tabletBtn.disabled=false;tabletBtn.dataset.mode='add';}
+      }catch(e){dest(workshopStatus,'unknown','Taller · no comprobado');tabletBtn.textContent='Terminal no disponible';tabletBtn.disabled=true;tabletBtn.title=e.message}
     }
     tabletBtn.onclick=async()=>{
       tabletBtn.disabled=true;
       try{
         if(tabletBtn.dataset.mode==='remove'){
           await window.EskalaTaller.change(state.token,x=>{x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(j=>j.design!==m.id)});
-          toast('Diseño retirado de Tablet Taller');
+          toast('Diseño retirado de Terminal Taller');
         }else{
           await window.EskalaTaller.change(state.token,x=>{
             if((x.jobs||[]).some(j=>j.design===m.id))return;
             const rows=Array.isArray(x.tabletJobs)?x.tabletJobs:[];
             x.tabletJobs=[...rows.filter(j=>j.design!==m.id),{design:m.id,addedAt:new Date().toISOString()}];
           });
-          toast('Diseño enviado a Tablet Taller');
+          toast('Diseño enviado a Terminal Taller');
         }
         await refreshTabletState();
       }catch(e){toast(e.message,true);await refreshTabletState()}

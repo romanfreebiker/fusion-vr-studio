@@ -99,9 +99,9 @@
    return {w,jobs};
  }
  async function tablet(key){
-   if(!/^[a-f0-9]{48}$/.test(key||''))throw Error('Enlace de Tablet Taller no válido');
+   if(!/^[a-f0-9]{48}$/.test(key||''))throw Error('Enlace de Terminal Taller no válido');
    const [d,h]=await Promise.all([data(),hash(key)]);
-   const access=d.tablet;if(!access?.active||access.hash!==h)throw Error('Acceso de Tablet Taller retirado');
+   const access=d.tablet;if(!access?.active||access.hash!==h)throw Error('Acceso de Terminal Taller retirado');
    return withCatalog(d);
  }
  const central=tablet;
@@ -120,7 +120,7 @@
  const centralViewer=tabletViewer;
  async function tabletAction(key,payload){
    const h=await hash(key||''),d=await data();
-   if(!d.tablet?.active||d.tablet.hash!==h)throw Error('Acceso de Tablet Taller retirado');
+   if(!d.tablet?.active||d.tablet.hash!==h)throw Error('Acceso de Terminal Taller retirado');
    const design=String(payload?.design||'');
    return change('',x=>{
      if(payload.action==='assign'){
