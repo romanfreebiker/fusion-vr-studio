@@ -221,7 +221,7 @@ if(presentation){
  controls.enabled=true;
  controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;controls.mouseButtons.RIGHT=null;controls.mouseButtons.MIDDLE=THREE.MOUSE.PAN;
  controls.touches.ONE=THREE.TOUCH.ROTATE;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;
- const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent='Taller · v138';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px;opacity:.85';bar.append(buildTag);
+ const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent='Taller · v139';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px;opacity:.85';bar.append(buildTag);
  presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
  button(access==='tablet'?'Tablet Taller':'Mis trabajos',()=>{const key=location.hash.slice(1);let u;if(access==='tablet'&&params.get('adminTablet')==='1'){u=new URL('tablet-taller.html',location.href);u.searchParams.set('adminTablet','1')}else{u=new URL(access==='tablet'?EskalaTaller.tabletLink(key):EskalaTaller.link(key));if(access!=='tablet'&&params.get('adminWorker'))u.searchParams.set('adminWorker',params.get('adminWorker'))}location.assign(u.href)});
@@ -1386,7 +1386,7 @@ const measureTouches=new Set();let measurePress=null, desktopOrbit=null;
 let touchMeasure=null,touchLoupe=null,loupeCanvas=null,loupeCaption=null,loupeRenderer=null,loupeCamera=null;
 const touchNavigation=new Map();let touchMulti=false;
 let loupePosition=null,loupeDrag=null;
-function positionMobileLoupe(){if(!touchLoupe)return;const w=touchLoupe.offsetWidth||148,h=touchLoupe.offsetHeight||168;const p=loupePosition||{x:innerWidth-w-10,y:Math.max(65,(document.getElementById('presentationBar')?.getBoundingClientRect().bottom||55)+8)};const x=Math.max(0,Math.min(Math.max(0,innerWidth-w),p.x)),y=Math.max(0,Math.min(Math.max(0,innerHeight-h),p.y));touchLoupe.style.left=x+'px';touchLoupe.style.top=y+'px';touchLoupe.style.right='auto';}
+function positionMobileLoupe(){if(!touchLoupe)return;const w=touchLoupe.offsetWidth||180,h=touchLoupe.offsetHeight||180;const p=loupePosition||{x:innerWidth-w-10,y:Math.max(65,(document.getElementById('presentationBar')?.getBoundingClientRect().bottom||55)+8)};const x=Math.max(0,Math.min(Math.max(0,innerWidth-w),p.x)),y=Math.max(0,Math.min(Math.max(0,innerHeight-h),p.y));touchLoupe.style.left=x+'px';touchLoupe.style.top=y+'px';touchLoupe.style.right='auto';}
 function endLoupeDrag(){
  if(!loupeDrag)return;
  const id=loupeDrag.id;loupeDrag=null;
@@ -1421,11 +1421,17 @@ function enableLoupeDrag(){
 }
 function hideLoupe(){if(touchLoupe){endLoupeDrag();touchLoupe.hidden=true}}
 function cancelTouchMeasure(){if(touchMeasure)clearTimeout(touchMeasure.timer);touchMeasure=null;cancelMobileTap();hideLoupe()}
+// Fixed real-world field of view, independent of the main camera zoom.
+const LOUPE_FIELD_MM=25;
+let loupeReticle=null;
 function openLoupe(){
  if(touchLoupe)return;
- touchLoupe=document.createElement('div');touchLoupe.style.cssText='position:fixed;z-index:45;pointer-events:none;width:144px;height:164px;background:#f2f1ed;border:2px solid #0078b8;border-radius:12px;overflow:hidden;box-shadow:0 3px 16px #0006';
- loupeCanvas=document.createElement('canvas');loupeCanvas.style.cssText='width:140px;height:140px;display:block';touchLoupe.append(loupeCanvas);loupeRenderer=new THREE.WebGLRenderer({canvas:loupeCanvas,antialias:true});loupeRenderer.setPixelRatio(4);loupeRenderer.setSize(140,140,false);loupeRenderer.outputColorSpace=renderer.outputColorSpace;loupeRenderer.toneMapping=renderer.toneMapping;loupeRenderer.toneMappingExposure=renderer.toneMappingExposure;loupeCamera=camera.clone();const reticle=document.createElement('div');reticle.style.cssText='position:absolute;left:70px;top:70px;width:20px;height:20px;transform:translate(-50%,-50%);background:linear-gradient(#0078b8,#0078b8) center/20px 1px no-repeat,linear-gradient(#0078b8,#0078b8) center/1px 20px no-repeat;pointer-events:none';touchLoupe.append(reticle);
- loupeCaption=document.createElement('div');loupeCaption.style.cssText='font:600 11px system-ui;color:#005d91;text-align:center;background:#fff;line-height:20px';touchLoupe.append(loupeCaption);document.body.append(touchLoupe);enableLoupeDrag();
+ touchLoupe=document.createElement('div');touchLoupe.style.cssText='position:fixed;z-index:45;pointer-events:none;width:180px;height:180px;background:#f2f1ed;border:3px solid #0078b8;border-radius:50%;overflow:hidden;box-shadow:0 3px 16px #0006;box-sizing:border-box';
+ loupeCanvas=document.createElement('canvas');loupeCanvas.style.cssText='width:174px;height:174px;display:block';touchLoupe.append(loupeCanvas);
+ loupeRenderer=new THREE.WebGLRenderer({canvas:loupeCanvas,antialias:true});loupeRenderer.setPixelRatio(Math.min(3,Math.max(2,devicePixelRatio||1)));loupeRenderer.setSize(174,174,false);loupeRenderer.outputColorSpace=renderer.outputColorSpace;loupeRenderer.toneMapping=renderer.toneMapping;loupeRenderer.toneMappingExposure=renderer.toneMappingExposure;
+ const half=LOUPE_FIELD_MM/2000;loupeCamera=new THREE.OrthographicCamera(-half,half,half,-half,.00001,2000);
+ loupeReticle=document.createElement('div');loupeReticle.style.cssText='position:absolute;left:50%;top:50%;width:18px;height:18px;transform:translate(-50%,-50%);border:1px solid #16a34a;border-radius:50%;background:linear-gradient(#16a34a,#16a34a) center/18px 1px no-repeat,linear-gradient(#16a34a,#16a34a) center/1px 18px no-repeat;pointer-events:none;box-shadow:0 0 2px white';touchLoupe.append(loupeReticle);
+ loupeCaption=document.createElement('div');loupeCaption.style.cssText='position:absolute;bottom:15px;left:8px;right:8px;text-align:center;font:600 10px system-ui;color:#005d91;background:#fffffff0;border-radius:8px;padding:3px;pointer-events:none';touchLoupe.append(loupeCaption);document.body.append(touchLoupe);enableLoupeDrag();
 }
 function updateTouchAim(x,y){
  if(!touchMeasure)return;
@@ -1433,11 +1439,28 @@ function updateTouchAim(x,y){
 }
 function renderLoupe(){
  if(!touchMeasure?.aim||!measureMode){hideLoupe();return}
- openLoupe();const d=touchMeasure,source=renderer.domElement,r=source.getBoundingClientRect();
- const x=d.x,y=d.y,span=56;
- camera.updateMatrixWorld(true);if(loupeCamera.type!==camera.type)loupeCamera=camera.clone();loupeCamera.copy(camera,false);camera.getWorldPosition(loupeCamera.position);camera.getWorldQuaternion(loupeCamera.quaternion);loupeCamera.setViewOffset(r.width,r.height,x-r.left-span/2,y-r.top-span/2,span,span);loupeCamera.updateMatrixWorld(true);loupeRenderer.render(scene,loupeCamera);
- const p=d.target?.p?projectMeasure(d.target.p,r):null;
- loupeCaption.textContent=p?d.target.kind+' · suelta para fijar':'Busca una arista o vértice';
+ openLoupe();const d=touchMeasure,t=d.target;
+ // A projected measurement retains the originating geometric reference.
+ const point=t?.sourcePoint||t?.p;
+ if(!point){
+   loupeRenderer.clear();loupeCanvas.style.visibility='hidden';loupeReticle.hidden=true;
+   loupeCaption.textContent='Sin enganche';
+ }else{
+   loupeCanvas.style.visibility='visible';loupeReticle.hidden=false;
+   camera.updateMatrixWorld(true);
+   const quaternion=camera.getWorldQuaternion(new THREE.Quaternion());
+   const direction=camera.getWorldDirection(new THREE.Vector3());
+   const eye=camera.getWorldPosition(new THREE.Vector3());
+   const depth=Math.max(.001,point.clone().sub(eye).dot(direction));
+   // Preserve the main viewing direction and depth plane, while centring
+   // the actual 3D feature with a constant orthographic field of 25 mm.
+   loupeCamera.position.copy(point).addScaledVector(direction,-depth);
+   loupeCamera.quaternion.copy(quaternion);
+   loupeCamera.near=.00001;loupeCamera.far=Math.max(2000,depth+100);
+   loupeCamera.updateProjectionMatrix();loupeCamera.updateMatrixWorld(true);
+   loupeRenderer.render(scene,loupeCamera);
+   loupeCaption.textContent=(t.sourceKind||t.kind)+(t.projected?' · Proyección':' · Enganche');
+ }
  touchLoupe.hidden=false;positionMobileLoupe();
 }
 function touchSnapshotMeasure(){const v=[...touchNavigation.values()];return v.length<2?null:{x:(v[0].x+v[1].x)/2,y:(v[0].y+v[1].y)/2,span:Math.hypot(v[0].x-v[1].x,v[0].y-v[1].y)}}
@@ -1477,7 +1500,7 @@ function mobileUpdate(force=false){
  if(force||(mobileDirty&&now-mobileLastAim>65)||now-mobileLastAim>400){mobileLastAim=now;mobileDirty=false;mobileAim=measureTarget(c.x,c.y,'touch');previewMeasure(mobileAim,c.x,c.y)}
  mobileStatus.textContent=(measurePoints.length===1?'Segundo punto':'Primer punto')+' · '+(mobileAim?.p?(mobileAim.alignment?mobileAim.alignment+' ✓'+(mobileAim.projected?' (proyección)':'')+' · ':'')+'Toca para fijar · Doble toque: reiniciar':'Sin enganche · Busca una arista o un punto');
  // Reuse the magnifier after the WebGL frame, with a fixed aim rather than a finger.
- if(mobileLoupeOn){if(force||now-mobileLastFrame>100){mobileLastFrame=now;const saved=touchMeasure;touchMeasure={aim:true,x:c.x,y:c.y,target:mobileAim};renderLoupe();touchMeasure=saved;if(loupeCaption)loupeCaption.textContent=mobileAim?.p?mobileAim.kind+' · Toca para fijar':'Sin enganche';}if(touchLoupe)positionMobileLoupe()}else hideLoupe();
+ if(mobileLoupeOn){if(force||now-mobileLastFrame>100){mobileLastFrame=now;const saved=touchMeasure;touchMeasure={aim:true,x:c.x,y:c.y,target:mobileAim};renderLoupe();touchMeasure=saved;}if(touchLoupe)positionMobileLoupe()}else hideLoupe();
 }
 function touchMeasureDown(e){
  e.preventDefault();e.stopImmediatePropagation();renderer.domElement.setPointerCapture(e.pointerId);
