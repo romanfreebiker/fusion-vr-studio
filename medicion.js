@@ -1,4 +1,4 @@
-// ESKALA — motor único de medición v143
+// ESKALA — motor único de medición v144
 export function createMeasurement(ctx){
 const {THREE,renderer,scene,controls,presentation,setPresentationMode,standardView,worldPerPixel,zoomAt}=ctx;
 let technicalMode=false,technicalOriginals=[],technicalEdges=[],technicalMaterial=null,technicalLineMaterial=null,dimensionLayer=null,dimensions=[],previousMeasureBackground=null;
@@ -106,7 +106,7 @@ function measureTarget(x,y,pointerType){
  best=picks.sort((a,b)=>a.score-b.score).slice(0,24).find(visible)||null;
  // No free surface picks: a measurement always requires a geometric feature.
  // Universal axis lock: exact world X/Y/Z projection with screen proximity.
- if(pointerType==='touch'&&best&&measurePoints.length===1){
+ if(best&&measurePoints.length===1){
    const a=measurePoints[0],d=best.p.clone().sub(a),length=d.length();
    if(length>1e-6){
      const choices=['x','y','z'].map(axis=>{
@@ -151,7 +151,7 @@ function previewMeasure(target,x,y){
  if(snapLayer)snapLayer.replaceChildren();
  const same=target?.p&&measurePoints.length===1&&target.p.distanceToSquared(measurePoints[0])<1e-12;
  measureHover.hidden=!target?.p||same;
- if(target?.p&&!same){measureHover.style.left=target.x+'px';measureHover.style.top=target.y+'px';measureHover.dataset.kind=target.kind;measureHover.textContent='';measureHover.classList.remove('free')}
+ if(target?.p&&!same){measureHover.style.left=target.x+'px';measureHover.style.top=target.y+'px';measureHover.dataset.kind=target.sourceKind||target.kind;measureHover.dataset.aligned=String(!!target.alignment);measureHover.textContent='';measureHover.classList.remove('free')}
  if(measurePoints.length!==1){clearProvisional();return}
  if(!Number.isFinite(x)||!Number.isFinite(y))return;
  elasticCursor={x,y,target:target?.p&&!same?target:null};

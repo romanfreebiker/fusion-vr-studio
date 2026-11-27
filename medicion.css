@@ -2,3 +2,5 @@
 .eskala-measure-result{width:100%;text-align:center;font:700 20px system-ui;color:#e6f8ff;background:#005d91;border:1px solid #9ed8ff;border-radius:7px;padding:6px;box-sizing:border-box;font-variant-numeric:tabular-nums}.eskala-measure-result[hidden]{display:none!important}
 
 body.measuring .measure-snap{position:fixed;z-index:38;pointer-events:none;width:13px;height:13px;box-sizing:border-box;border:2px solid #fff;border-radius:50%;background:#ff7900;transform:translate(-50%,-50%);box-shadow:0 0 0 2px #a63d00,0 0 0 5px #ff790055;text-indent:0;line-height:normal}body.measuring .measure-snap[data-kind="Vértice"]{border-radius:2px}body.measuring .measure-snap[data-kind="Punto medio"]{border-radius:2px;transform:translate(-50%,-50%) rotate(45deg)}body.measuring .measure-snap[hidden]{display:none!important}
+
+body.measuring .measure-snap[data-aligned="true"]{background:#16a34a;box-shadow:0 0 0 2px #075b27,0 0 0 5px #16a34a55}
