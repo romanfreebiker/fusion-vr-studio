@@ -1,38 +1,148 @@
-/* ESKALA Taller: assignment routing only; private storage/auth pending. */
+/* ESKALA Taller · Firestore comun con Gestion Taller (gestion-taller-v2). */
 (()=>{
- const repo='romanfreebiker/fusion-vr-studio', api='https://api.github.com/repos/'+repo+'/contents/taller.json';
- const raw='https://raw.githubusercontent.com/'+repo+'/main/';
+ const raw='https://raw.githubusercontent.com/romanfreebiker/fusion-vr-studio/main/';
  const phases=['Pendiente','En fabricación','Fabricado','En instalación','Finalizado'];
+ const firebaseConfig={
+   apiKey:'AIzaSyDXKRAam6e8dlHFajtzMNueIo2hUMW-Gkg',
+   authDomain:'gestion-taller-v2.firebaseapp.com',
+   projectId:'gestion-taller-v2',
+   storageBucket:'gestion-taller-v2.firebasestorage.app',
+   messagingSenderId:'888590823508',
+   appId:'1:888590823508:web:6dfd420a3e7ac17d647dc1'
+ };
  const hash=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))),b=>b.toString(16).padStart(2,'0')).join('');
  const secret=()=>Array.from(crypto.getRandomValues(new Uint8Array(24)),b=>b.toString(16).padStart(2,'0')).join('');
  async function read(file){const r=await fetch(raw+file+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('No se pudo cargar '+file);return r.json()}
- let tabletApiCache=null;
- async function tabletApiBase(){
-   if(tabletApiCache!==null)return tabletApiCache;
-   try{const cfg=await read('taller-api.json');tabletApiCache=String(cfg.baseUrl||'').trim().replace(/\/$/,'')}catch{tabletApiCache=''}
-   return tabletApiCache;
+ let cloudPromise=null;
+ function normalize(d){
+   d=d&&typeof d==='object'?d:{};
+   return {
+     version:Number(d.version)||2,
+     workers:Array.isArray(d.workers)?d.workers:[],
+     jobs:Array.isArray(d.jobs)?d.jobs:[],
+     tablet:d.tablet||d.central||null,
+     tabletJobs:Array.isArray(d.tabletJobs)?d.tabletJobs:[],
+     updatedAtMs:Number(d.updatedAtMs)||0,
+     updatedAtISO:String(d.updatedAtISO||''),
+     source:String(d.source||'')
+   };
  }
- async function tabletAction(key,payload){
+ async function cloud(){
+   if(cloudPromise)return cloudPromise;
+   cloudPromise=(async()=>{
+     const {initializeApp,getApps}=await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js');
+     const {getFirestore,doc,getDoc,setDoc,onSnapshot,runTransaction}=await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js');
+     let app=getApps().find(a=>a.options&&a.options.projectId===firebaseConfig.projectId);
+     if(!app)app=initializeApp(firebaseConfig,'eskala-taller-v1');
+     const db=getFirestore(app), ref=doc(db,'taller_data','eskala');
+     return {db,ref,getDoc,setDoc,onSnapshot,runTransaction};
+   })();
+   return cloudPromise;
+ }
+ async function ensureCloud(){
+   const C=await cloud();
+   const snap=await C.getDoc(C.ref);
+   if(snap.exists())return normalize(snap.data());
+   const legacy=normalize(await read('taller.json'));
+   const seed={...legacy,version:2,updatedAtMs:Date.now(),updatedAtISO:new Date().toISOString(),source:'eskala_migration_taller_json'};
+   await C.setDoc(C.ref,seed,{merge:false});
+   return normalize(seed);
+ }
+ async function data(){
+   try{return await ensureCloud()}
+   catch(error){
+     console.warn('[ESKALA Taller] Firestore no disponible; lectura legacy',error);
+     return normalize(await read('taller.json'));
+   }
+ }
+ async function change(_token,fn){
+   const C=await cloud();
+   await ensureCloud();
+   let result=null;
+   await C.runTransaction(C.db,async tx=>{
+     const snap=await tx.get(C.ref);
+     if(!snap.exists())throw Error('No existe taller_data/eskala');
+     const d=normalize(snap.data());
+     await fn(d);
+     d.version=2;
+     d.updatedAtMs=Date.now();
+     d.updatedAtISO=new Date().toISOString();
+     d.source='eskala';
+     tx.set(C.ref,d,{merge:false});
+     result=d;
+   });
+   return result;
+ }
+ function subscribe(fn,onError){
+   let stop=()=>{},cancelled=false;
+   (async()=>{
+     try{
+       const C=await cloud();await ensureCloud();
+       if(cancelled)return;
+       stop=C.onSnapshot(C.ref,s=>{if(s.exists())fn(normalize(s.data()))},e=>onError?.(e));
+     }catch(e){onError?.(e)}
+   })();
+   return ()=>{cancelled=true;try{stop()}catch{}};
+ }
+ async function withCatalog(d){
+   const c=await read('catalogo.json'),workers=d.workers||[];
+   const assigned=(d.jobs||[]).map(j=>({...j,tabletOnly:false,workerInfo:workers.find(w=>w.id===j.worker)||null,model:c.modelos.find(m=>m.id===j.design)})).filter(j=>j.model&&j.workerInfo);
+   const assignedIds=new Set(assigned.map(j=>j.design));
+   const tabletJobs=(d.tabletJobs||[]).filter(j=>!assignedIds.has(j.design)).map(j=>({...j,tabletOnly:true,worker:null,workerInfo:null,model:c.modelos.find(m=>m.id===j.design)})).filter(j=>j.model);
+   return {tablet:d.tablet||null,workers,assignedJobs:assigned,tabletJobs,jobs:[...tabletJobs,...assigned]};
+ }
+ async function worker(key){
+   if(!/^[a-f0-9]{48}$/.test(key||''))throw Error('Enlace de operario no válido');
+   const [d,h,c]=await Promise.all([data(),hash(key),read('catalogo.json')]);
+   const w=d.workers.find(x=>x.hash===h&&x.active);if(!w)throw Error('Acceso de operario retirado');
+   const jobs=d.jobs.filter(j=>j.worker===w.id).map(j=>({...j,model:c.modelos.find(m=>m.id===j.design)})).filter(j=>j.model);
+   return {w,jobs};
+ }
+ async function tablet(key){
    if(!/^[a-f0-9]{48}$/.test(key||''))throw Error('Enlace de Tablet Taller no válido');
-   const base=await tabletApiBase();
-   if(!base)throw Error('La gestión directa de Tablet aún no está activada en el servidor');
-   const r=await fetch(base+'/api/taller/action',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(payload),cache:'no-store'});
-   let body={};try{body=await r.json()}catch{}
-   if(!r.ok)throw Error(body.error||('Servicio Tablet '+r.status));
-   return body;
+   const [d,h]=await Promise.all([data(),hash(key)]);
+   const access=d.tablet;if(!access?.active||access.hash!==h)throw Error('Acceso de Tablet Taller retirado');
+   return withCatalog(d);
  }
- async function data(token=''){let d;if(token){const r=await fetch(api+'?ref=main&_='+Date.now(),{headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'},cache:'no-store'});if(!r.ok)throw Error('GitHub '+r.status+' al consultar operarios');const f=await r.json();d=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(f.content.replace(/\s/g,'')),c=>c.charCodeAt(0))))}else d=await read('taller.json');if(!Array.isArray(d.workers)||!Array.isArray(d.jobs))throw Error('Datos de taller no válidos');return d}
- async function worker(key){if(!/^[a-f0-9]{48}$/.test(key||''))throw Error('Enlace de operario no válido');const [d,h,c]=await Promise.all([data(),hash(key),read('catalogo.json')]);const w=d.workers.find(x=>x.hash===h&&x.active);if(!w)throw Error('Acceso de operario retirado');const jobs=d.jobs.filter(j=>j.worker===w.id).map(j=>({...j,model:c.modelos.find(m=>m.id===j.design)})).filter(j=>j.model);return {w,jobs}}
- async function tablet(key){if(!/^[a-f0-9]{48}$/.test(key||''))throw Error('Enlace de Tablet Taller no válido');const [d,h,c]=await Promise.all([data(),hash(key),read('catalogo.json')]);const access=d.tablet||d.central;if(!access?.active||access.hash!==h)throw Error('Acceso de Tablet Taller retirado');const workers=d.workers||[];const assigned=(d.jobs||[]).map(j=>({...j,tabletOnly:false,workerInfo:workers.find(w=>w.id===j.worker)||null,model:c.modelos.find(m=>m.id===j.design)})).filter(j=>j.model&&j.workerInfo);const assignedIds=new Set(assigned.map(j=>j.design));const tabletJobs=(Array.isArray(d.tabletJobs)?d.tabletJobs:[]).filter(j=>!assignedIds.has(j.design)).map(j=>({...j,tabletOnly:true,worker:null,workerInfo:null,model:c.modelos.find(m=>m.id===j.design)})).filter(j=>j.model);return {tablet:access,workers,assignedJobs:assigned,tabletJobs,jobs:[...tabletJobs,...assigned]}}
  const central=tablet;
- async function adminTablet(){let token='';for(const st of [sessionStorage,localStorage]){try{const a=JSON.parse(st.getItem('fusion-vr-studio-auth-v1')||'null');if(a?.owner==='romanfreebiker'&&a?.repo==='fusion-vr-studio'&&a.expiresAt>Date.now())token=a.token}catch{}}if(!token)throw Error('Autoriza GitHub en Gestión para abrir la Tablet como administrador');const [d,catalog]=await Promise.all([data(token),read('catalogo.json')]);const workers=d.workers||[];const assigned=(d.jobs||[]).map(j=>({...j,tabletOnly:false,workerInfo:workers.find(w=>w.id===j.worker)||null,model:catalog.modelos.find(m=>m.id===j.design)})).filter(j=>j.model&&j.workerInfo);const assignedIds=new Set(assigned.map(j=>j.design));const tabletJobs=(Array.isArray(d.tabletJobs)?d.tabletJobs:[]).filter(j=>!assignedIds.has(j.design)).map(j=>({...j,tabletOnly:true,worker:null,workerInfo:null,model:catalog.modelos.find(m=>m.id===j.design)})).filter(j=>j.model);return {tablet:d.tablet||d.central||null,workers,assignedJobs:assigned,tabletJobs,jobs:[...tabletJobs,...assigned]}}
- async function adminWorker(id){let token='';for(const st of [sessionStorage,localStorage]){try{const a=JSON.parse(st.getItem('fusion-vr-studio-auth-v1')||'null');if(a?.owner==='romanfreebiker'&&a?.repo==='fusion-vr-studio'&&a.expiresAt>Date.now())token=a.token}catch{}}if(!token)throw Error('Autoriza GitHub en Gestión para abrir como administrador');const response=await fetch(api+'?ref=main',{headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'},cache:'no-store'});if(!response.ok)throw Error('No se pudo verificar la autorización');const file=await response.json();const d=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(file.content.replace(/\s/g,'')),c=>c.charCodeAt(0))));const w=d.workers.find(x=>x.id===id&&x.active);if(!w)throw Error('Operario no disponible');const c=await read('catalogo.json');return {w,jobs:d.jobs.filter(j=>j.worker===id).map(j=>({...j,model:c.modelos.find(m=>m.id===j.design)})).filter(j=>j.model)}}
+ async function adminTablet(){return withCatalog(await data())}
+ async function adminWorker(id){
+   const d=await data(),w=d.workers.find(x=>x.id===id&&x.active);
+   if(!w)throw Error('Operario no disponible');
+   const c=await read('catalogo.json');
+   return {w,jobs:d.jobs.filter(j=>j.worker===id).map(j=>({...j,model:c.modelos.find(m=>m.id===j.design)})).filter(j=>j.model)};
+ }
  function link(key){const u=new URL('taller.html',location.href);u.hash=key;return u.href}
  function tabletLink(key){const u=new URL('tablet-taller.html',location.href);u.hash=key;return u.href}
  const centralLink=tabletLink;
- function viewer(key,id){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','taller');u.searchParams.set('v','49');u.searchParams.set('diseno',id);u.hash=key;return u.href}
- function tabletViewer(key,id){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('v','50');u.searchParams.set('diseno',id);u.hash=key;return u.href}
+ function viewer(key,id){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','taller');u.searchParams.set('v','53');u.searchParams.set('diseno',id);u.hash=key;return u.href}
+ function tabletViewer(key,id){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('v','53');u.searchParams.set('diseno',id);u.hash=key;return u.href}
  const centralViewer=tabletViewer;
- async function change(token,fn){if(!token)throw Error('Conecta GitHub en Gestión');for(let i=0;i<3;i++){const headers={Authorization:'Bearer '+token,Accept:'application/vnd.github+json','Content-Type':'application/json'};const r=await fetch(api+'?ref=main',{headers,cache:'no-store'});if(!r.ok)throw Error('GitHub '+r.status);const f=await r.json();const d=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(f.content.replace(/\s/g,'')),c=>c.charCodeAt(0))));await fn(d);const bytes=new TextEncoder().encode(JSON.stringify(d,null,2)+'\n');let str='';for(let j=0;j<bytes.length;j+=8192)str+=String.fromCharCode(...bytes.subarray(j,j+8192));const put=await fetch(api,{method:'PUT',headers,body:JSON.stringify({message:'ESKALA: actualizar taller',branch:'main',sha:f.sha,content:btoa(str)})});if(put.ok)return d;if(put.status!==409)throw Error('GitHub '+put.status)}throw Error('Cambios simultáneos: reintenta')}
- window.EskalaTaller={data,worker,tablet,central,adminTablet,adminWorker,link,tabletLink,centralLink,viewer,tabletViewer,centralViewer,change,tabletAction,tabletApiBase,hash,secret,phases};
+ async function tabletAction(key,payload){
+   const h=await hash(key||''),d=await data();
+   if(!d.tablet?.active||d.tablet.hash!==h)throw Error('Acceso de Tablet Taller retirado');
+   const design=String(payload?.design||'');
+   return change('',x=>{
+     if(payload.action==='assign'){
+       if(!x.workers.some(w=>w.id===payload.worker&&w.active))throw Error('Operario no disponible');
+       const prev=x.jobs.find(j=>j.design===design)||{};
+       x.jobs=x.jobs.filter(j=>j.design!==design);x.tabletJobs=x.tabletJobs.filter(j=>j.design!==design);
+       x.jobs.push({worker:payload.worker,design,type:payload.type||prev.type||'Fabricación e instalación',priority:payload.priority||prev.priority||'Normal',phase:payload.phase||prev.phase||'Pendiente',note:String(payload.note??prev.note??'').slice(0,500)});
+     }else if(payload.action==='update'){
+       const row=x.jobs.find(j=>j.design===design);if(!row)throw Error('Trabajo no asignado');
+       if(payload.worker&&x.workers.some(w=>w.id===payload.worker&&w.active))row.worker=payload.worker;
+       if(phases.includes(payload.phase))row.phase=payload.phase;
+       if(['Normal','Alta','Urgente'].includes(payload.priority))row.priority=payload.priority;
+       if(payload.type)row.type=payload.type;
+       if(payload.note!==undefined)row.note=String(payload.note).slice(0,500);
+     }else if(payload.action==='unassign'){
+       x.jobs=x.jobs.filter(j=>j.design!==design);
+       if(!x.tabletJobs.some(j=>j.design===design))x.tabletJobs.push({design,addedAt:new Date().toISOString()});
+     }else if(payload.action==='remove'){
+       x.jobs=x.jobs.filter(j=>j.design!==design);x.tabletJobs=x.tabletJobs.filter(j=>j.design!==design);
+     }else throw Error('Acción no permitida');
+   });
+ }
+ async function tabletApiBase(){return 'firestore://gestion-taller-v2/taller_data/eskala'}
+ window.EskalaTaller={data,worker,tablet,central,adminTablet,adminWorker,link,tabletLink,centralLink,viewer,tabletViewer,centralViewer,change,subscribe,tabletAction,tabletApiBase,hash,secret,phases};
 })();
