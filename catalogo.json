@@ -1,7 +1,17 @@
 {
   "version": 1,
-  "actualizado": "2026-11-27T05:48:03.124Z",
+  "actualizado": "2026-11-27T05:48:16.544Z",
   "modelos": [
+    {
+      "id": "escalera-emergencia-falsa-escuadra-olaso-mwyk8nuz",
+      "nombre": "escalera emergencia falsa escuadra Olaso",
+      "categoria": "",
+      "descripcion": "",
+      "archivo": "modelos/escalera-emergencia-falsa-escuadra-olaso-mwyk8nuz.glb",
+      "miniatura": "miniaturas/escalera-emergencia-falsa-escuadra-olaso-mwyk8nuz.jpg",
+      "bytes": 4329592,
+      "fecha": "2026-11-27T05:48:16.544Z"
+    },
     {
       "id": "escalera-bascula-mwyk8cuf",
       "nombre": "escalera bascula",
