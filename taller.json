@@ -18,6 +18,12 @@
       "label": "Pep",
       "hash": "e75cbf7d3a502ee48159794b0afa542c17393ddfd9581a7d3500b8721ccc6c5a",
       "active": true
+    },
+    {
+      "id": "9c1b449c-4e40-4b4d-a921-e1a7ac7d9a7b",
+      "label": "Christian",
+      "hash": "2f98002ffde827de78de1cb1d765c2af0788fcb200309c40c5df2fab9c3b0744",
+      "active": true
     }
   ],
   "jobs": [
