@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "actualizado": "2026-11-27T05:48:33.596Z",
+  "actualizado": "2026-11-27T05:49:17.566Z",
   "modelos": [
     {
       "id": "escalera-recta-lateral-interior-mwyk90ue",
       "nombre": "escalera recta lateral(interior)",
-      "categoria": "",
+      "categoria": "Escaleras",
       "descripcion": "",
       "archivo": "modelos/escalera-recta-lateral-interior-mwyk90ue.glb",
       "miniatura": "miniaturas/escalera-recta-lateral-interior-mwyk90ue.jpg",
