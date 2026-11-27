@@ -6,6 +6,12 @@
       "label": "Roman",
       "hash": "957a6784dc017a6a2cb30f15a0d8dd1a9ecb7cdd1e6dc16ee7849c974c648b27",
       "active": true
+    },
+    {
+      "id": "6f7b8bd4-a045-4021-b050-d342a3b6c533",
+      "label": "Manolo",
+      "hash": "fee82467f9066e0f4afe5a953cb39657c054cd6ea9f565fef1a451d3a964d2cc",
+      "active": true
     }
   ],
   "jobs": [
