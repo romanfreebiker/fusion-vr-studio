@@ -4615,12 +4615,11 @@ function render(){
         const assigned=(d.jobs||[]).some(j=>j.design===m.id);
         const direct=(Array.isArray(d.tabletJobs)?d.tabletJobs:[]).some(j=>j.design===m.id);
         if(assigned){tabletBtn.textContent='En Tablet · asignado';tabletBtn.disabled=true;tabletBtn.dataset.mode='assigned';}
-        else if(direct){tabletBtn.textContent='Retirar de Tablet';tabletBtn.disabled=!state.token;tabletBtn.dataset.mode='remove';}
-        else{tabletBtn.textContent='Enviar a Tablet';tabletBtn.disabled=!state.token;tabletBtn.dataset.mode='add';}
+        else if(direct){tabletBtn.textContent='Retirar de Tablet';tabletBtn.disabled=false;tabletBtn.dataset.mode='remove';}
+        else{tabletBtn.textContent='Enviar a Tablet';tabletBtn.disabled=false;tabletBtn.dataset.mode='add';}
       }catch(e){tabletBtn.textContent='Tablet no disponible';tabletBtn.disabled=true;tabletBtn.title=e.message}
     }
     tabletBtn.onclick=async()=>{
-      if(!state.token){postAuthView='biblioteca';nav('configuracion');status('settingsStatus','Conecta GitHub para enviar diseños a la Tablet.');return}
       tabletBtn.disabled=true;
       try{
         if(tabletBtn.dataset.mode==='remove'){
