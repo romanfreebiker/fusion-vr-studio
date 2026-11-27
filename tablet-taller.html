@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<title>ESKALA · Tablet Taller</title>
+<style>
+:root{color-scheme:dark;--bg:#101820;--panel:#172633;--line:#315164;--ink:#eff9ff;--muted:#9fb8c7;--cyan:#18d9ff;--ok:#72e6b0;--warn:#ffd27e}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,sans-serif}
+header{position:sticky;top:0;z-index:5;background:#151e26;border-bottom:1px solid #00b8e5;box-shadow:0 4px 20px #0005;padding:8px clamp(10px,2vw,26px);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header img{width:min(470px,72vw);height:auto;display:block;mix-blend-mode:screen}.status{margin-left:auto;color:var(--muted);font-size:13px}
+main{padding:18px clamp(12px,2.5vw,28px) 40px;max-width:1500px;margin:auto}.summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.pill{background:#12232f;border:1px solid var(--line);border-radius:999px;padding:8px 12px;color:#cfe8f5}.pill b{color:white}
+#workers{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}.worker{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.worker>h2{margin:0;padding:13px 15px;background:#10232e;border-bottom:1px solid var(--line);font-size:18px}.inactive{opacity:.55}
+.jobs{padding:10px;display:grid;gap:9px}.job{background:#0f1c25;border:1px solid #284558;border-radius:11px;padding:12px;display:grid;gap:7px}
+.job h3{margin:0;font-size:16px}.meta{display:flex;gap:7px;flex-wrap:wrap;color:var(--muted);font-size:12px}.tag{border:1px solid #395c71;border-radius:6px;padding:3px 7px}
+.tag.high{color:#ffd27e;border-color:#8a6931}.tag.urgent{color:#ff9c9c;border-color:#894646}.phase{color:var(--ok);font-weight:700}.note{color:#c8dbe5;white-space:pre-wrap}
+.actions{display:flex;gap:7px;flex-wrap:wrap}.actions a{background:#12384c;border:1px solid #18a8c8;color:white;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:700}
+.empty{color:var(--muted);padding:12px}.error{color:#ffadad}
+@media(max-width:650px){header{align-items:flex-start}.status{width:100%;margin-left:0}main{padding:12px}#workers{grid-template-columns:1fr}}
+</style>
+<header>
+ <img src="./assets/eskala-corporativa.webp?v=2" alt="ESKALA">
+ <div class="status" id="status">Conectando con Taller…</div>
+</header>
+<main>
+ <div class="summary" id="summary"></div>
+ <section id="workers"></section>
+</main>
+<script src="taller.js?v=4"></script>
+<script>
+const T=window.EskalaTaller,statusNode=document.getElementById('status'),grid=document.getElementById('workers'),summary=document.getElementById('summary');
+const storageKey='eskala-tablet-taller-key';
+let key=location.hash.slice(1);
+if(key){try{localStorage.setItem(storageKey,key)}catch{} history.replaceState(null,'',location.pathname+location.search)}
+else{try{key=localStorage.getItem(storageKey)||''}catch{}}
+let signature='';
+function el(tag,text='',cls=''){const n=document.createElement(tag);n.textContent=text;if(cls)n.className=cls;return n}
+function priorityClass(value){return value==='Urgente'?'urgent':value==='Alta'?'high':''}
+async function load(){
+ try{
+  const data=await T.tablet(key);
+  const sig=JSON.stringify([data.workers,data.jobs]);
+  const active=data.workers.filter(w=>w.active).length;
+  const pending=data.jobs.filter(j=>j.phase!=='Finalizado').length;
+  statusNode.textContent='Sincronizado · '+new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+  summary.replaceChildren(
+    Object.assign(el('span','','pill'),{innerHTML:'Operarios: <b>'+active+'</b>'}),
+    Object.assign(el('span','','pill'),{innerHTML:'Trabajos: <b>'+data.jobs.length+'</b>'}),
+    Object.assign(el('span','','pill'),{innerHTML:'Pendientes: <b>'+pending+'</b>'})
+  );
+  if(sig===signature)return;signature=sig;grid.replaceChildren();
+  for(const w of data.workers){
+    const box=el('article','',w.active?'worker':'worker inactive');
+    box.append(el('h2',w.label+(w.active?'':' · baja')));
+    const jobs=el('div','','jobs');
+    const rows=data.jobs.filter(j=>j.worker===w.id);
+    if(!rows.length)jobs.append(el('div','Sin trabajos asignados','empty'));
+    for(const j of rows){
+      const card=el('article','','job');card.append(el('h3',j.model.nombre));
+      const meta=el('div','','meta');
+      meta.append(el('span',j.type,'tag'));
+      meta.append(el('span','Prioridad '+j.priority,'tag '+priorityClass(j.priority)));
+      meta.append(el('span',j.phase,'phase'));
+      card.append(meta);
+      if(j.note)card.append(el('div',j.note,'note'));
+      const actions=el('div','','actions');
+      const open=el('a','Abrir visor y medir');open.href=T.tabletViewer(key,j.design);actions.append(open);card.append(actions);
+      jobs.append(card);
+    }
+    box.append(jobs);grid.append(box);
+  }
+ }catch(e){
+  statusNode.textContent=e.message;statusNode.className='status error';grid.replaceChildren();summary.replaceChildren();
+ }
+}
+load();setInterval(()=>{if(!document.hidden)load()},15000);addEventListener('focus',load);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
+</script>
+</html>
