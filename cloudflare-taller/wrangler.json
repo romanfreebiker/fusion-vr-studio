@@ -1,7 +1,0 @@
-{
-  "name": "eskala-taller-api",
-  "main": "taller-worker.js",
-  "compatibility_date": "2026-11-27",
-  "workers_dev": true,
-  "observability": {"enabled": true}
-}
