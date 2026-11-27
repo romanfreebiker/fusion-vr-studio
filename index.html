@@ -4466,7 +4466,7 @@ async function workshopDialog(model=null){
  for(const j of d.jobs.filter(x=>x.worker===w.id)){const m=state.models.find(x=>x.id===j.design);if(!m)continue;const phase=choose(T.phases,j.phase);phase.onchange=()=>run(()=>T.change(state.token,x=>{const row=x.jobs.find(y=>y.worker===w.id&&y.design===j.design);if(row)row.phase=phase.value}));panel.append(textNode('span',m.nombre+' · '+j.type+' · '+j.priority),phase,btn('Retirar trabajo',()=>run(()=>T.change(state.token,x=>{x.jobs=x.jobs.filter(y=>!(y.worker===w.id&&y.design===j.design))}))))}
  }else{
  const j=d.jobs.find(x=>x.worker===w.id&&x.design===model.id);const type=choose(['Fabricación','Instalación','Fabricación e instalación'],j?.type||'Fabricación e instalación'),priority=choose(['Normal','Alta','Urgente'],j?.priority),phase=choose(T.phases,j?.phase);const note=document.createElement('textarea');note.className='input';note.placeholder='Instrucciones';note.value=j?.note||'';
- panel.append(textNode('span',j?'Trabajo asignado':'Sin asignar'),type,priority,phase,note,btn(j?'Actualizar asignación':'Asignar trabajo',()=>run(()=>T.change(state.token,x=>{x.jobs=x.jobs.filter(y=>!(y.worker===w.id&&y.design===model.id));x.jobs.push({worker:w.id,design:model.id,type:type.value,priority:priority.value,phase:phase.value,note:note.value.trim().slice(0,500)})}))));
+ panel.append(textNode('span',j?'Trabajo asignado':'Sin asignar'),type,priority,phase,note,btn(j?'Actualizar asignación':'Asignar trabajo',()=>run(()=>T.change(state.token,x=>{x.jobs=x.jobs.filter(y=>!(y.worker===w.id&&y.design===model.id));x.jobs.push({worker:w.id,design:model.id,type:type.value,priority:priority.value,phase:phase.value,note:note.value.trim().slice(0,500)});if(Array.isArray(x.tabletJobs))x.tabletJobs=x.tabletJobs.filter(y=>y.design!==model.id)}))));
  if(j)panel.append(btn('Retirar trabajo',()=>run(()=>T.change(state.token,x=>{x.jobs=x.jobs.filter(y=>!(y.worker===w.id&&y.design===model.id))}))));
  }area.append(panel)}
  if(!d.workers.some(w=>w.active))area.append(textNode('p','Crea primero un operario desde Gestionar taller.'));
@@ -4586,6 +4586,36 @@ function render(){
     displayDistribution(null);
     updateDistribution();
     distribution.onclick=updateDistribution;distribution.style.cursor='pointer';
+    const tabletBtn=textNode('button','Comprobando Tablet…','button secondary small');tabletBtn.type='button';tabletBtn.disabled=true;foot.append(tabletBtn);
+    async function refreshTabletState(){
+      try{
+        const d=await window.EskalaTaller.data(state.token||'');
+        const assigned=(d.jobs||[]).some(j=>j.design===m.id);
+        const direct=(Array.isArray(d.tabletJobs)?d.tabletJobs:[]).some(j=>j.design===m.id);
+        if(assigned){tabletBtn.textContent='En Tablet · asignado';tabletBtn.disabled=true;tabletBtn.dataset.mode='assigned';}
+        else if(direct){tabletBtn.textContent='Retirar de Tablet';tabletBtn.disabled=!state.token;tabletBtn.dataset.mode='remove';}
+        else{tabletBtn.textContent='Enviar a Tablet';tabletBtn.disabled=!state.token;tabletBtn.dataset.mode='add';}
+      }catch(e){tabletBtn.textContent='Tablet no disponible';tabletBtn.disabled=true;tabletBtn.title=e.message}
+    }
+    tabletBtn.onclick=async()=>{
+      if(!state.token){postAuthView='biblioteca';nav('configuracion');status('settingsStatus','Conecta GitHub para enviar diseños a la Tablet.');return}
+      tabletBtn.disabled=true;
+      try{
+        if(tabletBtn.dataset.mode==='remove'){
+          await window.EskalaTaller.change(state.token,x=>{x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(j=>j.design!==m.id)});
+          toast('Diseño retirado de Tablet Taller');
+        }else{
+          await window.EskalaTaller.change(state.token,x=>{
+            if((x.jobs||[]).some(j=>j.design===m.id))return;
+            const rows=Array.isArray(x.tabletJobs)?x.tabletJobs:[];
+            x.tabletJobs=[...rows.filter(j=>j.design!==m.id),{design:m.id,addedAt:new Date().toISOString()}];
+          });
+          toast('Diseño enviado a Tablet Taller');
+        }
+        await refreshTabletState();
+      }catch(e){toast(e.message,true);await refreshTabletState()}
+    };
+    refreshTabletState();
     const assign=textNode('button','Asignar a taller','button secondary small');assign.onclick=()=>workshopDialog(m);foot.append(assign);
     const dl=document.createElement('button');dl.className='button secondary small';dl.textContent='↓ Descargar GLB';dl.addEventListener('click',()=>downloadModel(m));foot.append(dl);
     const remove=textNode('button','Eliminar','button secondary small delete-design');
