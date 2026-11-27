@@ -224,7 +224,7 @@ if(presentation){
  const bar=document.createElement('div');bar.id='presentationBar';
  presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
- button(access==='central'?'Central Taller':'Mis trabajos',()=>{const key=location.hash.slice(1);const u=new URL(access==='central'?EskalaTaller.centralLink(key):EskalaTaller.link(key));if(access!=='central'&&params.get('adminWorker'))u.searchParams.set('adminWorker',params.get('adminWorker'));location.assign(u.href)});
+ button(access==='tablet'?'Tablet Taller':'Mis trabajos',()=>{const key=location.hash.slice(1);const u=new URL(access==='tablet'?EskalaTaller.tabletLink(key):EskalaTaller.link(key));if(access!=='tablet'&&params.get('adminWorker'))u.searchParams.set('adminWorker',params.get('adminWorker'));location.assign(u.href)});
  const measureBtn=button('Medir',()=>toggleMeasure(measureBtn));button('Borrar medida',()=>clearMeasures());button('Modo papel',()=>setTechnicalMode(!technicalMode));projectionButton=button('Perspectiva',()=>setProjection(!camera.isOrthographicCamera));const viewSelect=document.createElement('select');viewSelect.setAttribute('aria-label','Vistas normalizadas');for(const [label,val] of [['Vistas',''],['Frontal','0,0,1'],['Posterior','0,0,-1'],['Izquierda','-1,0,0'],['Derecha','1,0,0'],['Superior','0,1,0'],['Inferior','0,-1,0'],['Isométrica','1,1,1']])viewSelect.add(new Option(label,val));viewSelect.onchange=()=>{if(viewSelect.value)standardView(...viewSelect.value.split(',').map(Number));viewSelect.value=''};bar.append(viewSelect);
  orbitButton=button('Vista 3D',()=>setPresentationMode(false));walkButton=button('Recorrer a pie',()=>setPresentationMode(true));
  orbitButton.setAttribute('aria-pressed','true');walkButton.setAttribute('aria-pressed','false');
@@ -2320,13 +2320,13 @@ function exitWithdrawnDesign(){
 try{
     if(presentation){
     const id=params.get('diseno');
-    if(!['taller','central'].includes(access))throw Error('Acceso no válido para Taller');
+    if(!['taller','tablet','central'].includes(access))throw Error('Acceso no válido para Taller');
     const key=location.hash.slice(1);
-    const findJob=async()=>{const source=access==='central'?await EskalaTaller.central(key):await (params.get('adminWorker')?EskalaTaller.adminWorker(params.get('adminWorker')):EskalaTaller.worker(key));return source.jobs.find(j=>j.design===id)};
+    const findJob=async()=>{const source=(access==='tablet'||access==='central')?await EskalaTaller.tablet(key):await (params.get('adminWorker')?EskalaTaller.adminWorker(params.get('adminWorker')):EskalaTaller.worker(key));return source.jobs.find(j=>j.design===id)};
     const job=await findJob();if(!job)throw Error('Trabajo no asignado');
     distributedModel={meta:job.model,url:new URL(job.model.archivo,location.href).href};
-    setInterval(async()=>{if(document.hidden)return;try{if(!await findJob())location.replace(access==='central'?EskalaTaller.centralLink(key):EskalaTaller.link(key))}catch(e){console.warn(e)}},30000);
-    const item=distributedModel.meta;orientation.value='z';appearance.value='library';models.add(new Option(item.nombre,item.id));presentationTitle.textContent=item.nombre+(access==='central'?' · Central Taller':' · Taller v4.9');document.title=item.nombre+' · ESKALA Taller';await openModel();
+    setInterval(async()=>{if(document.hidden)return;try{if(!await findJob())location.replace(access==='tablet'?EskalaTaller.tabletLink(key):EskalaTaller.link(key))}catch(e){console.warn(e)}},30000);
+    const item=distributedModel.meta;orientation.value='z';appearance.value='library';models.add(new Option(item.nombre,item.id));presentationTitle.textContent=item.nombre+((access==='tablet'||access==='central')?' · Tablet Taller':' · Taller v5.0');document.title=item.nombre+' · ESKALA Taller';await openModel();
   }else{
   const catalogURL=new URL('catalogo.json',location.href);
   catalogURL.searchParams.set('refresh',String(Date.now()));
