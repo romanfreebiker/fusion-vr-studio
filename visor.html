@@ -65,7 +65,7 @@ window.presentationProgress=function(message,percent,error=false){
 window.addEventListener('error',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo iniciar el visor. Comprueba la conexión.',null,true);});
 window.addEventListener('unhandledrejection',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo cargar el proyecto.',null,true);});
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=147"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=148"></script>
 <header>
 <h1>ESKALA Viewer</h1><span class="eskala-sign">by Roman · <b>62</b> SESENTA&amp;DOS</span>
 <label for="models">Diseño</label><select id="models" disabled></select>
@@ -131,11 +131,11 @@ window.addEventListener('DOMContentLoaded',()=>{
  },9000);
 });
 </script>
-<link rel="stylesheet" href="./medicion.css?v=147">
+<link rel="stylesheet" href="./medicion.css?v=148">
 <script type="module">
 window.__vrBootStarted=true;
 import * as THREE from 'three';
-import {createMeasurement} from './medicion.js?v=147';
+import {createMeasurement} from './medicion.js?v=148';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRButton} from 'three/addons/webxr/VRButton.js';
@@ -219,7 +219,7 @@ if(presentation){
  controls.enabled=true;
  controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;controls.mouseButtons.RIGHT=null;controls.mouseButtons.MIDDLE=THREE.MOUSE.PAN;
  controls.touches.ONE=THREE.TOUCH.ROTATE;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;
- const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent=(access==='director'?'Dirección':'Visor')+' · v147';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px';bar.append(buildTag);
+ const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent=(access==='director'?'Dirección':'Visor')+' · v148';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px';bar.append(buildTag);
  presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
  orbitButton=button('Vista 3D',()=>setPresentationMode(false));walkButton=button('Recorrer a pie',()=>setPresentationMode(true));
@@ -291,7 +291,7 @@ if(presentation){
  presentationHint=document.createElement('div');presentationHint.id='presentationHint';document.body.append(presentationHint);updateMouseGuide();
  presentationStatus=document.getElementById('presentationBoot');window.presentationProgress('Preparando el proyecto…',null);
  const canvas=renderer.domElement;
- const measureBtn=button('Medir',()=>toggleMeasure(measureBtn));button('Borrar medida',()=>clearMeasures());button('Modo papel',()=>setTechnicalMode(!measurement.technical));projectionButton=button('Perspectiva',()=>setProjection(!camera.isOrthographicCamera));const viewSelect=document.createElement('select');viewSelect.setAttribute('aria-label','Vistas normalizadas');for(const [label,val] of [['Vistas',''],['Frontal','0,0,1'],['Posterior','0,0,-1'],['Izquierda','-1,0,0'],['Derecha','1,0,0'],['Superior','0,1,0'],['Inferior','0,-1,0'],['Isométrica','1,1,1']])viewSelect.add(new Option(label,val));viewSelect.onchange=()=>{if(viewSelect.value)standardView(...viewSelect.value.split(',').map(Number));viewSelect.value=''};bar.append(viewSelect);
+ const measureBtn=button('Medir',()=>toggleMeasure(measureBtn));button('Borrar medida',()=>clearMeasures());projectionButton=button('Perspectiva',()=>setProjection(!camera.isOrthographicCamera));const viewSelect=document.createElement('select');viewSelect.setAttribute('aria-label','Vistas normalizadas');for(const [label,val] of [['Vistas',''],['Frontal','0,0,1'],['Posterior','0,0,-1'],['Izquierda','-1,0,0'],['Derecha','1,0,0'],['Superior','0,1,0'],['Inferior','0,-1,0'],['Isométrica','1,1,1']])viewSelect.add(new Option(label,val));viewSelect.onchange=()=>{if(viewSelect.value)standardView(...viewSelect.value.split(',').map(Number));viewSelect.value=''};bar.append(viewSelect);
  // Adaptación al dispositivo real, incluso en equipos híbridos.
  canvas.addEventListener('pointerdown',e=>{
    const next=e.pointerType==='touch';

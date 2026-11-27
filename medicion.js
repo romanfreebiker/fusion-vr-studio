@@ -1,4 +1,4 @@
-// ESKALA — motor único de medición v147
+// ESKALA — motor único de medición v148
 export function createMeasurement(ctx){
 const {THREE,renderer,scene,controls,presentation,setPresentationMode,standardView,worldPerPixel,zoomAt}=ctx;
 let technicalMode=false,technicalOriginals=[],technicalEdges=[],technicalMaterial=null,technicalLineMaterial=null,dimensionLayer=null,dimensions=[],previousMeasureBackground=null;
@@ -76,16 +76,17 @@ function measureTarget(x,y,pointerType){
  ctx.camera.updateMatrixWorld(true);ctx.model.updateMatrixWorld(true);
  const cast=(px,py)=>{measurementPointer.set((px-r.left)/r.width*2-1,-(py-r.top)/r.height*2+1);measurementRay.setFromCamera(measurementPointer,ctx.camera);return measurementRay.intersectObject(ctx.model,true).find(h=>h.object.visible&&h.face)};
  const hit=cast(x,y);
+ const axisRadius=pointerType==='touch'?30:25;
  // Probe near the pointer as well, so exposed corners can be snapped from outside the silhouette.
  const hits=[hit];for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]])hits.push(cast(x+dx*radius*.8,y+dy*radius*.8));
  const candidates=new Map();for(const h of hits)if(h&&!candidates.has(h.object))candidates.set(h.object,h);
  let best=null;const picks=[];
  function offer(p,kind,penalty=0){
  const q=projectMeasure(p,r);if(q.z<-1||q.z>1)return;
- const d=Math.hypot(q.x-x,q.y-y);if(d>PREVIEW_RADIUS)return;
+ const d=Math.hypot(q.x-x,q.y-y);if(d>Math.max(PREVIEW_RADIUS,measurePoints.length===1?axisRadius:radius))return;
  const score=d+penalty, candidate={p:p.clone(),kind,score,x:q.x,y:q.y};
  
- if(d<=radius)picks.push(candidate);
+ if(d<=(measurePoints.length===1?axisRadius:radius))picks.push(candidate);
  }
  for(const [mesh,h] of candidates){
  const edges=featureEdges(mesh.geometry),a=new THREE.Vector3(),b=new THREE.Vector3();
@@ -93,7 +94,7 @@ function measureTarget(x,y,pointerType){
  for(let i=0;i<edges.length;i+=6){
  a.fromArray(edges,i).applyMatrix4(mesh.matrixWorld);b.fromArray(edges,i+3).applyMatrix4(mesh.matrixWorld);
  const u=projectMeasure(a,r),v=projectMeasure(b,r);
- if(Math.min(u.x,v.x)>x+PREVIEW_RADIUS||Math.max(u.x,v.x)<x-PREVIEW_RADIUS||Math.min(u.y,v.y)>y+PREVIEW_RADIUS||Math.max(u.y,v.y)<y-PREVIEW_RADIUS)continue;
+ if(Math.min(u.x,v.x)>x+Math.max(PREVIEW_RADIUS,axisRadius)||Math.max(u.x,v.x)<x-Math.max(PREVIEW_RADIUS,axisRadius)||Math.min(u.y,v.y)>y+Math.max(PREVIEW_RADIUS,axisRadius)||Math.max(u.y,v.y)<y-Math.max(PREVIEW_RADIUS,axisRadius))continue;
  offer(a,'Vértice');offer(b,'Vértice');
  const mid=a.clone().lerp(b,.5);offer(mid,'Punto medio',3);
  // Find actual intersections of feature segments with the three global axis lines.
@@ -117,7 +118,7 @@ function measureTarget(x,y,pointerType){
  }
  }
  const visible=c=>{const f=cast(c.x,c.y);return !f||f.point.clone().sub(c.p).dot(ctx.camera.getWorldDirection(new THREE.Vector3()))>=-Math.max(.002,f.distance*.0001)};
- best=picks.sort((a,b)=>a.score-b.score).slice(0,24).find(visible)||null;
+ best=picks.sort((a,b)=>a.score-b.score).filter(c=>Math.hypot(c.x-x,c.y-y)<=radius).slice(0,24).find(visible)||null;
  // No free surface picks: a measurement always requires a geometric feature.
  // Alignment is a property of an actual geometric point, never a virtual projection.
  if(measurePoints.length===1){
@@ -136,7 +137,7 @@ function measureTarget(x,y,pointerType){
      for(const h of axisRay.intersectObject(ctx.model,true)){
        if(!h.face||!h.object.visible||h.distance<=tol)continue;
        const q=projectMeasure(h.point,r),pixels=Math.hypot(q.x-x,q.y-y);
-       if(q.z<-1||q.z>1||pixels>radius)continue;
+       if(q.z<-1||q.z>1||pixels>axisRadius)continue;
        const candidate={p:h.point.clone(),kind:'Intersección de eje',alignment:axis==='y'?'Vertical':'Horizontal',x:q.x,y:q.y,score:pixels+2};
        axisHits.push(candidate);
      }
