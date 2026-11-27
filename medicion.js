@@ -1,4 +1,4 @@
-// ESKALA — motor único de medición v144
+// ESKALA — motor único de medición v145
 export function createMeasurement(ctx){
 const {THREE,renderer,scene,controls,presentation,setPresentationMode,standardView,worldPerPixel,zoomAt}=ctx;
 let technicalMode=false,technicalOriginals=[],technicalEdges=[],technicalMaterial=null,technicalLineMaterial=null,dimensionLayer=null,dimensions=[],previousMeasureBackground=null;
@@ -49,7 +49,7 @@ function clearMeasures(){
 function hideMeasureHover(){if(measureHover)measureHover.hidden=true;if(snapLayer)snapLayer.replaceChildren();measureEvent=null;clearProvisional()}
 function setMeasureMode(active,btn){
  measureMode=active;controls.enabled=!ctx.walkingMode;btn?.setAttribute('aria-pressed',String(active));
- document.body.classList.toggle('measuring',active);renderer.domElement.style.setProperty('cursor',active?'crosshair':'','important');if(!active)renderer.domElement.style.removeProperty('cursor');setTechnicalMode(active);
+ document.body.classList.toggle('measuring',active);renderer.domElement.style.setProperty('cursor',active?'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2721%27 height=%2721%27 viewBox=%270 0 21 21%27%3E%3Cpath d=%27M3 3L8 8M13 13L18 18M18 3L13 8M8 13L3 18%27 stroke=%27white%27 stroke-width=%273%27 fill=%27none%27/%3E%3Cpath d=%27M3 3L8 8M13 13L18 18M18 3L13 8M8 13L3 18%27 stroke=%27%230c2638%27 stroke-width=%271%27 fill=%27none%27/%3E%3C/svg%3E") 10 10, crosshair':'','important');if(!active)renderer.domElement.style.removeProperty('cursor');setTechnicalMode(active);
  if(!measureLabel){measureLabel=document.createElement('div');measureLabel.style.cssText='position:fixed;bottom:12px;left:12px;z-index:30;max-width:calc(100% - 24px);background:#142034ed;color:#7eeaff;padding:10px;border-radius:8px;pointer-events:none;font:13px system-ui';document.body.append(measureLabel)}
  if(!measureHover){measureHover=document.createElement('div');measureHover.className='measure-snap';measureHover.hidden=true;document.body.append(measureHover)}
  if(!snapLayer){snapLayer=document.createElement('div');snapLayer.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:24';document.body.append(snapLayer)}
@@ -95,6 +95,19 @@ function measureTarget(x,y,pointerType){
  if(Math.min(u.x,v.x)>x+PREVIEW_RADIUS||Math.max(u.x,v.x)<x-PREVIEW_RADIUS||Math.min(u.y,v.y)>y+PREVIEW_RADIUS||Math.max(u.y,v.y)<y-PREVIEW_RADIUS)continue;
  offer(a,'Vértice');offer(b,'Vértice');
  const mid=a.clone().lerp(b,.5);offer(mid,'Punto medio',3);
+ // Find actual intersections of feature segments with the three global axis lines.
+ if(measurePoints.length===1){
+   const origin=measurePoints[0],ab=b.clone().sub(a),tol=0.00005;
+   for(const axis of ['x','y','z']){
+     const other=['x','y','z'].filter(k=>k!==axis);
+     const den=other.reduce((n,k)=>n+ab[k]*ab[k],0);
+     if(den<1e-16)continue;
+     const t=other.reduce((n,k)=>n+(origin[k]-a[k])*ab[k],0)/den;
+     if(t<0||t>1)continue;
+     const p=a.clone().addScaledVector(ab,t);
+     if(Math.hypot(...other.map(k=>p[k]-origin[k]))<=tol)offer(p,'Arista',1);
+   }
+ }
  const dx=v.x-u.x,dy=v.y-u.y,den=dx*dx+dy*dy;
  if(den>0){const t=THREE.MathUtils.clamp(((x-u.x)*dx+(y-u.y)*dy)/den,0,1);
  // Convert screen interpolation to perspective-correct world interpolation.
@@ -105,23 +118,15 @@ function measureTarget(x,y,pointerType){
  const visible=c=>{const f=cast(c.x,c.y);return !f||f.point.clone().sub(c.p).dot(ctx.camera.getWorldDirection(new THREE.Vector3()))>=-Math.max(.002,f.distance*.0001)};
  best=picks.sort((a,b)=>a.score-b.score).slice(0,24).find(visible)||null;
  // No free surface picks: a measurement always requires a geometric feature.
- // Universal axis lock: exact world X/Y/Z projection with screen proximity.
- if(best&&measurePoints.length===1){
-   const a=measurePoints[0],d=best.p.clone().sub(a),length=d.length();
-   if(length>1e-6){
-     const choices=['x','y','z'].map(axis=>{
-       const p=a.clone();p[axis]+=d[axis];
-       const q=projectMeasure(p,r);
-       return {axis,p,q,error:p.distanceTo(best.p),pixels:Math.hypot(q.x-x,q.y-y)};
-     }).filter(c=>c.p.distanceToSquared(a)>1e-12&&c.q.z>=-1&&c.q.z<=1&&c.error/length<=Math.sin(8*Math.PI/180)&&c.pixels<=32).sort((u,v)=>u.error-v.error);
-     const snap=choices[0];
-     if(snap){
-       const surface=cast(snap.q.x,snap.q.y);
-       const projected=!surface||surface.point.distanceTo(snap.p)>0.0001;
-       const alignment=snap.axis==='y'?'Vertical':'Horizontal';
-       best={...best,sourcePoint:best.p.clone(),sourceKind:best.kind,p:snap.p,x:snap.q.x,y:snap.q.y,alignment,kind:alignment,projected};
-     }
-   }
+ // Alignment is a property of an actual geometric point, never a virtual projection.
+ if(measurePoints.length===1){
+   const origin=measurePoints[0],tol=0.00005;
+   const aligned=picks.filter(c=>c.p.distanceToSquared(origin)>1e-12).map(c=>{
+     const d=c.p.clone().sub(origin);
+     const axis=['x','y','z'].find(k=>Math.abs(d[k])>tol&&Math.hypot(...['x','y','z'].filter(j=>j!==k).map(j=>d[j]))<=tol);
+     return axis?{...c,alignment:axis==='y'?'Vertical':'Horizontal'}:null;
+   }).filter(Boolean).sort((a,b)=>a.score-b.score).find(visible);
+   if(aligned)best=aligned;
  }
  return best;
 }
@@ -362,7 +367,7 @@ renderer.domElement.addEventListener('pointermove',e=>{
 },true);
 renderer.domElement.addEventListener('pointerleave',hideMeasureHover);
 function selectMeasurePoint(target){
- if(!target?.p)return;
+ if(!target?.p||target.projected||!['Vértice','Punto medio','Arista'].includes(target.kind))return;
  if(measurePoints.length!==1)clearMeasures();else if(target.p.distanceToSquared(measurePoints[0])<1e-12)return;
  clearProvisional();
  const p=target.p.clone();
@@ -373,8 +378,8 @@ function selectMeasurePoint(target){
  const [a,b]=measurePoints,delta=b.clone().sub(a);
  const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),new THREE.LineBasicMaterial({color:0x0078b8,depthTest:false,depthWrite:false}));line.renderOrder=999;measureMarks.add(line);
  const fmt=x=>Math.round(Math.abs(x)*1000).toLocaleString('es-ES');
- addDimension(a,b,fmt(delta.length())+(target.projected?' (proy.)':''));
- measureLabel.textContent='Distancia: '+fmt(delta.length())+' mm'+(target.projected?' · Proyección sobre eje':'')+' · Selecciona otro punto para empezar de nuevo.';
+ addDimension(a,b,fmt(delta.length()));
+ measureLabel.textContent='Distancia: '+fmt(delta.length())+' mm'+(target.alignment?' · '+target.alignment:'')+' · Selecciona otro punto para empezar de nuevo.';
  measurePoints=[];
 }
 renderer.domElement.addEventListener('pointerup',e=>{
