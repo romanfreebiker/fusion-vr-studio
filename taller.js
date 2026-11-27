@@ -115,8 +115,8 @@
  function link(key){const u=new URL('taller.html',location.href);u.hash=key;return u.href}
  function tabletLink(key){const u=new URL('tablet-taller.html',location.href);u.hash=key;return u.href}
  const centralLink=tabletLink;
- function viewer(key,id){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','taller');u.searchParams.set('v','141');u.searchParams.set('diseno',id);u.hash=key;return u.href}
- function tabletViewer(key,id){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('v','141');u.searchParams.set('diseno',id);u.hash=key;return u.href}
+ function viewer(key,id){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','taller');u.searchParams.set('v','142');u.searchParams.set('diseno',id);u.hash=key;return u.href}
+ function tabletViewer(key,id){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('v','142');u.searchParams.set('diseno',id);u.hash=key;return u.href}
  const centralViewer=tabletViewer;
  async function tabletAction(key,payload){
    const h=await hash(key||''),d=await data();
