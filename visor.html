@@ -172,7 +172,7 @@ const scene=new THREE.Scene();
 scene.background=new THREE.Color(0xa9bdcf);
 const perspectiveCamera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,presentation?.002:.03,500),orthoCamera=new THREE.OrthographicCamera(-5,5,5,-5,.002,1000);let camera=perspectiveCamera,orthoHeight=10,projectionButton;
 const rig=new THREE.Group();
-rig.add(camera);
+rig.add(camera);rig.add(orthoCamera);
 scene.add(rig);
 let renderer;
 try {
@@ -1430,7 +1430,7 @@ function renderLoupe(){
  if(!touchMeasure?.aim||!measureMode){hideLoupe();return}
  openLoupe();const d=touchMeasure,source=renderer.domElement,r=source.getBoundingClientRect();
  const x=d.x,y=d.y,span=56;
- camera.updateMatrixWorld(true);loupeCamera.copy(camera,false);camera.getWorldPosition(loupeCamera.position);camera.getWorldQuaternion(loupeCamera.quaternion);loupeCamera.setViewOffset(r.width,r.height,x-r.left-span/2,y-r.top-span/2,span,span);loupeCamera.updateMatrixWorld(true);loupeRenderer.render(scene,loupeCamera);
+ camera.updateMatrixWorld(true);if(loupeCamera.type!==camera.type)loupeCamera=camera.clone();loupeCamera.copy(camera,false);camera.getWorldPosition(loupeCamera.position);camera.getWorldQuaternion(loupeCamera.quaternion);loupeCamera.setViewOffset(r.width,r.height,x-r.left-span/2,y-r.top-span/2,span,span);loupeCamera.updateMatrixWorld(true);loupeRenderer.render(scene,loupeCamera);
  const p=d.target?.p?projectMeasure(d.target.p,r):null;
  loupeCaption.textContent=p?d.target.kind+' · suelta para fijar':'Busca una arista o vértice';
  touchLoupe.hidden=false;positionMobileLoupe();
