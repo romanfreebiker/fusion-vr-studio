@@ -60,6 +60,16 @@
       "miniatura": "miniaturas/puerta-zona-generador-mwvotkdj.jpg",
       "status": "active",
       "updated": "2026-11-26T12:55:34.237Z"
+    },
+    {
+      "id": "escalera-recta-lateral-interior-mwyk90ue",
+      "nombre": "escalera recta lateral(interior)",
+      "descripcion": "",
+      "categoria": "Escaleras",
+      "archivo": "modelos/escalera-recta-lateral-interior-mwyk90ue.glb",
+      "miniatura": "miniaturas/escalera-recta-lateral-interior-mwyk90ue.jpg",
+      "status": "active",
+      "updated": "2026-11-27T19:17:36.625Z"
     }
   ]
 }
