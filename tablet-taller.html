@@ -28,7 +28,7 @@ main{padding:18px clamp(12px,2.5vw,28px) 40px;max-width:1500px;margin:auto}.summ
  <div class="summary" id="summary"></div>
  <section id="workers"></section>
 </main>
-<script src="taller.js?v=140"></script>
+<script src="taller.js?v=141"></script>
 <script>
 const T=window.EskalaTaller,statusNode=document.getElementById('status'),grid=document.getElementById('workers'),summary=document.getElementById('summary');
 const storageKey='eskala-tablet-taller-key',legacyKey='eskala-central-taller-key';
@@ -77,7 +77,7 @@ async function load(){
     for(const j of data.tabletJobs){
       const card=el('article','','job');card.append(el('h3',j.model.nombre));
       const meta=el('div','','meta');meta.append(el('span','Sin asignar','tag'));meta.append(el('span','Visible solo en Tablet','phase'));card.append(meta);
-      const actions=el('div','','actions');const open=el('a','Abrir visor y medir');if(adminMode){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('adminTablet','1');u.searchParams.set('v','140');u.searchParams.set('diseno',j.design);open.href=u.href}else open.href=T.tabletViewer(key,j.design);actions.append(open);
+      const actions=el('div','','actions');const open=el('a','Abrir visor y medir');if(adminMode){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('adminTablet','1');u.searchParams.set('v','141');u.searchParams.set('diseno',j.design);open.href=u.href}else open.href=T.tabletViewer(key,j.design);actions.append(open);
       const activeWorkers=data.workers.filter(w=>w.active);if(activeWorkers.length){const sel=document.createElement('select');for(const w of activeWorkers)sel.add(new Option(w.label,w.id));actions.append(sel);const assign=el('button','Asignar');assign.onclick=async()=>{try{await mutate({action:'assign',design:j.design,worker:sel.value,type:'Fabricación e instalación',priority:'Normal',phase:'Pendiente',note:''},x=>{x.jobs=(x.jobs||[]).filter(r=>r.design!==j.design);x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(r=>r.design!==j.design);x.jobs.push({worker:sel.value,design:j.design,type:'Fabricación e instalación',priority:'Normal',phase:'Pendiente',note:''})});signature='';await load()}catch(e){alert(e.message)}};actions.append(assign)}
       const remove=el('button','Retirar de Tablet','danger');remove.onclick=async()=>{if(!confirm('¿Retirar este trabajo de la Tablet?'))return;try{await mutate({action:'remove',design:j.design},x=>{x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(r=>r.design!==j.design)});signature='';await load()}catch(e){alert(e.message)}};actions.append(remove);card.append(actions);jobs.append(card);
     }
@@ -98,7 +98,7 @@ async function load(){
       card.append(meta);
       if(j.note)card.append(el('div',j.note,'note'));
       const actions=el('div','','actions');
-      const open=el('a','Abrir visor y medir');if(adminMode){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('adminTablet','1');u.searchParams.set('v','140');u.searchParams.set('diseno',j.design);open.href=u.href}else open.href=T.tabletViewer(key,j.design);actions.append(open);
+      const open=el('a','Abrir visor y medir');if(adminMode){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('adminTablet','1');u.searchParams.set('v','141');u.searchParams.set('diseno',j.design);open.href=u.href}else open.href=T.tabletViewer(key,j.design);actions.append(open);
       const workerSel=document.createElement('select');for(const ww of data.workers.filter(x=>x.active))workerSel.add(new Option(ww.label,ww.id));workerSel.value=j.worker;actions.append(workerSel);
       const phaseSel=document.createElement('select');for(const p of T.phases)phaseSel.add(new Option(p,p));phaseSel.value=j.phase||'Pendiente';actions.append(phaseSel);
       const save=el('button','Guardar cambios');save.onclick=async()=>{try{await mutate({action:'update',design:j.design,worker:workerSel.value,phase:phaseSel.value},x=>{const row=(x.jobs||[]).find(r=>r.design===j.design&&r.worker===j.worker);if(row){row.worker=workerSel.value;row.phase=phaseSel.value}});signature='';await load()}catch(e){alert(e.message)}};actions.append(save);
