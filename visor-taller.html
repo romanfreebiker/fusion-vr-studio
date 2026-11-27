@@ -221,7 +221,7 @@ if(presentation){
  controls.enabled=true;
  controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;controls.mouseButtons.RIGHT=null;controls.mouseButtons.MIDDLE=THREE.MOUSE.PAN;
  controls.touches.ONE=THREE.TOUCH.ROTATE;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;
- const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent='Taller · v132';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px;opacity:.85';bar.append(buildTag);
+ const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent='Taller · v133';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px;opacity:.85';bar.append(buildTag);
  presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
  button(access==='tablet'?'Tablet Taller':'Mis trabajos',()=>{const key=location.hash.slice(1);let u;if(access==='tablet'&&params.get('adminTablet')==='1'){u=new URL('tablet-taller.html',location.href);u.searchParams.set('adminTablet','1')}else{u=new URL(access==='tablet'?EskalaTaller.tabletLink(key):EskalaTaller.link(key));if(access!=='tablet'&&params.get('adminWorker'))u.searchParams.set('adminWorker',params.get('adminWorker'))}location.assign(u.href)});
@@ -1388,8 +1388,39 @@ let touchMeasure=null,touchLoupe=null,loupeCanvas=null,loupeCaption=null,loupeRe
 const touchNavigation=new Map();let touchMulti=false;
 let loupePosition=null,loupeDrag=null;
 function positionMobileLoupe(){if(!touchLoupe)return;const w=touchLoupe.offsetWidth||148,h=touchLoupe.offsetHeight||168;const p=loupePosition||{x:innerWidth-w-10,y:Math.max(65,(document.getElementById('presentationBar')?.getBoundingClientRect().bottom||55)+8)};const x=Math.max(0,Math.min(Math.max(0,innerWidth-w),p.x)),y=Math.max(0,Math.min(Math.max(0,innerHeight-h),p.y));touchLoupe.style.left=x+'px';touchLoupe.style.top=y+'px';touchLoupe.style.right='auto';}
-function enableLoupeDrag(){touchLoupe.style.pointerEvents='auto';touchLoupe.style.touchAction='none';touchLoupe.style.cursor='grab';touchLoupe.addEventListener('pointerdown',e=>{if(loupeDrag)return;e.preventDefault();e.stopPropagation();const r=touchLoupe.getBoundingClientRect();loupeDrag={id:e.pointerId,x:e.clientX-r.left,y:e.clientY-r.top};touchLoupe.setPointerCapture(e.pointerId);touchLoupe.style.cursor='grabbing'});touchLoupe.addEventListener('pointermove',e=>{if(loupeDrag?.id!==e.pointerId)return;e.preventDefault();e.stopPropagation();loupePosition={x:e.clientX-loupeDrag.x,y:e.clientY-loupeDrag.y};positionMobileLoupe()});for(const type of ['pointerup','pointercancel','lostpointercapture'])touchLoupe.addEventListener(type,e=>{if(loupeDrag?.id!==e.pointerId)return;e.stopPropagation();loupeDrag=null;touchLoupe.style.cursor='grab';if(touchLoupe.hasPointerCapture(e.pointerId))touchLoupe.releasePointerCapture(e.pointerId)});}
-function hideLoupe(){if(touchLoupe)touchLoupe.hidden=true}
+function endLoupeDrag(){
+ if(!loupeDrag)return;
+ const id=loupeDrag.id;loupeDrag=null;
+ touchLoupe.style.cursor='grab';
+ if(touchLoupe.hasPointerCapture(id))touchLoupe.releasePointerCapture(id);
+}
+function enableLoupeDrag(){
+ touchLoupe.style.pointerEvents='auto';touchLoupe.style.touchAction='none';touchLoupe.style.cursor='grab';
+ // Only the visible magnifier owns a drag started inside its bounds.
+ loupeCanvas.style.pointerEvents='none';
+ touchLoupe.addEventListener('pointerdown',e=>{
+   e.preventDefault();e.stopImmediatePropagation();
+   if(loupeDrag)return;
+   const r=touchLoupe.getBoundingClientRect();
+   loupeDrag={id:e.pointerId,x:e.clientX-r.left,y:e.clientY-r.top};
+   touchLoupe.setPointerCapture(e.pointerId);touchLoupe.style.cursor='grabbing';
+ });
+ touchLoupe.addEventListener('pointermove',e=>{
+   if(loupeDrag?.id!==e.pointerId)return;
+   e.preventDefault();e.stopImmediatePropagation();
+   loupePosition={x:e.clientX-loupeDrag.x,y:e.clientY-loupeDrag.y};positionMobileLoupe();
+ });
+ for(const type of ['pointerup','pointercancel','lostpointercapture'])touchLoupe.addEventListener(type,e=>{
+   if(loupeDrag?.id!==e.pointerId)return;
+   e.stopImmediatePropagation();endLoupeDrag();
+ });
+ window.addEventListener('blur',endLoupeDrag);
+ // A new gesture outside the magnifier always belongs to the underlying viewer.
+ renderer.domElement.addEventListener('pointerdown',e=>{
+   if(loupeDrag&&loupeDrag.id===e.pointerId)endLoupeDrag();
+ },true);
+}
+function hideLoupe(){if(touchLoupe){endLoupeDrag();touchLoupe.hidden=true}}
 function cancelTouchMeasure(){if(touchMeasure)clearTimeout(touchMeasure.timer);touchMeasure=null;cancelMobileTap();hideLoupe()}
 function openLoupe(){
  if(touchLoupe)return;
