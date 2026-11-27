@@ -1,4 +1,4 @@
-// ESKALA — motor único de medición v146
+// ESKALA — motor único de medición v147
 export function createMeasurement(ctx){
 const {THREE,renderer,scene,controls,presentation,setPresentationMode,standardView,worldPerPixel,zoomAt}=ctx;
 let technicalMode=false,technicalOriginals=[],technicalEdges=[],technicalMaterial=null,technicalLineMaterial=null,dimensionLayer=null,dimensions=[],previousMeasureBackground=null;
@@ -46,7 +46,8 @@ function clearMeasures(){
  if(measureMarks){scene.remove(measureMarks);measureMarks.traverse(o=>{o.geometry?.dispose();o.material?.dispose()});measureMarks=null}
  measurePoints=[];if(measureLabel)measureLabel.textContent=measureMode?'Selecciona dos puntos. Acerca el cursor a una arista o vértice.':'';
 }
-function hideMeasureHover(){if(measureHover)measureHover.hidden=true;if(snapLayer)snapLayer.replaceChildren();measureEvent=null;clearProvisional()}
+let displayedSnap=null;
+function hideMeasureHover(){displayedSnap=null;if(measureHover)measureHover.hidden=true;if(snapLayer)snapLayer.replaceChildren();measureEvent=null;clearProvisional()}
 function setMeasureMode(active,btn){
  measureMode=active;controls.enabled=!ctx.walkingMode;btn?.setAttribute('aria-pressed',String(active));
  document.body.classList.toggle('measuring',active);renderer.domElement.style.setProperty('cursor',active?'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2721%27 height=%2721%27 viewBox=%270 0 21 21%27%3E%3Cpath d=%27M3 3L8 8M13 13L18 18M18 3L13 8M8 13L3 18%27 stroke=%27white%27 stroke-width=%273%27 fill=%27none%27/%3E%3Cpath d=%27M3 3L8 8M13 13L18 18M18 3L13 8M8 13L3 18%27 stroke=%27%230c2638%27 stroke-width=%271%27 fill=%27none%27/%3E%3C/svg%3E") 10 10, crosshair':'','important');if(!active)renderer.domElement.style.removeProperty('cursor');setTechnicalMode(active);
@@ -170,7 +171,7 @@ function previewMeasure(target,x,y){
  if(!measureHover)return;
  if(snapLayer)snapLayer.replaceChildren();
  const same=target?.p&&measurePoints.length===1&&target.p.distanceToSquared(measurePoints[0])<1e-12;
- measureHover.hidden=!target?.p||same;
+ measureHover.hidden=!target?.p||same;displayedSnap=measureHover.hidden?null:{target,x,y};
  if(target?.p&&!same){measureHover.style.left=target.x+'px';measureHover.style.top=target.y+'px';measureHover.dataset.kind=target.sourceKind||target.kind;measureHover.dataset.aligned=String(!!target.alignment);measureHover.textContent='';measureHover.classList.remove('free')}
  if(measurePoints.length!==1){clearProvisional();return}
  if(!Number.isFinite(x)||!Number.isFinite(y))return;
@@ -365,11 +366,11 @@ function rotateDesktop(dx,dy,pivot){
 }
 renderer.domElement.addEventListener('pointerdown',e=>{
  if(measureMode&&presentation&&!ctx.walkingMode&&e.pointerType==='touch'){if(loupeDrag)endLoupeDrag();ctx.touchGuide=true;touchMeasureDown(e);return;}
- if(presentation&&!ctx.walkingMode&&e.pointerType!=='touch'&&e.button===0){e.preventDefault();e.stopImmediatePropagation();desktopOrbit={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,drag:false,pivot:localOrbitPivot(e.clientX,e.clientY)||localOrbitPivot(innerWidth/2,innerHeight/2)||controls.target.clone()};renderer.domElement.setPointerCapture(e.pointerId);hideMeasureHover();return;}
+ if(presentation&&!ctx.walkingMode&&e.pointerType!=='touch'&&e.button===0){e.preventDefault();e.stopImmediatePropagation();desktopOrbit={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,drag:false,snap:measureMode&&measureHover&&!measureHover.hidden?displayedSnap:null,pivot:localOrbitPivot(e.clientX,e.clientY)||localOrbitPivot(innerWidth/2,innerHeight/2)||controls.target.clone()};renderer.domElement.setPointerCapture(e.pointerId);hideMeasureHover();return;}
  if(!measureMode)return;
  if(e.pointerType==='touch'){measureTouches.add(e.pointerId);if(measureTouches.size>1){measurePress=null;hideMeasureHover();return}}
  if(e.button!==0){measurePress=null;hideMeasureHover();return}
- measurePress={id:e.pointerId,x:e.clientX,y:e.clientY,drag:false,type:e.pointerType};hideMeasureHover();
+ measurePress={id:e.pointerId,x:e.clientX,y:e.clientY,drag:false,type:e.pointerType,snap:measureHover&&!measureHover.hidden?displayedSnap:null};hideMeasureHover();
 },true);
 renderer.domElement.addEventListener('pointermove',e=>{
  if(e.pointerType==='touch'&&touchNavigation.has(e.pointerId)){touchMeasureMove(e);return;}
@@ -381,6 +382,12 @@ renderer.domElement.addEventListener('pointermove',e=>{
  if(!measureFrame)measureFrame=requestAnimationFrame(()=>{measureFrame=0;if(measureMode&&measureEvent)previewMeasure(measureTarget(measureEvent.x,measureEvent.y,measureEvent.type),measureEvent.x,measureEvent.y)});
 },true);
 renderer.domElement.addEventListener('pointerleave',hideMeasureHover);
+function confirmedDesktopSnap(e,snap=displayedSnap){
+ if(!snap||Math.hypot(e.clientX-snap.x,e.clientY-snap.y)>4)return null;
+ const fresh=measureTarget(e.clientX,e.clientY,e.pointerType);
+ if(!fresh?.p||fresh.p.distanceTo(snap.target.p)>0.00005)return null;
+ return snap.target;
+}
 function selectMeasurePoint(target){
  if(!target?.p||target.projected||!['Vértice','Punto medio','Arista','Intersección de eje'].includes(target.kind))return;
  if(measurePoints.length!==1)clearMeasures();else if(target.p.distanceToSquared(measurePoints[0])<1e-12)return;
@@ -399,14 +406,14 @@ function selectMeasurePoint(target){
 }
 renderer.domElement.addEventListener('pointerup',e=>{
  if(e.pointerType==='touch'&&touchNavigation.has(e.pointerId)){touchMeasureUp(e);return;}
- if(desktopOrbit?.id===e.pointerId){e.preventDefault();e.stopImmediatePropagation();const d=desktopOrbit;desktopOrbit=null;if(renderer.domElement.hasPointerCapture(e.pointerId))renderer.domElement.releasePointerCapture(e.pointerId);if(measureMode&&!d.drag&&Math.hypot(e.clientX-d.startX,e.clientY-d.startY)<=4){const t=measureTarget(e.clientX,e.clientY,e.pointerType);selectMeasurePoint(t);hideMeasureHover();if(measurePoints.length===1)previewMeasure(t,e.clientX,e.clientY)}else if(measureMode&&measurePoints.length===1)previewMeasure(null,e.clientX,e.clientY);return;}
+ if(desktopOrbit?.id===e.pointerId){e.preventDefault();e.stopImmediatePropagation();const d=desktopOrbit;desktopOrbit=null;if(renderer.domElement.hasPointerCapture(e.pointerId))renderer.domElement.releasePointerCapture(e.pointerId);if(measureMode&&!d.drag&&Math.hypot(e.clientX-d.startX,e.clientY-d.startY)<=4){const t=confirmedDesktopSnap(e,d.snap);if(t)selectMeasurePoint(t);else if(measureLabel)measureLabel.textContent='Sin enganche confirmado · Acerca el cursor hasta ver el punto rojo.';hideMeasureHover();if(measurePoints.length===1)previewMeasure(null,e.clientX,e.clientY)}else if(measureMode&&measurePoints.length===1)previewMeasure(null,e.clientX,e.clientY);return;}
  if(e.pointerType==='touch')measureTouches.delete(e.pointerId);
  const press=measurePress;
  if(!press||press.id!==e.pointerId)return;
  measurePress=null;
  if(!measureMode||press.drag||Math.hypot(e.clientX-press.x,e.clientY-press.y)>5)return;
- const target=measureTarget(e.clientX,e.clientY,e.pointerType);
- selectMeasurePoint(target);hideMeasureHover();
+ const target=e.pointerType==='touch'?measureTarget(e.clientX,e.clientY,e.pointerType):confirmedDesktopSnap(e,press.snap);
+ if(target)selectMeasurePoint(target);else if(measureLabel)measureLabel.textContent='Sin enganche confirmado · Busca el punto rojo.';hideMeasureHover();
 },true);
 for(const event of ['pointercancel','lostpointercapture'])renderer.domElement.addEventListener(event,e=>{if(touchNavigation.has(e.pointerId)){touchMeasureUp(e,true);return}measureTouches.delete(e.pointerId);if(desktopOrbit?.id===e.pointerId)desktopOrbit=null;if(measurePress?.id===e.pointerId)measurePress=null},true);
 addEventListener('blur',()=>{desktopOrbit=null;measurePress=null;measureTouches.clear();touchNavigation.clear();cancelTouchMeasure();hideMeasureHover()});
