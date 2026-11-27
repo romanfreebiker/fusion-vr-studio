@@ -4002,7 +4002,23 @@ dialog.eskala-board-dialog{width:min(1500px,96vw)!important;max-width:96vw;max-h
 .ek-action-third>.button:nth-of-type(3),.ek-action-third>.third-access-summary,.ek-action-third>.third-accesses{grid-column:1/-1}
 .ek-action-group .third-access-row{min-width:0;overflow-wrap:anywhere}.ek-action-group .delete-design{color:#ffb0b0!important;border-color:#75444b!important}
 .ek-action-group .muted,.ek-action-group .third-access-summary{overflow-wrap:anywhere}
-</style><style>.ek-list-actions{display:grid;grid-template-columns:76px 105px 146px;justify-content:end;gap:5px}.ek-list-actions>.button{width:100%;white-space:normal}.ek-list-actions>.button:disabled{opacity:.55;cursor:default}@media(max-width:900px){.ek-list-actions{display:flex;justify-content:flex-start;flex-wrap:wrap}.ek-list-actions>.button{width:auto}}</style></head>
+</style><style>.ek-list-actions{display:grid;grid-template-columns:76px 105px 146px;justify-content:end;gap:5px}.ek-list-actions>.button{width:100%;white-space:normal}.ek-list-actions>.button:disabled{opacity:.55;cursor:default}@media(max-width:900px){.ek-list-actions{display:flex;justify-content:flex-start;flex-wrap:wrap}.ek-list-actions>.button{width:auto}}</style><style id="eskala-assignment-layout">
+.ek-assignment-dialog{width:min(740px,94vw);max-height:88vh;overflow:auto;background:#152436;color:#eef7ff;border:1px solid #52718a;border-radius:12px;padding:0;box-sizing:border-box}
+.ek-assignment-dialog::backdrop{background:#080f19aa}
+.ek-assignment-header{position:sticky;top:0;z-index:5;background:#152436;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid #40566c}
+.ek-assignment-header h2{margin:0;font-size:21px}.ek-assignment-header p{margin:5px 0 0;color:#c0d4e6;overflow-wrap:anywhere}
+.ek-assignment-header .button{flex-shrink:0}.ek-assignment-dialog>p{margin:6px 20px}
+.ek-assignment-content{padding:12px 20px 20px;display:grid;gap:12px}
+.ek-assignment-count{background:#17382f;border:1px solid #326b59;border-radius:8px;padding:11px;color:#a0ebc8;font-weight:700}
+.ek-assignment-list{display:grid;gap:8px}.ek-assignment-worker{background:#192b3d;border:1px solid #3c536b;border-radius:9px;overflow:hidden}
+.ek-assignment-worker summary{cursor:pointer;padding:13px;display:flex;align-items:center;justify-content:space-between;gap:12px;list-style:none}
+.ek-assignment-worker summary::-webkit-details-marker{display:none}.ek-assignment-worker summary:after{content:'▾';font-size:21px;color:#b9d3e6}.ek-assignment-worker[open] summary:after{content:'▴'}
+.ek-assignment-worker summary strong{display:block;font-size:16px;color:#edf7ff}.ek-assignment-worker summary span{display:block;font-size:13px;color:#b5c8da;margin-top:4px}
+.ek-assignment-form{display:grid;gap:10px;padding:12px;border-top:1px solid #40566c}.ek-assignment-field{display:grid;gap:5px;font-size:13px;font-weight:700;color:#d0e2f1}.ek-assignment-field .input{width:100%;box-sizing:border-box;font-size:15px;font-weight:400}
+.ek-assignment-actions{display:flex;gap:8px;flex-wrap:wrap}.ek-assignment-actions .button{flex:1;min-height:42px}.ek-assignment-actions .ek-assignment-save{background:#205447;border-color:#47846e;color:#f1fff8}.ek-assignment-actions .ek-assignment-remove{background:#453034;border-color:#80535a;color:#ffd0d0}
+.ek-assignment-new{border-top:1px solid #40566c;padding-top:12px;display:grid;gap:8px}.ek-assignment-new h3{margin:0;font-size:16px}.ek-assignment-new .ek-assignment-form{padding:12px 0 0}
+@media(max-width:550px){.ek-assignment-content{padding:10px}.ek-assignment-header{padding:12px}.ek-assignment-header h2{font-size:18px}}
+</style></head>
 <body>
 <!-- ESKALA: cabecera corporativa compartida. Los controles conservan data-view. -->
 <header class="eskala-corpbar" role="banner">
@@ -4455,9 +4471,9 @@ async function workshopDialog(model=null){
  const T=window.EskalaTaller;
  const integrated=!model,host=integrated?$('workshopHost'):null;
  if(integrated&&state.activeView!=='taller'){nav('taller');return}
- const dialog=document.createElement(integrated?'section':'dialog');if(integrated){dialog.className='ek-integrated';}else{dialog.style.cssText='width:min(620px,92vw);max-height:85vh;overflow:auto;background:#152436;color:#eef7ff;border:1px solid #52718a;border-radius:12px;padding:18px'}
+ const dialog=document.createElement(integrated?'section':'dialog');if(integrated){dialog.className='ek-integrated';}else{dialog.className='ek-assignment-dialog'}
  const area=document.createElement('div');
- if(integrated){host.replaceChildren(dialog);dialog.append(area)}else{const heading=textNode('h2','Gestionar adjudicación: '+model.nombre);const close=textNode('button','Cerrar','button secondary small');close.onclick=()=>dialog.close();dialog.append(heading,close,area);document.body.append(dialog);dialog.addEventListener('close',()=>{dialog.remove();document.querySelectorAll('#gallery .tile').forEach(t=>t.dispatchEvent(new Event('eskala-workshop-refresh')));if(state.activeView==='taller')$('workshopHost')?.dispatchEvent(new Event('eskala-workshop-reload'))});dialog.showModal()}
+ if(integrated){host.replaceChildren(dialog);dialog.append(area)}else{const header=document.createElement('header');header.className='ek-assignment-header';const heading=document.createElement('div');heading.append(textNode('h2','Gestionar adjudicaciones'),textNode('p',model.nombre));const close=textNode('button','Cerrar ×','button secondary small');close.onclick=()=>dialog.close();header.append(heading,close);area.className='ek-assignment-content';dialog.append(header,area);document.body.append(dialog);dialog.addEventListener('close',()=>{dialog.remove();document.querySelectorAll('#gallery .tile').forEach(t=>t.dispatchEvent(new Event('eskala-workshop-refresh')));if(state.activeView==='taller')$('workshopHost')?.dispatchEvent(new Event('eskala-workshop-reload'))});dialog.showModal()}
  const keyName=id=>'eskala-taller-key:'+id;
  let saving=false; const feedback=textNode('p','','muted');feedback.setAttribute('role','status');dialog.insertBefore(feedback,area); const run=async fn=>{if(saving)return;saving=true;feedback.textContent='Guardando…';area.querySelectorAll('button').forEach(b=>b.disabled=true);try{const updated=await fn();await draw(updated&&Array.isArray(updated.workers)?updated:null);feedback.textContent='Cambios guardados.'}catch(e){feedback.textContent=e.message;toast(e.message,true)}finally{saving=false;area.querySelectorAll('button').forEach(b=>b.disabled=false)}};
  const btn=(label,fn)=>{const b=textNode('button',label,'button secondary small');b.type='button';b.onclick=fn;return b};
@@ -4497,10 +4513,32 @@ async function workshopDialog(model=null){
  search.oninput=()=>{boardQuery=search.value;paint()};filter.onchange=()=>{boardFilter=filter.value;paint()};paint();return board
  }
 
+ let assignmentDirty=false,expandedWorker='',selectedWorker='';
  async function draw(updated=null){
  const d=updated||await T.data(state.token);area.replaceChildren();
  const originalArea=area;let legacy=null;if(!model){area.append(buildBoard(d));legacy=document.createElement('details');legacy.className='ek-legacy';legacy.open=legacyOpen;legacy.ontoggle=()=>{legacyOpen=legacy.open};legacy.append(textNode('summary','Accesos de Terminal, gestión de operarios y acciones avanzadas'));area.append(legacy);}
  const appendTarget=legacy||area;
+ if(model){
+ const assigned=(d.jobs||[]).filter(j=>j.design===model.id);
+ const active=d.workers.filter(w=>w.active);
+ const available=active.filter(w=>!assigned.some(j=>j.worker===w.id));
+ const count=textNode('div',assigned.length+' operario'+(assigned.length===1?'':'s')+' adjudicado'+(assigned.length===1?'':'s'),'ek-assignment-count');
+ area.append(count);
+ const field=(title,control)=>{const label=textNode('label',title,'ek-assignment-field');label.append(control);return label};
+ const form=(w,j)=>{
+ const type=choose(['Fabricación','Instalación','Fabricación e instalación'],j?.type||'Fabricación e instalación'),priority=choose(['Normal','Alta','Urgente'],j?.priority),phase=choose(T.phases,j?.phase);
+ const note=document.createElement('textarea');note.className='input';note.placeholder='Añadir instrucciones de trabajo…';note.value=j?.note||'';note.rows=2;note.maxLength=500;
+ const f=document.createElement('div');f.className='ek-assignment-form';f.append(field('Tipo de trabajo',type),field('Prioridad',priority),field('Fase de producción',phase),field('Instrucciones',note));f.addEventListener('input',()=>{assignmentDirty=true});f.addEventListener('change',()=>{assignmentDirty=true});
+ const actions=document.createElement('div');actions.className='ek-assignment-actions';
+ const save=btn(j?'Guardar cambios':'Adjudicar operario',()=>run(async()=>{const result=await T.change(state.token,x=>{if(!x.workers.some(y=>y.id===w.id&&y.active)&&!j)throw Error('Operario no disponible');x.jobs=x.jobs.filter(y=>!(y.worker===w.id&&y.design===model.id));x.jobs.push({worker:w.id,design:model.id,type:type.value,priority:priority.value,phase:phase.value,note:note.value.trim().slice(0,500)});x.tabletJobs=(x.tabletJobs||[]).filter(y=>y.design!==model.id)});assignmentDirty=false;expandedWorker='';selectedWorker='';return result}));save.classList.add('ek-assignment-save');actions.append(save);
+ if(j){const remove=btn('Retirar trabajo',()=>{if(!confirm('¿Retirar este trabajo de '+w.label+'?'))return;run(async()=>{const result=await T.change(state.token,x=>{x.jobs=x.jobs.filter(y=>!(y.worker===w.id&&y.design===model.id))});assignmentDirty=false;expandedWorker='';return result})});remove.classList.add('ek-assignment-remove');actions.append(remove)}f.append(actions);return f};
+ const list=document.createElement('div');list.className='ek-assignment-list';area.append(list);
+ for(const j of assigned){const w=d.workers.find(x=>x.id===j.worker)||{id:j.worker,label:'Operario no disponible',active:false};const details=document.createElement('details');details.className='ek-assignment-worker';details.open=expandedWorker===w.id;const summary=document.createElement('summary');const who=document.createElement('div');who.append(textNode('strong',w.label+(w.active?'':' · baja')),textNode('span',(j.type||'Trabajo')+' · '+(j.phase||'Pendiente')+' · '+(j.priority||'Normal')));summary.append(who);details.append(summary,form(w,j));details.addEventListener('toggle',()=>{if(details.open){expandedWorker=w.id;for(const other of list.querySelectorAll('details'))if(other!==details)other.open=false}else if(expandedWorker===w.id)expandedWorker=''});list.append(details)}
+ if(!assigned.length)list.append(textNode('p','Todavía no hay operarios adjudicados.','muted'));
+ const add=document.createElement('section');add.className='ek-assignment-new';add.append(textNode('h3','Adjudicar nuevo operario'));
+ if(available.length){const select=document.createElement('select');select.className='input';select.append(new Option('Seleccionar operario…',''));for(const w of available)select.add(new Option(w.label,w.id));select.value=selectedWorker;const editor=document.createElement('div');const show=()=>{selectedWorker=select.value;editor.replaceChildren();const w=available.find(x=>x.id===select.value);if(w)editor.append(form(w,null))};select.onchange=show;add.append(field('Operario disponible',select),editor);show()}else add.append(textNode('p',active.length?'Todos los operarios activos están adjudicados.':'No hay operarios activos.','muted'));
+ area.append(add);return;
+ }
  if(!model){
  const centralKeyName='eskala-taller-tablet-key';
  const centralPanel=document.createElement('div');centralPanel.style.cssText='border:1px solid #2e7089;background:#102633;border-radius:12px;padding:12px;margin:8px 0 14px;display:grid;gap:8px';
@@ -4562,7 +4600,7 @@ async function workshopDialog(model=null){
  }
  try{await draw()}catch(e){area.textContent=e.message}
  let liveBusy=false;
- const stopLive=T.subscribe?.(()=>{if(saving||liveBusy)return;liveBusy=true;draw().catch(e=>{feedback.textContent=e.message}).finally(()=>{liveBusy=false})},e=>{feedback.textContent='Sincronización: '+e.message});
+ const stopLive=T.subscribe?.(()=>{if(saving||liveBusy||(model&&assignmentDirty))return;liveBusy=true;draw().catch(e=>{feedback.textContent=e.message}).finally(()=>{liveBusy=false})},e=>{feedback.textContent='Sincronización: '+e.message});
  if(integrated){const reload=()=>{if(!saving&&!liveBusy&&dialog.isConnected)void draw().catch(e=>{feedback.textContent=e.message})};host.addEventListener('eskala-workshop-reload',reload);host.addEventListener('eskala-workshop-close',()=>{stopLive?.();host.removeEventListener('eskala-workshop-reload',reload);document.querySelectorAll('#gallery .tile').forEach(t=>t.dispatchEvent(new Event('eskala-workshop-refresh')));},{once:true});if(!dialog.isConnected)stopLive?.()}else if(stopLive)dialog.addEventListener('close',()=>stopLive(),{once:true});
 }
 
