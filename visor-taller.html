@@ -221,7 +221,7 @@ if(presentation){
  controls.enabled=true;
  controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;controls.mouseButtons.RIGHT=null;controls.mouseButtons.MIDDLE=THREE.MOUSE.PAN;
  controls.touches.ONE=THREE.TOUCH.ROTATE;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;
- const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent='Taller · v133';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px;opacity:.85';bar.append(buildTag);
+ const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent='Taller · v134';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px;opacity:.85';bar.append(buildTag);
  presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
  button(access==='tablet'?'Tablet Taller':'Mis trabajos',()=>{const key=location.hash.slice(1);let u;if(access==='tablet'&&params.get('adminTablet')==='1'){u=new URL('tablet-taller.html',location.href);u.searchParams.set('adminTablet','1')}else{u=new URL(access==='tablet'?EskalaTaller.tabletLink(key):EskalaTaller.link(key));if(access!=='tablet'&&params.get('adminWorker'))u.searchParams.set('adminWorker',params.get('adminWorker'))}location.assign(u.href)});
@@ -1328,22 +1328,21 @@ function measureTarget(x,y,pointerType){
  const visible=c=>{const f=cast(c.x,c.y);return !f||f.point.clone().sub(c.p).dot(camera.getWorldDirection(new THREE.Vector3()))>=-Math.max(.002,f.distance*.0001)};
  best=picks.sort((a,b)=>a.score-b.score).slice(0,24).find(visible)||null;
  if(!best&&pointerType==='touch'&&hit){const q=projectMeasure(hit.point,r);best={p:hit.point.clone(),kind:'Superficie',score:radius+1,x:q.x,y:q.y};}
- // Orthogonal measurement snap in model coordinates, never just screen pixels.
+ // Universal axis lock: exact world X/Y/Z projection with screen proximity.
  if(pointerType==='touch'&&best&&measurePoints.length===1){
    const a=measurePoints[0],d=best.p.clone().sub(a),length=d.length();
    if(length>1e-6){
-     const axes=['x','y','z'].map(axis=>{
+     const choices=['x','y','z'].map(axis=>{
        const p=a.clone();p[axis]+=d[axis];
-       return {axis,p,error:p.distanceTo(best.p)};
-     }).sort((u,v)=>u.error-v.error);
-     const snap=axes[0],q=projectMeasure(snap.p,r);
-     if(snap.error/length<=Math.sin(5*Math.PI/180)&&Math.hypot(q.x-x,q.y-y)<=22&&snap.p.distanceToSquared(a)>1e-12&&q.z>=-1&&q.z<=1){
-       const surface=cast(q.x,q.y);
-       // Check the actual visible model surface before accepting an exact axis point.
-       // Do not fabricate an endpoint in empty space or behind another face.
-       if(surface&&surface.point.distanceTo(snap.p)<=0.0001){
-         best={...best,p:snap.p,x:q.x,y:q.y,alignment:snap.axis==='y'?'Vertical':'Horizontal',kind:snap.axis==='y'?'Vertical':'Horizontal'};
-       }
+       const q=projectMeasure(p,r);
+       return {axis,p,q,error:p.distanceTo(best.p),pixels:Math.hypot(q.x-x,q.y-y)};
+     }).filter(c=>c.p.distanceToSquared(a)>1e-12&&c.q.z>=-1&&c.q.z<=1&&c.error/length<=Math.sin(8*Math.PI/180)&&c.pixels<=32).sort((u,v)=>u.error-v.error);
+     const snap=choices[0];
+     if(snap){
+       const surface=cast(snap.q.x,snap.q.y);
+       const projected=!surface||surface.point.distanceTo(snap.p)>0.0001;
+       const alignment=snap.axis==='y'?'Vertical':'Horizontal';
+       best={...best,p:snap.p,x:snap.q.x,y:snap.q.y,alignment,kind:alignment,projected};
      }
    }
  }
@@ -1380,7 +1379,7 @@ function previewMeasure(target,x,y){
  if(!Number.isFinite(x)||!Number.isFinite(y))return;
  elasticCursor={x,y,target:target?.p&&!same?target:null};
  if(!provisionalLabel){provisionalLabel=document.createElement('span');provisionalLabel.className='dimension-label';provisionalLabel.style.cssText='position:fixed;z-index:24;pointer-events:none;opacity:.85';document.body.append(provisionalLabel)}
- if(elasticCursor.target)provisionalLabel.textContent=Math.round(measurePoints[0].distanceTo(target.p)*1000).toLocaleString('es-ES')+' mm'+(target.alignment?' · '+target.alignment+' ✓':'');
+ if(elasticCursor.target)provisionalLabel.textContent=Math.round(measurePoints[0].distanceTo(target.p)*1000).toLocaleString('es-ES')+' mm'+(target.alignment?' · '+target.alignment+' ✓'+(target.projected?' (proyección)':''):'');
  updateElastic();
 }
 const measureTouches=new Set();let measurePress=null, desktopOrbit=null;
@@ -1475,7 +1474,7 @@ function mobileUpdate(force=false){
  if(!measureMode){hideLoupe();mobileStatus.textContent='Un dedo: girar · Dos dedos: desplazar y zoom';return}
  const c=mobileCenter(),now=performance.now();mobileCross.style.left=c.x+'px';mobileCross.style.top=c.y+'px';
  if(force||(mobileDirty&&now-mobileLastAim>65)||now-mobileLastAim>400){mobileLastAim=now;mobileDirty=false;mobileAim=measureTarget(c.x,c.y,'touch');previewMeasure(mobileAim,c.x,c.y)}
- mobileStatus.textContent=(measurePoints.length===1?'Segundo punto':'Primer punto')+' · '+(mobileAim?.p?(mobileAim.alignment?mobileAim.alignment+' ✓ · ':'')+'Toca para fijar':'Apunta al modelo');
+ mobileStatus.textContent=(measurePoints.length===1?'Segundo punto':'Primer punto')+' · '+(mobileAim?.p?(mobileAim.alignment?mobileAim.alignment+' ✓'+(mobileAim.projected?' (proyección)':'')+' · ':'')+'Toca para fijar':'Apunta al modelo');
  // Reuse the magnifier after the WebGL frame, with a fixed aim rather than a finger.
  if(mobileLoupeOn){if(force||now-mobileLastFrame>100){mobileLastFrame=now;const saved=touchMeasure;touchMeasure={aim:true,x:c.x,y:c.y,target:mobileAim};renderLoupe();touchMeasure=saved;if(loupeCaption)loupeCaption.textContent=mobileAim?.p?mobileAim.kind+' · Toca para fijar':'Sin enganche';}if(touchLoupe)positionMobileLoupe()}else hideLoupe();
 }
@@ -1489,7 +1488,7 @@ function touchMeasureMove(e){
  e.preventDefault();e.stopImmediatePropagation();const prev=touchNavigation.get(e.pointerId);if(!prev)return;
  const before=touchSnapshotMeasure();touchNavigation.set(e.pointerId,{x:e.clientX,y:e.clientY});const after=touchSnapshotMeasure();
  if(touchMulti){if(before&&after){panTouchMeasure(after.x-before.x,after.y-before.y);if(before.span>2&&after.span>2){const c=mobileCenter();zoomAt(c.x,c.y,-Math.log(after.span/before.span)/.0018)}mobileDirty=true}return}
- const d=touchMeasure;if(!d||d.id!==e.pointerId)return;
+ let d=touchMeasure;if(!d||d.id!==e.pointerId){if(touchNavigation.size!==1)return;const c=mobileCenter();d=touchMeasure={id:e.pointerId,x:prev.x,y:prev.y,startX:prev.x,startY:prev.y,started:performance.now(),drag:true,pivot:localOrbitPivot(c.x,c.y)||controls.target.clone()};}
  if(!d.drag&&Math.hypot(e.clientX-d.startX,e.clientY-d.startY)>7)d.drag=true;
  if(!d.drag)return;
  const f=mobileFine?.45:1,dx=(e.clientX-d.x)*f,dy=(e.clientY-d.y)*f;
@@ -1530,7 +1529,7 @@ function rotateDesktop(dx,dy,pivot){
  camera.lookAt(controls.target);camera.updateMatrixWorld(true);controls.update();
 }
 renderer.domElement.addEventListener('pointerdown',e=>{
- if(presentation&&!walkingMode&&e.pointerType==='touch'){touchGuide=true;touchMeasureDown(e);return;}
+ if(presentation&&!walkingMode&&e.pointerType==='touch'){if(loupeDrag)endLoupeDrag();touchGuide=true;touchMeasureDown(e);return;}
  if(!walkingMode&&e.pointerType!=='touch'&&e.button===0){e.preventDefault();e.stopImmediatePropagation();desktopOrbit={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,drag:false,pivot:localOrbitPivot(e.clientX,e.clientY)||localOrbitPivot(innerWidth/2,innerHeight/2)||controls.target.clone()};renderer.domElement.setPointerCapture(e.pointerId);hideMeasureHover();return;}
  if(!measureMode)return;
  if(e.pointerType==='touch'){measureTouches.add(e.pointerId);if(measureTouches.size>1){measurePress=null;hideMeasureHover();return}}
@@ -1559,8 +1558,8 @@ function selectMeasurePoint(target){
  const [a,b]=measurePoints,delta=b.clone().sub(a);
  const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),new THREE.LineBasicMaterial({color:0x0078b8,depthTest:false,depthWrite:false}));line.renderOrder=999;measureMarks.add(line);
  const fmt=x=>Math.round(Math.abs(x)*1000).toLocaleString('es-ES');
- addDimension(a,b,fmt(delta.length()));
- measureLabel.textContent='Distancia: '+fmt(delta.length())+' mm · Selecciona otro punto para empezar de nuevo.';
+ addDimension(a,b,fmt(delta.length())+(target.projected?' (proy.)':''));
+ measureLabel.textContent='Distancia: '+fmt(delta.length())+' mm'+(target.projected?' · Proyección sobre eje':'')+' · Selecciona otro punto para empezar de nuevo.';
  measurePoints=[];
 }
 renderer.domElement.addEventListener('pointerup',e=>{
