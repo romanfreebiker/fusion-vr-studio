@@ -4491,6 +4491,9 @@ async function workshopDialog(model=null){
  if(!d.workers.some(w=>w.active))area.append(textNode('p','Crea primero un operario desde Gestionar taller.'));
  }
  try{await draw()}catch(e){area.textContent=e.message}
+ let liveBusy=false;
+ const stopLive=T.subscribe?.(()=>{if(saving||liveBusy)return;liveBusy=true;draw().catch(e=>{feedback.textContent=e.message}).finally(()=>{liveBusy=false})},e=>{feedback.textContent='Sincronización: '+e.message});
+ if(stopLive)dialog.addEventListener('close',()=>stopLive(),{once:true});
 }
 
 function render(){
