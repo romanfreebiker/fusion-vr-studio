@@ -23,5 +23,10 @@
     "active": true,
     "updatedAt": "2026-11-27T06:13:05.111Z"
   },
-  "tabletJobs": []
+  "tabletJobs": [
+    {
+      "design": "escalera-recta-lateral-interior-mwyk90ue",
+      "addedAt": "2026-11-27T06:16:53.178Z"
+    }
+  ]
 }
