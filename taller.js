@@ -123,10 +123,19 @@
    if(!d.tablet?.active||d.tablet.hash!==h)throw Error('Acceso de Terminal Taller retirado');
    const design=String(payload?.design||'');
    return change('',x=>{
-     if(payload.action==='assign'){
+     if(!x.tablet?.active||x.tablet.hash!==h)throw Error('Acceso de Terminal Taller retirado');
+     if(!x.jobs.some(j=>j.design===design)&&!x.tabletJobs.some(j=>j.design===design))throw Error('Diseño retirado del Terminal');
+     if(payload.action==='saveWorker'){
        if(!x.workers.some(w=>w.id===payload.worker&&w.active))throw Error('Operario no disponible');
-       const prev=x.jobs.find(j=>j.design===design)||{};
-       x.jobs=x.jobs.filter(j=>j.design!==design);x.tabletJobs=x.tabletJobs.filter(j=>j.design!==design);
+       const row={worker:payload.worker,design,type:payload.type||'Fabricación e instalación',priority:payload.priority||'Normal',phase:phases.includes(payload.phase)?payload.phase:'Pendiente',note:String(payload.note||'').slice(0,500)};
+       x.jobs=x.jobs.filter(j=>!(j.design===design&&j.worker===payload.worker));x.jobs.push(row);x.tabletJobs=x.tabletJobs.filter(j=>j.design!==design);
+     }else if(payload.action==='removeWorker'){
+       x.jobs=x.jobs.filter(j=>!(j.design===design&&j.worker===payload.worker));
+       if(!x.jobs.some(j=>j.design===design)&&!x.tabletJobs.some(j=>j.design===design))x.tabletJobs.push({design,addedAt:new Date().toISOString()});
+     }else if(payload.action==='assign'){
+       if(!x.workers.some(w=>w.id===payload.worker&&w.active))throw Error('Operario no disponible');
+       const prev=x.jobs.find(j=>j.design===design&&j.worker===payload.worker)||{};
+       x.jobs=x.jobs.filter(j=>!(j.design===design&&j.worker===payload.worker));x.tabletJobs=x.tabletJobs.filter(j=>j.design!==design);
        x.jobs.push({worker:payload.worker,design,type:payload.type||prev.type||'Fabricación e instalación',priority:payload.priority||prev.priority||'Normal',phase:payload.phase||prev.phase||'Pendiente',note:String(payload.note??prev.note??'').slice(0,500)});
      }else if(payload.action==='update'){
        const row=x.jobs.find(j=>j.design===design);if(!row)throw Error('Trabajo no asignado');

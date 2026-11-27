@@ -19,6 +19,9 @@ main{padding:18px clamp(12px,2.5vw,28px) 40px;max-width:1500px;margin:auto}.summ
 .actions{display:flex;gap:7px;flex-wrap:wrap}.actions a,.actions button{background:#12384c;border:1px solid #18a8c8;color:white;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:700;cursor:pointer}.actions button.danger{border-color:#8b4c55;background:#482530}.job select{background:#132634;color:#eef7ff;border:1px solid #365b70;border-radius:7px;padding:7px}
 .empty{color:var(--muted);padding:12px}.error{color:#ffadad}
 @media(max-width:650px){header{align-items:flex-start}.status{width:100%;margin-left:0}main{padding:12px}#workers{grid-template-columns:1fr}}
+ 
+#workers{display:grid;grid-template-columns:1fr;gap:9px}.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}.toolbar button,.toolbar input,.toolbar select,.assignment button,.assignment select,.assignment textarea{background:#152739;color:#eef7ff;border:1px solid #45617a;border-radius:8px;padding:10px;font:inherit;min-height:44px}.toolbar button[aria-pressed=true]{background:#164253;border-color:#46b7cf}.toolbar input{flex:1;min-width:180px}.designrow{display:grid;grid-template-columns:76px minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px;background:#172635;border:1px solid #34596b;border-left:4px solid #45c998;border-radius:10px}.designrow.pending{border-left-color:#d3ad55}.thumb{height:62px;background:#213648;border-radius:7px;display:grid;place-items:center;overflow:hidden}.thumb img{width:100%;height:100%;object-fit:contain}.designinfo{display:grid;gap:5px}.designinfo strong{font-size:16px}.muted{color:#adc4d6;font-size:13px}.workertag{color:#a0ebc8;background:#17382f;border-color:#326b59}.pendingtag{color:#ffe0a0;background:#46381c;border-color:#8c7337}.rowactions{display:grid;grid-template-columns:80px 105px 152px}.actions a,.actions button{text-align:center;min-height:44px;display:flex;align-items:center;justify-content:center}.workerlist{display:grid;gap:8px;margin-bottom:10px}.workerlist h2{font-size:17px;margin:8px 0}.assignment{width:min(740px,94vw);max-height:88vh;overflow:auto;background:#152436;color:#eef7ff;border:1px solid #52718a;border-radius:12px;padding:0}.assignment::backdrop{background:#080f19aa}.dialoghead{position:sticky;top:0;z-index:5;background:#152436;padding:16px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #40566c;gap:12px}.dialoghead h2,.dialoghead p{margin:0}.dialoghead p{color:#c0d4e6;margin-top:5px}.dialogbody{padding:16px;display:grid;gap:12px}.count{background:#17382f;border:1px solid #326b59;border-radius:8px;padding:11px;color:#a0ebc8;font-weight:700}.assignment-list{display:grid;gap:8px}.assignment-worker{background:#192b3d;border:1px solid #3c536b;border-radius:9px;overflow:hidden}.assignment-worker summary{cursor:pointer;padding:13px;display:flex;justify-content:space-between;list-style:none}.assignment-worker summary::-webkit-details-marker{display:none}.assignment-worker summary:after{content:'▾'}.assignment-worker[open] summary:after{content:'▴'}.assignment-worker summary strong,.assignment-worker summary span{display:block}.form{display:grid;gap:10px;padding:12px;border-top:1px solid #40566c}.field{display:grid;gap:5px;font-weight:700;color:#d0e2f1}.field select,.field textarea{width:100%;font-weight:400}.assignment .actions button{flex:1}.assignment .save{background:#205447;border-color:#47846e}.assignment .danger{background:#453034;border-color:#80535a;color:#ffd0d0}.newworker{border-top:1px solid #40566c;padding-top:12px}.newworker h3{margin:0 0 8px}.newworker .form{padding:12px 0 0}
+@media(max-width:850px){.designrow{grid-template-columns:64px minmax(0,1fr)}.rowactions{grid-column:1/-1;grid-template-columns:repeat(3,minmax(0,1fr))}.rowactions a,.rowactions button{font-size:13px;padding:7px}.dialoghead h2{font-size:18px}}
 </style>
 <header>
  <img src="./assets/eskala-corporativa.webp?v=2" alt="ESKALA">
@@ -26,9 +29,9 @@ main{padding:18px clamp(12px,2.5vw,28px) 40px;max-width:1500px;margin:auto}.summ
 </header>
 <main>
  <div class="summary" id="summary"></div>
- <section id="workers"></section>
+ <div class="toolbar"><button id="byDesign" aria-pressed="true">Por diseños</button><button id="byWorker" aria-pressed="false">Por operarios</button><input id="search" placeholder="Buscar diseño u operario…" aria-label="Buscar"><select id="filter" aria-label="Estado"><option value="all">Todos los trabajos</option><option value="assigned">Adjudicados</option><option value="pending">Pendientes de adjudicar</option></select></div><section id="workers"></section>
 </main>
-<script src="taller.js?v=148"></script>
+<script src="taller.js?v=148-terminal-2"></script>
 <script>
 const T=window.EskalaTaller,statusNode=document.getElementById('status'),grid=document.getElementById('workers'),summary=document.getElementById('summary');
 const storageKey='eskala-tablet-taller-key',legacyKey='eskala-central-taller-key';
@@ -54,63 +57,55 @@ async function mutate(payload,fn){
  try{return await T.change(writeToken,fn)}
  catch(e){if(/401|403|Conecta GitHub/.test(e.message)){writeToken='';writeExpires=0;try{localStorage.removeItem(writeAuthKey)}catch{}editAuth.style.display='inline-block'}throw e}
 }
-let signature='';
+let signature='',current=null,mode='design',loading=false,editor=null,writing=false;
 function el(tag,text='',cls=''){const n=document.createElement(tag);n.textContent=text;if(cls)n.className=cls;return n}
-function priorityClass(value){return value==='Urgente'?'urgent':value==='Alta'?'high':''}
-async function load(){
- try{
-  const data=adminMode?await T.adminTablet():await T.tablet(key);
-  const sig=JSON.stringify([data.workers,data.jobs]);
-  const active=data.workers.filter(w=>w.active).length;
-  const pending=data.jobs.filter(j=>j.tabletOnly||j.phase!=='Finalizado').length;
-  statusNode.textContent='Sincronizado · '+new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
-  summary.replaceChildren(
-    Object.assign(el('span','','pill'),{innerHTML:'Operarios: <b>'+active+'</b>'}),
-    Object.assign(el('span','','pill'),{innerHTML:'Trabajos: <b>'+data.jobs.length+'</b>'}),
-    Object.assign(el('span','','pill'),{innerHTML:'Pendientes: <b>'+pending+'</b>'})
-  );
-  if(sig===signature)return;signature=sig;grid.replaceChildren();
-  if(data.tabletJobs.length){
-    const box=el('article','','worker');
-    box.append(el('h2','Pendiente de adjudicar'));
-    const jobs=el('div','','jobs');
-    for(const j of data.tabletJobs){
-      const card=el('article','','job');card.append(el('h3',j.model.nombre));
-      const meta=el('div','','meta');meta.append(el('span','Sin asignar','tag'));meta.append(el('span','Disponible en Terminal Taller','phase'));card.append(meta);
-      const actions=el('div','','actions');const open=el('a','Abrir visor y medir');if(adminMode){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('adminTablet','1');u.searchParams.set('v','148');u.searchParams.set('diseno',j.design);open.href=u.href}else open.href=T.tabletViewer(key,j.design);actions.append(open);
-      const activeWorkers=data.workers.filter(w=>w.active);if(activeWorkers.length){const sel=document.createElement('select');for(const w of activeWorkers)sel.add(new Option(w.label,w.id));actions.append(sel);const assign=el('button','Asignar');assign.onclick=async()=>{try{await mutate({action:'assign',design:j.design,worker:sel.value,type:'Fabricación e instalación',priority:'Normal',phase:'Pendiente',note:''},x=>{x.jobs=(x.jobs||[]).filter(r=>r.design!==j.design);x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(r=>r.design!==j.design);x.jobs.push({worker:sel.value,design:j.design,type:'Fabricación e instalación',priority:'Normal',phase:'Pendiente',note:''})});signature='';await load()}catch(e){alert(e.message)}};actions.append(assign)}
-      const remove=el('button','Retirar de Terminal','danger');remove.onclick=async()=>{if(!confirm('¿Retirar este trabajo del Terminal?'))return;try{await mutate({action:'remove',design:j.design},x=>{x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(r=>r.design!==j.design)});signature='';await load()}catch(e){alert(e.message)}};actions.append(remove);card.append(actions);jobs.append(card);
-    }
-    box.append(jobs);grid.append(box);
-  }
-  for(const w of data.workers){
-    const box=el('article','',w.active?'worker':'worker inactive');
-    box.append(el('h2',w.label+(w.active?'':' · baja')));
-    const jobs=el('div','','jobs');
-    const rows=data.jobs.filter(j=>j.worker===w.id);
-    if(!rows.length)jobs.append(el('div','Sin trabajos asignados','empty'));
-    for(const j of rows){
-      const card=el('article','','job');card.append(el('h3',j.model.nombre));
-      const meta=el('div','','meta');
-      meta.append(el('span',j.type,'tag'));
-      meta.append(el('span','Prioridad '+j.priority,'tag '+priorityClass(j.priority)));
-      meta.append(el('span',j.phase,'phase'));
-      card.append(meta);
-      if(j.note)card.append(el('div',j.note,'note'));
-      const actions=el('div','','actions');
-      const open=el('a','Abrir visor y medir');if(adminMode){const u=new URL('visor-taller.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('acceso','tablet');u.searchParams.set('adminTablet','1');u.searchParams.set('v','148');u.searchParams.set('diseno',j.design);open.href=u.href}else open.href=T.tabletViewer(key,j.design);actions.append(open);
-      const workerSel=document.createElement('select');for(const ww of data.workers.filter(x=>x.active))workerSel.add(new Option(ww.label,ww.id));workerSel.value=j.worker;actions.append(workerSel);
-      const phaseSel=document.createElement('select');for(const p of T.phases)phaseSel.add(new Option(p,p));phaseSel.value=j.phase||'Pendiente';actions.append(phaseSel);
-      const save=el('button','Guardar cambios');save.onclick=async()=>{try{await mutate({action:'update',design:j.design,worker:workerSel.value,phase:phaseSel.value},x=>{const row=(x.jobs||[]).find(r=>r.design===j.design&&r.worker===j.worker);if(row){row.worker=workerSel.value;row.phase=phaseSel.value}});signature='';await load()}catch(e){alert(e.message)}};actions.append(save);
-      const unassign=el('button','Quitar asignación');unassign.onclick=async()=>{try{await mutate({action:'unassign',design:j.design},x=>{x.jobs=(x.jobs||[]).filter(r=>!(r.design===j.design&&r.worker===j.worker));const rows=Array.isArray(x.tabletJobs)?x.tabletJobs:[];if(!rows.some(r=>r.design===j.design))rows.push({design:j.design,addedAt:new Date().toISOString()});x.tabletJobs=rows});signature='';await load()}catch(e){alert(e.message)}};actions.append(unassign);
-      const remove=el('button','Retirar de Terminal','danger');remove.onclick=async()=>{if(!confirm('¿Retirar este trabajo del Terminal y del operario?'))return;try{await mutate({action:'remove',design:j.design},x=>{x.jobs=(x.jobs||[]).filter(r=>!(r.design===j.design&&r.worker===j.worker));x.tabletJobs=(Array.isArray(x.tabletJobs)?x.tabletJobs:[]).filter(r=>r.design!==j.design)});signature='';await load()}catch(e){alert(e.message)}};actions.append(remove);card.append(actions);
-      jobs.append(card);
-    }
-    box.append(jobs);grid.append(box);
-  }
- }catch(e){
-  statusNode.textContent=e.message;statusNode.className='status error';grid.replaceChildren();summary.replaceChildren();
- }
+function button(label,fn,cls=''){const b=el('button',label,cls);b.type='button';b.onclick=fn;return b}
+function choose(values,value){const n=document.createElement('select');for(const v of values)n.add(new Option(v,v));n.value=value||values[0];return n}
+function field(title,input){const n=el('label',title,'field');n.append(input);return n}
+function openUrl(id){if(!adminMode)return T.tabletViewer(key,id);const u=new URL('visor-taller.html',location.href);for(const [k,v] of Object.entries({modo:'presentacion',acceso:'tablet',adminTablet:'1',v:'148',diseno:id}))u.searchParams.set(k,v);return u.href}
+async function apply(payload){
+ if(writing)return false;writing=true;
+ try{await mutate(payload,x=>{
+ const design=payload.design;
+ if(!x.jobs.some(j=>j.design===design)&&!x.tabletJobs.some(j=>j.design===design))throw Error('Diseño retirado del Terminal');
+ if(payload.action==='saveWorker'){if(!x.workers.some(w=>w.id===payload.worker&&w.active))throw Error('Operario no disponible');x.jobs=x.jobs.filter(j=>!(j.design===design&&j.worker===payload.worker));x.jobs.push({worker:payload.worker,design,type:payload.type,priority:payload.priority,phase:payload.phase,note:payload.note});x.tabletJobs=x.tabletJobs.filter(j=>j.design!==design)}
+ else if(payload.action==='removeWorker'){x.jobs=x.jobs.filter(j=>!(j.design===design&&j.worker===payload.worker));if(!x.jobs.some(j=>j.design===design)&&!x.tabletJobs.some(j=>j.design===design))x.tabletJobs.push({design,addedAt:new Date().toISOString()})}
+ else if(payload.action==='remove'){x.jobs=x.jobs.filter(j=>j.design!==design);x.tabletJobs=x.tabletJobs.filter(j=>j.design!==design)}
+ });signature='';return true}catch(e){alert(e.message);return false}finally{writing=false}
+}
+function manage(m){
+ if(editor)return;
+ const dlg=el('dialog','','assignment');editor=dlg;const head=el('div','','dialoghead');const title=el('div');title.append(el('h2','Gestionar adjudicaciones'),el('p',m.nombre));head.append(title,button('Cerrar ×',()=>dlg.close()));const body=el('div','','dialogbody');dlg.append(head,body);
+ const draw=()=>{
+ body.replaceChildren();const assigned=current.assignedJobs.filter(j=>j.design===m.id),available=current.workers.filter(w=>w.active&&!assigned.some(j=>j.worker===w.id));
+ body.append(el('div',assigned.length+' operarios adjudicados','count'));
+ const form=(w,j)=>{
+ const f=el('div','','form');const type=choose(['Fabricación','Instalación','Fabricación e instalación'],j?.type||'Fabricación e instalación'),priority=choose(['Normal','Alta','Urgente'],j?.priority),phase=choose(T.phases,j?.phase);const note=el('textarea');note.rows=2;note.maxLength=500;note.value=j?.note||'';note.placeholder='Añadir instrucciones de trabajo…';
+ f.append(field('Tipo de trabajo',type),field('Prioridad',priority),field('Fase de producción',phase),field('Instrucciones',note));
+ const actions=el('div','','actions');const save=button(j?'Guardar cambios':'Adjudicar operario',async()=>{if(await apply({action:'saveWorker',design:m.id,worker:w.id,type:type.value,priority:priority.value,phase:phase.value,note:note.value.trim()})){await load(true);if(dlg.isConnected)draw()}},'save');actions.append(save);
+ if(j)actions.append(button('Retirar trabajo',async()=>{if(confirm('¿Retirar este trabajo de '+w.label+'?')&&await apply({action:'removeWorker',design:m.id,worker:w.id})){await load(true);if(dlg.isConnected)draw()}},'danger'));f.append(actions);return f};
+ const list=el('div','','assignment-list');for(const j of assigned){const w=j.workerInfo||current.workers.find(w=>w.id===j.worker);if(!w)continue;const detail=el('details','','assignment-worker'),sum=el('summary'),who=el('div');who.append(el('strong',w.label+(w.active?'':' · baja')),el('span',[j.type,j.phase,j.priority].join(' · '),'muted'));sum.append(who);detail.append(sum,form(w,j));detail.ontoggle=()=>{if(detail.open)for(const other of list.querySelectorAll('details'))if(other!==detail)other.open=false};list.append(detail)}body.append(list);
+ const add=el('section','','newworker');add.append(el('h3','Adjudicar nuevo operario'));if(available.length){const select=el('select');select.add(new Option('Seleccionar operario…',''));for(const w of available)select.add(new Option(w.label,w.id));const area=el('div');select.onchange=()=>{area.replaceChildren();const w=available.find(w=>w.id===select.value);if(w)area.append(form(w,null))};add.append(field('Operario disponible',select),area)}else add.append(el('p','No hay más operarios disponibles.','muted'));body.append(add);
+ };
+ dlg.addEventListener('close',()=>{editor=null;dlg.remove();signature='';load()},{once:true});document.body.append(dlg);draw();dlg.showModal();
+}
+function paint(){
+ if(!current)return;grid.replaceChildren();const map=new Map();for(const j of current.jobs){if(!map.has(j.design))map.set(j.design,{m:j.model,jobs:[]});if(!j.tabletOnly)map.get(j.design).jobs.push(j)}
+ const q=document.getElementById('search').value.trim().toLocaleLowerCase('es'),filter=document.getElementById('filter').value;
+ const matches=g=>(filter==='all'||(filter==='assigned')===!!g.jobs.length)&&(!q||[g.m.nombre,g.m.categoria,...g.jobs.map(j=>j.workerInfo?.label)].join(' ').toLocaleLowerCase('es').includes(q));
+ function row(g,subset=g.jobs){const {m,jobs}=g;const r=el('article','','designrow '+(jobs.length?'assigned':'pending'));const thumb=el('div','','thumb');if(m.miniatura){const img=el('img');img.alt='';img.loading='lazy';img.src=m.miniatura;thumb.append(img)}else thumb.textContent='◇';const info=el('div','','designinfo');info.append(el('strong',m.nombre),el('span',m.categoria||'','muted'));const tags=el('div','','meta');if(!jobs.length)tags.append(el('span','Pendiente de adjudicar','tag pendingtag'));for(const j of subset)tags.append(el('span',(j.workerInfo?.label||'Operario')+' · '+(j.phase||'Pendiente'),'tag workertag'));info.append(tags);const actions=el('div','','actions rowactions');const open=el('a','Ver 3D');open.href=openUrl(m.id);actions.append(open,button(jobs.length?'Gestionar':'Adjudicar',()=>manage(m)),button('Retirar de Terminal',async()=>{if(confirm('¿Retirar este diseño del Terminal y todas sus adjudicaciones?')&&await apply({action:'remove',design:m.id}))await load(true)},'danger'));r.append(thumb,info,actions);return r}
+ const groups=[...map.values()].filter(matches).sort((a,b)=>Number(!a.jobs.length)-Number(!b.jobs.length)||a.m.nombre.localeCompare(b.m.nombre,'es'));
+ if(mode==='design'){for(const g of groups)grid.append(row(g))}else{for(const w of current.workers){if(!w.active&&!groups.some(g=>g.jobs.some(j=>j.worker===w.id)))continue;const section=el('section','','workerlist');section.append(el('h2',w.label+(w.active?'':' · baja')));for(const g of groups){const own=g.jobs.filter(j=>j.worker===w.id);if(own.length)section.append(row(g,own))}if(section.children.length===1)section.append(el('p','Sin trabajos asignados','empty'));grid.append(section)}const pending=groups.filter(g=>!g.jobs.length);if(pending.length){const section=el('section','','workerlist');section.append(el('h2','Pendientes de adjudicar'));for(const g of pending)section.append(row(g));grid.append(section)}}
+ if(!grid.children.length)grid.append(el('p','No hay trabajos con este filtro.','empty'));
+}
+document.getElementById('byDesign').onclick=()=>{mode='design';document.getElementById('byDesign').setAttribute('aria-pressed','true');document.getElementById('byWorker').setAttribute('aria-pressed','false');paint()};
+document.getElementById('byWorker').onclick=()=>{mode='worker';document.getElementById('byDesign').setAttribute('aria-pressed','false');document.getElementById('byWorker').setAttribute('aria-pressed','true');paint()};
+document.getElementById('search').oninput=paint;document.getElementById('filter').onchange=paint;
+async function load(force=false){
+ if(loading||(!force&&editor))return;loading=true;
+ try{const data=adminMode?await T.adminTablet():await T.tablet(key);current=data;const sig=JSON.stringify([data.workers,data.jobs]);statusNode.className='status';statusNode.textContent='Sincronizado · '+new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+ summary.replaceChildren(el('span','Operarios: '+data.workers.filter(w=>w.active).length,'pill'),el('span','Adjudicaciones: '+data.assignedJobs.length,'pill'),el('span','Pendientes de adjudicar: '+data.tabletJobs.length,'pill'),el('span','Trabajos pendientes: '+data.assignedJobs.filter(j=>j.phase!=='Finalizado').length,'pill'));if(sig!==signature||force){signature=sig;paint()}
+ }catch(e){statusNode.textContent=e.message;statusNode.className='status error';if(!editor){grid.replaceChildren();summary.replaceChildren();current=null}}finally{loading=false}
 }
 detectDirectApi();load();T.subscribe?.(()=>{signature='';load()},e=>console.warn('[ESKALA Terminal] sync',e));setInterval(()=>{if(!document.hidden)load()},15000);addEventListener('focus',load);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 </script>
