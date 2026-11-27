@@ -1,4 +1,4 @@
-// ESKALA — motor único de medición v145
+// ESKALA — motor único de medición v146
 export function createMeasurement(ctx){
 const {THREE,renderer,scene,controls,presentation,setPresentationMode,standardView,worldPerPixel,zoomAt}=ctx;
 let technicalMode=false,technicalOriginals=[],technicalEdges=[],technicalMaterial=null,technicalLineMaterial=null,dimensionLayer=null,dimensions=[],previousMeasureBackground=null;
@@ -126,7 +126,22 @@ function measureTarget(x,y,pointerType){
      const axis=['x','y','z'].find(k=>Math.abs(d[k])>tol&&Math.hypot(...['x','y','z'].filter(j=>j!==k).map(j=>d[j]))<=tol);
      return axis?{...c,alignment:axis==='y'?'Vertical':'Horizontal'}:null;
    }).filter(Boolean).sort((a,b)=>a.score-b.score).find(visible);
-   if(aligned)best=aligned;
+   // Exact intersections of a global axis with actual mesh surfaces.
+   // A ray hit is a real point, not the projection of a nearby feature.
+   const axisRay=new THREE.Raycaster(),axisHits=[];
+   for(const axis of ['x','y','z'])for(const sign of [-1,1]){
+     const direction=new THREE.Vector3();direction[axis]=sign;
+     axisRay.set(origin,direction);axisRay.near=tol;axisRay.far=Infinity;
+     for(const h of axisRay.intersectObject(ctx.model,true)){
+       if(!h.face||!h.object.visible||h.distance<=tol)continue;
+       const q=projectMeasure(h.point,r),pixels=Math.hypot(q.x-x,q.y-y);
+       if(q.z<-1||q.z>1||pixels>radius)continue;
+       const candidate={p:h.point.clone(),kind:'Intersección de eje',alignment:axis==='y'?'Vertical':'Horizontal',x:q.x,y:q.y,score:pixels+2};
+       axisHits.push(candidate);
+     }
+   }
+   const realAxis=axisHits.sort((a,b)=>a.score-b.score).find(visible);
+   if(aligned||realAxis)best=aligned&&(!realAxis||aligned.score<=realAxis.score+3)?aligned:realAxis;
  }
  return best;
 }
@@ -367,12 +382,12 @@ renderer.domElement.addEventListener('pointermove',e=>{
 },true);
 renderer.domElement.addEventListener('pointerleave',hideMeasureHover);
 function selectMeasurePoint(target){
- if(!target?.p||target.projected||!['Vértice','Punto medio','Arista'].includes(target.kind))return;
+ if(!target?.p||target.projected||!['Vértice','Punto medio','Arista','Intersección de eje'].includes(target.kind))return;
  if(measurePoints.length!==1)clearMeasures();else if(target.p.distanceToSquared(measurePoints[0])<1e-12)return;
  clearProvisional();
  const p=target.p.clone();
  if(!measureMarks){measureMarks=new THREE.Group();scene.add(measureMarks)}
- const marker=new THREE.Points(new THREE.BufferGeometry().setFromPoints([p]),new THREE.PointsMaterial({color:0x0059a8,size:4,sizeAttenuation:false,depthTest:false,depthWrite:false}));marker.renderOrder=1000;measureMarks.add(marker);
+ const marker=new THREE.Points(new THREE.BufferGeometry().setFromPoints([p]),new THREE.PointsMaterial({color:0xd71920,size:5,sizeAttenuation:false,depthTest:false,depthWrite:false}));marker.renderOrder=1000;measureMarks.add(marker);
  measurePoints.push(p);
  if(measurePoints.length===1){measureLabel.textContent='Primer punto seleccionado. Puedes girar y acercarte para buscar el segundo.';return}
  const [a,b]=measurePoints,delta=b.clone().sub(a);

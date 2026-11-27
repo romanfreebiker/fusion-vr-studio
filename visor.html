@@ -65,7 +65,7 @@ window.presentationProgress=function(message,percent,error=false){
 window.addEventListener('error',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo iniciar el visor. Comprueba la conexión.',null,true);});
 window.addEventListener('unhandledrejection',e=>{if(document.getElementById('presentationBoot')?.hidden)return;window.presentationProgress('No se pudo cargar el proyecto.',null,true);});
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=145"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=146"></script>
 <header>
 <h1>ESKALA Viewer</h1><span class="eskala-sign">by Roman · <b>62</b> SESENTA&amp;DOS</span>
 <label for="models">Diseño</label><select id="models" disabled></select>
@@ -131,11 +131,11 @@ window.addEventListener('DOMContentLoaded',()=>{
  },9000);
 });
 </script>
-<link rel="stylesheet" href="./medicion.css?v=145">
+<link rel="stylesheet" href="./medicion.css?v=146">
 <script type="module">
 window.__vrBootStarted=true;
 import * as THREE from 'three';
-import {createMeasurement} from './medicion.js?v=145';
+import {createMeasurement} from './medicion.js?v=146';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {VRButton} from 'three/addons/webxr/VRButton.js';
@@ -219,7 +219,7 @@ if(presentation){
  controls.enabled=true;
  controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;controls.mouseButtons.RIGHT=null;controls.mouseButtons.MIDDLE=THREE.MOUSE.PAN;
  controls.touches.ONE=THREE.TOUCH.ROTATE;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;
- const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent=(access==='director'?'Dirección':'Visor')+' · v145';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px';bar.append(buildTag);
+ const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent=(access==='director'?'Dirección':'Visor')+' · v146';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px';bar.append(buildTag);
  presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
  orbitButton=button('Vista 3D',()=>setPresentationMode(false));walkButton=button('Recorrer a pie',()=>setPresentationMode(true));
