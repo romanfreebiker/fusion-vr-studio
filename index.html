@@ -3981,7 +3981,7 @@ three/examples/jsm/libs/fflate.module.js:
 .third-access-row .state.active{color:#78e6af}.third-access-row .state.revoked{color:#ff9aa4}
 .third-access-row button{padding:5px 8px!important;font-size:11px!important}
 </style>
-<script src="taller.js?v=3"></script></head>
+<script src="taller.js?v=54"></script></head>
 <body>
 <!-- ESKALA: cabecera corporativa compartida. Los controles conservan data-view. -->
 <header class="eskala-corpbar" role="banner">
@@ -4422,7 +4422,6 @@ async function refresh(){
 
 const dateLabel=new Intl.DateTimeFormat('es-ES',{dateStyle:'medium',timeStyle:'short'});
 async function workshopDialog(model=null){
- if(!state.token){postAuthView='biblioteca';nav('configuracion');status('settingsStatus','Conecta GitHub para gestionar Taller.');return}
  const T=window.EskalaTaller;
  const dialog=document.createElement('dialog');dialog.style.cssText='width:min(620px,92vw);max-height:85vh;overflow:auto;background:#152436;color:#eef7ff;border:1px solid #52718a;border-radius:12px;padding:18px';
  const heading=textNode('h2',model?'Asignar a taller: '+model.nombre:'Operarios y trabajos');const close=textNode('button','Cerrar','button secondary small');close.onclick=()=>dialog.close();dialog.append(heading,close);const area=document.createElement('div');dialog.append(area);document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove());dialog.showModal();
@@ -4436,7 +4435,7 @@ async function workshopDialog(model=null){
  const centralKeyName='eskala-taller-tablet-key';
  const centralPanel=document.createElement('div');centralPanel.style.cssText='border:1px solid #2e7089;background:#102633;border-radius:12px;padding:12px;margin:8px 0 14px;display:grid;gap:8px';
  centralPanel.append(textNode('strong','Tablet Taller · terminal'));
- centralPanel.append(textNode('span','Terminal global de Taller. Muestra todos los operarios y trabajos, pero no tiene acceso administrativo.','muted tiny'));
+ centralPanel.append(textNode('span','Terminal global sincronizado en tiempo real con Gestión Taller · Firestore.','muted tiny'));
  const centralActions=document.createElement('div');centralActions.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
  const legacyCentralKey='eskala-central-taller-key';
  const storedCentralKey=()=>{try{const key=localStorage.getItem(centralKeyName)||localStorage.getItem(legacyCentralKey)||'';if(key&&!localStorage.getItem(centralKeyName)){localStorage.setItem(centralKeyName,key);localStorage.removeItem(legacyCentralKey)}return key}catch{return ''}};
@@ -4837,6 +4836,17 @@ render();
 if(state.owner&&state.repo){$('repoLabel').textContent=state.owner+'/'+state.repo+' · '+state.branch;refresh()}
 if(authRestored)validateRestoredAuth();
 })();
+</script>
+<script>
+(()=>{try{
+ const p=new URLSearchParams(location.search);
+ if(p.get('from')!=='gestion-taller')return;
+ const b=document.createElement('a');
+ b.href='https://tallermantenimiento.github.io/GESTION-TALLER-V2/';
+ b.textContent='← Volver a Gestión Taller';
+ b.style.cssText='position:fixed;left:18px;bottom:18px;z-index:99999;background:#102638;color:#eaf7ff;border:1px solid #18b9d9;border-radius:10px;padding:10px 14px;text-decoration:none;font:700 13px system-ui;box-shadow:0 8px 28px #0008';
+ document.body.append(b);
+}catch{}})();
 </script>
 </body>
 </html>
