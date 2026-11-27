@@ -4486,7 +4486,7 @@ async function workshopDialog(model=null){
  const main=el('div','ek-list-main');main.append(el('strong','',m.nombre||m.id));if(m.categoria)main.append(el('span','muted tiny',m.categoria));
  const tags=el('div','ek-list-tags');if(shown.length){for(const j of shown){const chip=el('span','ek-list-person',workerName(j.worker));chip.title=[j.type,j.priority,j.phase,j.note].filter(Boolean).join(' · ');tags.append(chip)}}else tags.append(el('span',tablet?'ek-list-pending':'ek-list-neutral',tablet?'Pendiente de adjudicar':'Sin gestionar'));main.append(tags);item.append(main);
  const phases=el('div','ek-list-phases');for(const j of shown){const line=el('div','ek-list-phase-line');line.append(el('span','ek-chip',j.phase||'Pendiente'));if(j.priority&&j.priority!=='Normal'){const priority=el('span','ek-chip ek-list-priority',j.priority);priority.dataset.priority=j.priority;line.append(priority)}if(shown.length>1)line.append(el('span','muted tiny',workerName(j.worker)));phases.append(line)}item.append(phases);
- const actions=el('div','ek-list-actions');if(!m.missing){actions.append(btn(all.length?'Gestionar':'Adjudicar',()=>workshopDialog(m)));if(all.length||tablet)actions.append(btn('Ver 3D',()=>open3D(m,shown[0])));if(!all.length){actions.append(btn(tablet?'Retirar de Terminal':'Enviar a Terminal',()=>run(()=>T.change(state.token,x=>{if((x.jobs||[]).some(j=>j.design===m.id))throw Error('El diseño ya está adjudicado');const rows=(x.tabletJobs||[]).filter(j=>j.design!==m.id);if(!tablet)rows.push({design:m.id,addedAt:new Date().toISOString()});x.tabletJobs=rows}))))}}else actions.append(el('span','muted tiny','Diseño no disponible'));item.append(actions);return item
+ const actions=el('div','ek-list-actions');if(!m.missing){actions.append(btn(all.length?'Gestionar':'Adjudicar',()=>workshopDialog(m)));if(all.length||tablet)actions.append(btn('Ver 3D',()=>open3D(m,shown[0])));if(!all.length){actions.append(btn(tablet?'Retirar de Terminal':'Enviar a Terminal',()=>run(()=>T.change(state.token,x=>{if((x.jobs||[]).some(j=>j.design===m.id))throw Error('El diseño ya está adjudicado');const rows=(x.tabletJobs||[]).filter(j=>j.design!==m.id);if(!tablet)rows.push({design:m.id,addedAt:new Date().toISOString()});x.tabletJobs=rows}))))}}else {actions.append(el('span','muted tiny','Diseño eliminado o no encontrado'));actions.append(btn('Resolver registro',async()=>{if(!state.token){toast('Conecta GitHub para resolver registros.',true);return}try{const fresh=await loadCatalog();if(fresh.modelos.some(x=>x.id===m.id))throw Error('El diseño existe: actualiza la biblioteca.');const dlg=document.createElement('dialog');dlg.style.cssText='background:#152436;color:#eef7ff;border:1px solid #52718a;border-radius:12px;padding:18px;max-width:90vw';dlg.append(textNode('h3','Resolver adjudicación antigua'),textNode('p','Elige el diseño correcto para conservar los trabajos, o retira el registro antiguo.'));const sel=document.createElement('select');sel.className='input';sel.append(new Option('Seleccionar diseño…',''));for(const x of fresh.modelos)sel.append(new Option(x.nombre,x.id));dlg.append(sel);const move=btn('Vincular al diseño seleccionado',()=>{if(!sel.value)return;const id=sel.value;dlg.close();run(()=>T.change(state.token,x=>{for(const j of x.jobs.filter(j=>j.design===m.id)){if(!x.jobs.some(k=>k.design===id&&k.worker===j.worker))x.jobs.push({...j,design:id})}x.jobs=x.jobs.filter(j=>j.design!==m.id);if(x.tabletJobs.some(j=>j.design===m.id)&&!x.tabletJobs.some(j=>j.design===id)&&!x.jobs.some(j=>j.design===id))x.tabletJobs.push({design:id,addedAt:new Date().toISOString()});x.tabletJobs=x.tabletJobs.filter(j=>j.design!==m.id)}))});const clear=btn('Retirar registro',()=>{if(!confirm('¿Retirar las adjudicaciones antiguas de este diseño?'))return;dlg.close();run(()=>T.change(state.token,x=>{x.jobs=x.jobs.filter(j=>j.design!==m.id);x.tabletJobs=x.tabletJobs.filter(j=>j.design!==m.id)}))});dlg.append(move,clear,btn('Cancelar',()=>dlg.close()));dlg.addEventListener('close',()=>dlg.remove());document.body.append(dlg);dlg.showModal()}catch(e){toast(e.message,true)}}))}item.append(actions);return item
  }
  function paint(){byDesign.classList.toggle('ek-selected',boardMode==='design');byWorker.classList.toggle('ek-selected',boardMode==='worker');byDesign.setAttribute('aria-pressed',String(boardMode==='design'));byWorker.setAttribute('aria-pressed',String(boardMode==='worker'));list.replaceChildren();
  if(boardMode==='design'){const sorted=[...modelMap.values()].sort((a,b)=>{const rank=m=>jobs.some(j=>j.design===m.id)?0:direct.some(j=>j.design===m.id)?1:2;return rank(a)-rank(b)||(a.nombre||'').localeCompare(b.nombre||'','es')});for(const m of sorted){const item=row(m);if(item)list.append(item)}}
@@ -4716,7 +4716,7 @@ function render(){
     refreshTabletState();
     tile.addEventListener('eskala-workshop-refresh',refreshTabletState);
     const fileGroup=group('file','Archivo','↓');
-    const dl=document.createElement('button');dl.className='button secondary small';dl.textContent='↓ Descargar GLB';dl.addEventListener('click',()=>downloadModel(m));fileGroup.append(dl);
+    const dl=document.createElement('button');dl.className='button secondary small';dl.textContent='↓ Descargar GLB';dl.addEventListener('click',()=>downloadModel(m));fileGroup.append(dl);const replaceBtn=textNode('button','Actualizar GLB','button secondary small');replaceBtn.style.gridColumn='1/-1';replaceBtn.disabled=state.busy;replaceBtn.onclick=()=>replaceDesign(m);fileGroup.append(replaceBtn);
     const remove=textNode('button','Eliminar','button secondary small delete-design');
     remove.type='button';
     remove.disabled=state.busy;
@@ -4726,6 +4726,35 @@ function render(){
     body.append(foot);tile.append(body);$('gallery').append(tile);
   }
 }
+async function replaceDesign(model){
+ if(state.busy)return;
+ if(!state.token){postAuthView='biblioteca';nav('configuracion');status('settingsStatus','Conecta GitHub para actualizar diseños.');return}
+ const picker=document.createElement('input');picker.type='file';picker.accept='.glb';picker.onchange=async()=>{
+ const f=picker.files?.[0];if(!f||state.busy)return;
+ if(!confirm('¿Actualizar «'+model.nombre+'» con '+f.name+'? Se conservarán las adjudicaciones y los enlaces.'))return;
+ state.busy=true;render();
+ try{
+ if(f.size>75*1048576||!await inspectGlb(f))throw Error('Selecciona un GLB válido de hasta 75 MB.');
+ toast('Preparando actualización de '+model.nombre+'…');
+ const branch=encPath(state.branch),head=(await githubRequest('GET','/git/ref/heads/'+branch)).object.sha;
+ const [file,distFile,commit]=await Promise.all([request('GET','catalogo.json',null,false,false,head),request('GET','distribucion.json',null,true,false,head),githubRequest('GET','/git/commits/'+head)]);
+ const catalog=b64ToJson(file.content),target=catalog.modelos.find(m=>m.id===model.id);if(!target)throw Error('El diseño ya no existe.');
+ const revision=Date.now().toString(36),path='modelos/'+target.id+'-'+revision+'.glb';
+ const blob=await githubRequest('POST','/git/blobs',{content:await fileToB64(f),encoding:'base64'});
+ const entries=[{path,mode:'100644',type:'blob',sha:blob.sha}];let cover=target.miniatura;
+ try{const {createModelThumbnail}=await import('./thumbnail-generator.js');const image=await createModelThumbnail(f);const coverBlob=await githubRequest('POST','/git/blobs',{content:image,encoding:'base64'});cover='miniaturas/'+target.id+'-'+revision+'.jpg';entries.push({path:cover,mode:'100644',type:'blob',sha:coverBlob.sha})}catch(e){toast('Se conserva la miniatura anterior: '+e.message,true)}
+ const oldPaths=[target.archivo,target.miniatura].filter(p=>p&&p!==cover&&p!==path&&/^(modelos|miniaturas)\/[a-zA-Z0-9_.-]+$/.test(p)&&!catalog.modelos.some(m=>m.id!==target.id&&(m.archivo===p||m.miniatura===p)));
+ // Previous revision stays in Git history; no stale filename is reused.
+ Object.assign(target,{archivo:path,miniatura:cover,bytes:f.size,actualizado:new Date().toISOString()});
+ catalog.actualizado=target.actualizado;
+ entries.push({path:'catalogo.json',mode:'100644',type:'blob',content:JSON.stringify(catalog,null,2)+'\n'});
+ if(distFile){const dist=b64ToJson(distFile.content);for(const row of dist.modelos||[])if(row.id===target.id)Object.assign(row,{archivo:path,miniatura:cover,updated:target.actualizado});entries.push({path:'distribucion.json',mode:'100644',type:'blob',content:JSON.stringify(dist,null,2)+'\n'})}
+ // Keep previous physical assets to avoid breaking already-open sessions.
+ const tree=await githubRequest('POST','/git/trees',{base_tree:commit.tree.sha,tree:entries});const next=await githubRequest('POST','/git/commits',{message:'Actualizar GLB: '+target.nombre,tree:tree.sha,parents:[head]});
+ await githubRequest('PATCH','/git/refs/heads/'+branch,{sha:next.sha,force:false});await refresh();toast('Diseño actualizado; adjudicaciones y enlaces conservados.');
+ }catch(e){toast('No se pudo actualizar: '+e.message,true)}finally{state.busy=false;render()}
+ };picker.click();
+}
 async function deleteDesign(model){
   if(state.busy)return;
   if(!state.token){
@@ -4734,16 +4763,16 @@ async function deleteDesign(model){
     status('settingsStatus','Conecta con GitHub para eliminar diseños.');
     return;
   }
-  if(!confirm('¿Eliminar «'+model.nombre+'» del catálogo? También se retirará de Dirección y dejarán de abrir sus enlaces para terceros.'))return;
+  if(!confirm('¿Eliminar «'+model.nombre+'» del catálogo? También se retirarán las adjudicaciones del Taller, los accesos de Dirección y Terceros.'))return;
   state.busy=true;
   render();
   try{
     const branch=encPath(state.branch);
     const ref=await githubRequest('GET','/git/ref/heads/'+branch);
     const head=ref.object.sha;
-    const [file,distributionFile]=await Promise.all([
+    const [file,distributionFile,thirdFile]=await Promise.all([
       request('GET','catalogo.json',null,false,false,head),
-      request('GET','distribucion.json',null,true,false,head)
+      request('GET','distribucion.json',null,true,false,head),request('GET','terceros.json',null,true,false,head)
     ]);
     const catalog=b64ToJson(file.content);
     const target=catalog.modelos.find(item=>item.id===model.id);
@@ -4752,7 +4781,7 @@ async function deleteDesign(model){
     const distribution=distributionFile?b64ToJson(distributionFile.content):null;
     const distributionRows=distribution?.modelos;
     if(distribution&&!Array.isArray(distributionRows))throw Error('El catálogo de Dirección no tiene un formato válido.');
-    const updatedDistribution=distributionRows?.filter(item=>item.id!==target.id);
+    const updatedDistribution=distributionRows?.filter(item=>item.id!==target.id);const third=thirdFile?b64ToJson(thirdFile.content):null;if(third&&!Array.isArray(third.accesses))throw Error('Registro de terceros no válido');if(third)third.accesses=third.accesses.filter(a=>a.designId!==target.id);
     const paths=[target.archivo,target.miniatura].filter(path=>
       /^(modelos\/[a-zA-Z0-9_-]+\.glb|miniaturas\/[a-zA-Z0-9_-]+\.(jpg|jpeg|png|webp))$/.test(path||'')
       && !remaining.some(item=>item.archivo===path||item.miniatura===path));
@@ -4766,12 +4795,14 @@ async function deleteDesign(model){
           path:'distribucion.json',mode:'100644',type:'blob',
           content:JSON.stringify({...distribution,modelos:updatedDistribution},null,2)+'\n'
         }]:[]),
+        ...(third?[{path:'terceros.json',mode:'100644',type:'blob',content:JSON.stringify(third,null,2)+'\n'}]:[]),
         ...paths.filter((_,i)=>assets[i]?.type==='file').map(path=>({path,mode:'100644',type:'blob',sha:null})),
       ],
     });
     const next=await githubRequest('POST','/git/commits',{message:'Eliminar diseño: '+target.nombre,tree:tree.sha,parents:[head]});
     await githubRequest('PATCH','/git/refs/heads/'+branch,{sha:next.sha,force:false});
     state.models=remaining;
+    try{await window.EskalaTaller.change(state.token,x=>{x.jobs=x.jobs.filter(j=>j.design!==target.id);x.tabletJobs=x.tabletJobs.filter(j=>j.design!==target.id)})}catch(e){await refresh();toast('Diseño eliminado; limpieza del Taller pendiente. Usa Resolver registro en Taller. '+e.message,true);return}
     await refresh();
     toast('Diseño eliminado: '+target.nombre);
   }catch(error){
