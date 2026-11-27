@@ -4442,8 +4442,13 @@ async function workshopDialog(model=null){
  const storedCentralKey=()=>{try{const key=localStorage.getItem(centralKeyName)||localStorage.getItem(legacyCentralKey)||'';if(key&&!localStorage.getItem(centralKeyName)){localStorage.setItem(centralKeyName,key);localStorage.removeItem(legacyCentralKey)}return key}catch{return ''}};
  async function ensureCentral(force=false){
    let key=storedCentralKey();
-   if((d.tablet||d.central)?.active&&key&&!force)return key;
-   if((d.tablet||d.central)?.active&&!key&&!force)force=true;
+   const access=d.tablet||d.central;
+   if(access?.active&&key&&!force){
+     const currentHash=await T.hash(key);
+     if(currentHash===access.hash)return key;
+     force=true;
+   }
+   if(access?.active&&!key&&!force)force=true;
    key=T.secret();const h=await T.hash(key);
    await T.change(state.token,x=>{x.tablet={hash:h,active:true,updatedAt:new Date().toISOString()};delete x.central});
    try{localStorage.setItem(centralKeyName,key)}catch{}
