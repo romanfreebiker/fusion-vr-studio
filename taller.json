@@ -17,5 +17,10 @@
       "phase": "Pendiente",
       "note": ""
     }
-  ]
+  ],
+  "tablet": {
+    "hash": "9c3e75175fbe1b3b5527fe7061a1eb9ea30ed2c7b319af0b3987e75203a44a04",
+    "active": true,
+    "updatedAt": "2026-11-27T06:09:44.617Z"
+  }
 }
