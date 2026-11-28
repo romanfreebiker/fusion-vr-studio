@@ -39,7 +39,17 @@ html.presentation-boot #presentationBoot:not([hidden]){grid-template-rows:auto m
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<body>
+<style id="eskala-toolbar-v149">
+html,body{width:100%;height:100%;overflow:hidden}
+#presentationBar{box-sizing:border-box;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:5px;padding:6px max(8px,env(safe-area-inset-right)) 6px max(8px,env(safe-area-inset-left));padding-top:max(6px,env(safe-area-inset-top))}
+#presentationBar>.eskala-presentation-identity{grid-column:span 5;min-width:0;max-width:none}
+#presentationBar>.eskala-presentation-identity img{width:min(340px,100%)}
+#presentationBar>strong{grid-column:span 5;min-width:0}
+#presentationBar>span{grid-column:span 2;text-align:right}
+#presentationBar>button,#presentationBar>select{box-sizing:border-box;grid-column:span 2;min-width:0;width:100%;min-height:36px;padding:6px 4px;font:600 12px system-ui;text-align:center;white-space:normal}
+@media(max-width:850px){#presentationBar{grid-template-columns:repeat(6,minmax(0,1fr))}#presentationBar>.eskala-presentation-identity{grid-column:span 3}#presentationBar>strong{grid-column:span 2}#presentationBar>span{grid-column:span 1}#presentationBar>button,#presentationBar>select{grid-column:span 2;font-size:11px;min-height:36px}}
+@media(max-height:450px) and (orientation:landscape){#presentationBar{grid-template-columns:repeat(12,minmax(0,1fr));gap:3px}#presentationBar>.eskala-presentation-identity{grid-column:span 5}#presentationBar>strong{grid-column:span 5}#presentationBar>span{grid-column:span 2}#presentationBar>button,#presentationBar>select{min-height:30px;font-size:10px;padding:3px}}
+</style><body>
 <div id="presentationBoot" role="status" aria-live="polite">
  <div class="eskala-boot-band" aria-label="Cabecera corporativa ESKALA">
   <img src="./assets/eskala-corporativa.webp?v=2" width="640" height="77" alt="ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos">
@@ -223,7 +233,7 @@ if(presentation){
  controls.enabled=true;
  controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;controls.mouseButtons.RIGHT=null;controls.mouseButtons.MIDDLE=THREE.MOUSE.PAN;
  controls.touches.ONE=THREE.TOUCH.ROTATE;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;
- const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent='Taller · v148';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px;opacity:.85';bar.append(buildTag);
+ const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent='Taller · v149';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px;opacity:.85';bar.append(buildTag);
  presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
  button(access==='tablet'?'Terminal Taller':'Mis trabajos',()=>{const key=location.hash.slice(1);let u;if(access==='tablet'&&params.get('adminTablet')==='1'){u=new URL('tablet-taller.html',location.href);u.searchParams.set('adminTablet','1')}else{u=new URL(access==='tablet'?EskalaTaller.tabletLink(key):EskalaTaller.link(key));if(access!=='tablet'&&params.get('adminWorker'))u.searchParams.set('adminWorker',params.get('adminWorker'))}location.assign(u.href)});
@@ -294,6 +304,21 @@ if(presentation){
  }
 
  document.body.append(bar);
+ // ESKALA: orden común sin sustituir los controles ni sus eventos.
+ const order=['Vista 3D','Recorrer a pie','Inicio','Perspectiva','Vistas','Medir','Borrar medida','Pantalla completa','Mi biblioteca','Terminal Taller','Mis trabajos','Copiar enlace para terceros','WhatsApp','Correo','Accesos terceros'];
+ const rank=n=>n===viewSelect?4:order.indexOf(n.textContent.trim());
+ const items=[...bar.children].filter(n=>n.tagName==='BUTTON'||n===viewSelect);
+ items.sort((a,b)=>rank(a)-rank(b));bar.prepend(brand,presentationTitle,buildTag);for(const n of items)bar.append(n);
+ full.textContent='Pantalla completa';
+ const root=document.documentElement;
+ const enter=()=>{try{const fn=root.requestFullscreen||root.webkitRequestFullscreen;if(fn&&!document.fullscreenElement&&!document.webkitFullscreenElement)Promise.resolve(fn.call(root)).catch(()=>{});}catch{}};
+ const firstGesture=e=>{if(e.target.closest?.('button,a,select,input,textarea'))return;document.removeEventListener('click',firstGesture,true);enter();};
+ document.addEventListener('click',firstGesture,true);
+ full.onclick=()=>{document.removeEventListener('click',firstGesture,true);if(document.fullscreenElement||document.webkitFullscreenElement){try{Promise.resolve((document.exitFullscreen||document.webkitExitFullscreen).call(document)).catch(()=>{})}catch{}}else enter();};
+ const syncFull=()=>{const active=!!(document.fullscreenElement||document.webkitFullscreenElement);full.textContent=active?'Salir pantalla completa':'Pantalla completa';full.setAttribute('aria-pressed',String(active));};
+ document.addEventListener('fullscreenchange',syncFull);document.addEventListener('webkitfullscreenchange',syncFull);
+ enter();
+
  presentationHint=document.createElement('div');presentationHint.id='presentationHint';document.body.append(presentationHint);updateMouseGuide();
  presentationStatus=document.getElementById('presentationBoot');window.presentationProgress('Preparando el proyecto…',null);
  const canvas=renderer.domElement;
