@@ -1,11 +1,67 @@
-// Bootstrap only. No authorization endpoints are enabled until D1 and identity are configured.
-export default {
-  async fetch(request) {
-    const url = new URL(request.url);
-    const headers = {"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store","X-Content-Type-Options":"nosniff"};
-    if (request.method === "GET" && url.pathname === "/health") {
-      return new Response(JSON.stringify({service:"eskala-permisos",version:160,ready:false,stage:"bootstrap"}),{status:200,headers});
-    }
-    return new Response(JSON.stringify({error:"Servicio de permisos pendiente de configuracion"}),{status:503,headers});
-  }
-};
+// ESKALA permission service. Credentials are never stored in public GitHub files.
+const origin='https://romanfreebiker.github.io';
+const raw='https://raw.githubusercontent.com/romanfreebiker/fusion-vr-studio/main/';
+const hash=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))),b=>b.toString(16).padStart(2,'0')).join('');
+const random=()=>Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,'0')).join('');
+const equal=async(a,b)=>{if(!a||!b)return false;const x=await hash(a),y=await hash(b);let d=0;for(let i=0;i<x.length;i++)d|=x.charCodeAt(i)^y.charCodeAt(i);return d===0};
+const schema=[
+'CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
+'CREATE TABLE IF NOT EXISTS shares (id TEXT PRIMARY KEY, designId TEXT NOT NULL, origin TEXT NOT NULL, recipient TEXT, channel TEXT, tokenHash TEXT UNIQUE NOT NULL, createdAt INTEGER NOT NULL, expiresAt INTEGER NOT NULL, revokedAt INTEGER)',
+'CREATE INDEX IF NOT EXISTS shares_design ON shares(designId,origin)'
+];
+const iso=n=>new Date(n).toISOString();
+const view=r=>({id:r.id,designId:r.designId,origin:r.origin,recipient:r.recipient,channel:r.channel,createdAt:iso(r.createdAt),expiresAt:iso(r.expiresAt),status:r.revokedAt?'revoked':'active',effectiveStatus:r.revokedAt?'revoked':r.expiresAt<=Date.now()?'expired':'active'});
+async function jsonFile(name){const r=await fetch(raw+name+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('catalog unavailable');return r.json()}
+export default {async fetch(request,env){
+ const url=new URL(request.url),path=url.pathname,method=request.method;
+ const headers={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Allow-Methods':'GET, POST, OPTIONS','Vary':'Origin'};
+ const reply=(data,status=200)=>new Response(JSON.stringify(data),{status,headers});
+ if(method==='OPTIONS')return new Response(null,{status:204,headers});
+ if(request.headers.get('Origin')&&request.headers.get('Origin')!==origin)return reply({error:'Origen no autorizado'},403);
+ try{
+ if(!env.DB||!env.ADMIN_SECRET||!env.DIRECTOR_SECRET)return reply({error:'Configuración incompleta'},503);
+ if(await equal(env.ADMIN_SECRET,env.DIRECTOR_SECRET))return reply({error:'Claves deben ser diferentes'},503);
+ if(path==='/health'&&method==='GET'){await env.DB.prepare('SELECT 1').first();return reply({service:'eskala-permisos',version:161,ready:false,stage:'backend-staging',database:true})}
+ await env.DB.batch(schema.map(s=>env.DB.prepare(s)));
+ const bearer=(request.headers.get('Authorization')||'').replace(/^Bearer /,'');
+ const key=await env.DB.prepare("SELECT value FROM settings WHERE key='direction_hash'").first();
+ const role=await equal(bearer,env.ADMIN_SECRET)?'central':bearer&&key&&await hash(bearer)===key.value?'direction':null;
+ const body=method==='POST'?await request.json():{};
+ if(path==='/direction/rotate'&&method==='POST'){
+ if(role!=='central')return reply({error:'Acceso denegado'},403);
+ const token=random();await env.DB.prepare("INSERT INTO settings(key,value) VALUES('direction_hash',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(await hash(token)).run();return reply({token});
+ }
+ if(path==='/session'&&method==='GET')return role?reply({role}):reply({error:'Acceso denegado'},403);
+ if(path==='/initialize'&&method==='POST'){
+ if(role!=='central')return reply({error:'Acceso denegado'},403);
+ const marker=await env.DB.prepare("SELECT value FROM settings WHERE key='legacy_imported'").first();if(marker)return reply({imported:true});
+ const legacy=await jsonFile('terceros.json');
+ if(!Array.isArray(legacy.accesses))throw Error('invalid legacy registry');
+ const statements=legacy.accesses.filter(a=>a.id&&a.designId&&/^[a-f0-9]{64}$/.test(a.tokenHash)&&Number.isFinite(Date.parse(a.expiresAt))&&Number.isFinite(Date.parse(a.createdAt))).map(a=>env.DB.prepare('INSERT OR IGNORE INTO shares VALUES(?,?,?,?,?,?,?,?,?)').bind(a.id,a.designId,a.origin==='direction'?'direction':'central',String(a.recipient||''),String(a.channel||'link'),a.tokenHash,Date.parse(a.createdAt),Date.parse(a.expiresAt),a.status==='revoked'?Date.parse(a.revokedAt)||Date.now():null));
+ statements.push(env.DB.prepare("INSERT OR IGNORE INTO settings VALUES('legacy_imported','1')"));await env.DB.batch(statements);return reply({imported:true});
+ }
+ const initialized=await env.DB.prepare("SELECT value FROM settings WHERE key='legacy_imported'").first();if(!initialized)return reply({error:'Migración pendiente'},503);
+ if(path==='/verify'&&method==='POST'){
+ if(typeof body.token!=='string'||body.token.length>128)return reply({valid:false});
+ const r=await env.DB.prepare('SELECT * FROM shares WHERE designId=? AND tokenHash=? AND revokedAt IS NULL AND expiresAt>?').bind(String(body.designId||''),await hash(body.token),Date.now()).first();
+ return reply({valid:!!r});
+ }
+ if(!role)return reply({error:'Acceso denegado'},403);
+ if(path==='/shares/list'&&method==='POST'){
+ const id=String(body.designId||'');const result=await env.DB.prepare('SELECT * FROM shares WHERE (? = \'\' OR designId=?) AND (?=\'central\' OR origin=\'direction\') ORDER BY createdAt DESC').bind(id,id,role).all();return reply({accesses:result.results.map(view)});
+ }
+ if(path==='/shares/create'&&method==='POST'){
+ const designId=String(body.designId||''),hours=Number(body.hours);
+ if(!designId||!Number.isFinite(hours)||hours<1||hours>720)return reply({error:'Datos no válidos'},400);
+ const catalog=await jsonFile('catalogo.json');if(!catalog.modelos.some(m=>m.id===designId))return reply({error:'Diseño no disponible'},404);
+ if(role==='direction'){const d=await jsonFile('distribucion.json');if(!d.modelos.some(m=>m.id===designId&&m.status==='active'))return reply({error:'Diseño no autorizado'},403)}
+ const token=random(),now=Date.now(),id=crypto.randomUUID(),recipient=String(body.recipient||'').slice(0,80),channel=String(body.channel||'link').slice(0,20);
+ const row={id,designId,origin:role,recipient,channel,createdAt:now,expiresAt:now+hours*3600000,revokedAt:null};
+ await env.DB.prepare('INSERT INTO shares VALUES(?,?,?,?,?,?,?,?,NULL)').bind(id,designId,role,recipient,channel,await hash(token),now,row.expiresAt).run();return reply({access:view(row),token});
+ }
+ if(path==='/shares/revoke'&&method==='POST'){
+ const result=await env.DB.prepare("UPDATE shares SET revokedAt=COALESCE(revokedAt,?) WHERE id=? AND (?='central' OR origin='direction')").bind(Date.now(),String(body.id||''),role).run();return result.meta.changes?reply({ok:true}):reply({error:'Acceso inexistente o no autorizado'},404);
+ }
+ return reply({error:'Ruta no disponible'},404);
+ }catch(e){console.error('ESKALA permission operation failed',e?.name);return reply({error:'Servicio de permisos no disponible'},503)}
+}};
