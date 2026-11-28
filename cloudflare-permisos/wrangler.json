@@ -2,5 +2,13 @@
   "name": "eskala-permisos",
   "main": "worker.js",
   "compatibility_date": "2026-11-28",
-  "workers_dev": true
+  "workers_dev": true,
+  "preview_urls": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "eskala-permisos",
+      "database_id": "3f8f7fe5-4833-4a7e-81f7-6d1d7f4e1397"
+    }
+  ]
 }
