@@ -11,6 +11,9 @@ const schema=[
 'CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, expires INTEGER NOT NULL)',
 'CREATE TABLE IF NOT EXISTS hidden (designId TEXT PRIMARY KEY, revision TEXT NOT NULL)'
 ];
+const shortToken=()=>btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pages=origin+'/fusion-vr-studio/';
 const iso=n=>new Date(n).toISOString();
 const view=r=>({id:r.id,designId:r.designId,origin:r.origin,recipient:r.recipient,channel:r.channel,createdAt:iso(r.createdAt),expiresAt:iso(r.expiresAt),status:r.revokedAt?'revoked':'active',effectiveStatus:r.revokedAt?'revoked':r.expiresAt<=Date.now()?'expired':'active'});
 async function jsonFile(name){const r=await fetch(raw+name+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('catalog unavailable');return r.json()}
@@ -23,8 +26,23 @@ export default {async fetch(request,env){
  try{
  if(!env.DB||!env.ADMIN_SECRET||!env.DIRECTOR_SECRET)return reply({error:'Configuración incompleta'},503);
  if(await equal(env.ADMIN_SECRET,env.DIRECTOR_SECRET))return reply({error:'Claves deben ser diferentes'},503);
- if(path==='/health'&&method==='GET'){await env.DB.prepare('SELECT 1').first();await env.DB.batch(schema.map(s=>env.DB.prepare(s)));const active=await env.DB.prepare("SELECT value FROM settings WHERE key='legacy_imported'").first();return reply({service:'eskala-permisos',version:162,ready:!!active,database:true})}
+ if(path==='/health'&&method==='GET'){await env.DB.prepare('SELECT 1').first();await env.DB.batch(schema.map(s=>env.DB.prepare(s)));const active=await env.DB.prepare("SELECT value FROM settings WHERE key='legacy_imported'").first();return reply({service:'eskala-permisos',version:164,ready:!!active,database:true})}
  await env.DB.batch(schema.map(s=>env.DB.prepare(s)));
+ if(method==='GET'&&/^\/[A-Za-z0-9_-]{22}$/.test(path)){
+ const token=path.slice(1),r=await env.DB.prepare('SELECT * FROM shares WHERE tokenHash=? AND revokedAt IS NULL AND expiresAt>?').bind(await hash(token),Date.now()).first();
+ const retired=()=>Response.redirect(pages+'retirado.html',302);
+ if(!r)return retired();
+ const [catalog,manifest]=await Promise.all([jsonFile('catalogo.json'),jsonFile('social/shares.json').catch(()=>null)]);
+ const m=catalog.modelos.find(x=>x.id===r.designId);if(!m)return retired();
+ const entry=manifest?.designs?.[r.designId];const short=entry?.shortPath;
+ const validPath=typeof short==='string'&&/^s\/[a-z2-7]{8}\/$/.test(short);
+ const target=new URL(validPath?short:'visor.html',pages);
+ if(validPath)target.hash='share='+token;else{target.searchParams.set('modo','presentacion');target.searchParams.set('diseno',r.designId);target.searchParams.set('acceso','invitado');target.searchParams.set('share',token);}
+ const image=validPath?new URL(short+'preview.jpg',pages).href:new URL('assets/eskala-corporativa.webp',pages).href;
+ const title=esc(m.nombre||'Diseño 3D'),dest=esc(target.href);
+ const html='<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta property="og:title" content="'+title+'"><meta property="og:description" content="Explora este diseño en 3D con ESKALA Studio."><meta property="og:image" content="'+esc(image)+'"><meta property="og:type" content="website"><meta property="og:site_name" content="ESKALA Studio"><meta name="twitter:card" content="summary_large_image"><title>'+title+' · ESKALA Studio</title></head><body style="background:#151e26;color:white;font:16px system-ui;text-align:center;padding:30px"><p>Abriendo ESKALA Studio…</p><a id="open" style="color:#8ee9fd" href="'+dest+'">Abrir diseño 3D</a><script>location.replace(document.getElementById("open").href)</script></body></html>';
+ return new Response(html,{headers:{...headers,'Content-Type':'text/html; charset=utf-8','Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"}});
+ }
  const bearer=(request.headers.get('Authorization')||'').replace(/^Bearer /,'');
  const key=await env.DB.prepare("SELECT value FROM settings WHERE key='direction_hash'").first();
  const bh=bearer?await hash(bearer):'';const session=bh?await env.DB.prepare('SELECT hash FROM sessions WHERE hash=? AND expires>?').bind(bh,Date.now()).first():null;
@@ -73,9 +91,9 @@ export default {async fetch(request,env){
  if(!designId||!Number.isFinite(hours)||hours<1||hours>720)return reply({error:'Datos no válidos'},400);
  const catalog=await jsonFile('catalogo.json');if(!catalog.modelos.some(m=>m.id===designId))return reply({error:'Diseño no disponible'},404);
  if(role==='direction'){const d=await jsonFile('distribucion.json');const h=await env.DB.prepare('SELECT revision FROM hidden WHERE designId=?').bind(designId).first();if(!d.modelos.some(m=>m.id===designId&&m.status==='active'&&(!h||h.revision!==String(m.updated||''))))return reply({error:'Diseño no autorizado'},403)}
- const token=random(),now=Date.now(),id=crypto.randomUUID(),recipient=String(body.recipient||'').slice(0,80),channel=String(body.channel||'link').slice(0,20);
+ const token=shortToken(),now=Date.now(),id=crypto.randomUUID(),recipient=String(body.recipient||'').slice(0,80),channel=String(body.channel||'link').slice(0,20);
  const row={id,designId,origin:role,recipient,channel,createdAt:now,expiresAt:now+hours*3600000,revokedAt:null};
- await env.DB.prepare('INSERT INTO shares VALUES(?,?,?,?,?,?,?,?,NULL)').bind(id,designId,role,recipient,channel,await hash(token),now,row.expiresAt).run();return reply({access:view(row),token});
+ await env.DB.prepare('INSERT INTO shares VALUES(?,?,?,?,?,?,?,?,NULL)').bind(id,designId,role,recipient,channel,await hash(token),now,row.expiresAt).run();return reply({access:view(row),token,shortUrl:url.origin+'/'+token});
  }
  if(path==='/shares/revoke'&&method==='POST'){
  const result=await env.DB.prepare("UPDATE shares SET revokedAt=COALESCE(revokedAt,?) WHERE id=? AND (?='central' OR origin='direction')").bind(Date.now(),String(body.id||''),role).run();return result.meta.changes?reply({ok:true}):reply({error:'Acceso inexistente o no autorizado'},404);
