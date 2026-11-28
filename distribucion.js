@@ -374,7 +374,7 @@
    try{prepared=await createThirdPartyAccess(id,recipient,'','whatsapp',ttlHours,origin,true)}
    catch(error){try{page?.close()}catch{}throw error}
    const {url,access}=prepared;
-   const message='ESKALA · '+(name||'Diseño 3D')+'\n'+url;
+   const message=(name||'Diseño 3D')+'\n'+url;
    const target=(mobile?'https://wa.me/?text=':'https://web.whatsapp.com/send?text=')+encodeURIComponent(message);
    return new Promise(resolve=>{
      const overlay=document.createElement('div');overlay.style.cssText='position:fixed;inset:0;z-index:2147483647;background:#101c2bea;display:grid;place-items:center;padding:18px';
@@ -439,5 +439,5 @@
    window.addEventListener('focus',check);
    window.addEventListener('pageshow',check);
  }
- window.FusionDistribution={version:168,activatePermissions,newDirectionLink,revokeDirectionLink,centralLogin,permissionsLive,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
+ window.FusionDistribution={version:169,activatePermissions,newDirectionLink,revokeDirectionLink,centralLogin,permissionsLive,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
 })();
