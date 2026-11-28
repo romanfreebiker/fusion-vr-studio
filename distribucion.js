@@ -5,6 +5,33 @@
  const readHeaders={'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
  const refreshInterval=20000;
  const raw='https://raw.githubusercontent.com/'+repo+'/'+branch+'/';
+
+ const service='https://eskala-permisos.taller-mantenimiento.workers.dev';
+ const centralKey='eskala-permissions-central-v162',directionKey='eskala-permissions-direction-v162',liveKey='eskala-permissions-live-v162';
+ const get=k=>{try{return localStorage.getItem(k)||''}catch{return ''}};
+ const put=(k,v)=>{try{localStorage.setItem(k,v)}catch{}};
+ const fragment=new URLSearchParams(location.hash.slice(1)),incoming=fragment.get('direccion');
+ if(incoming&&/^[a-f0-9]{64}$/.test(incoming)){put(directionKey,incoming);fragment.delete('direccion');history.replaceState(null,'',location.pathname+location.search+(fragment.size?'#'+fragment:''))}
+ async function permission(path,body,role){
+   const token=role==='central'?get(centralKey):role==='direction'?get(directionKey):'';
+   const headers={'Content-Type':'application/json'};if(token)headers.Authorization='Bearer '+token;
+   const res=await fetch(service+path,{method:body===undefined?'GET':'POST',headers,body:body===undefined?undefined:JSON.stringify(body),cache:'no-store',credentials:'omit'});
+   const data=await res.json();if(!res.ok){const e=Error(data.error||'Servicio de permisos no disponible');e.status=res.status;throw e}return data;
+ }
+ let livePromise;
+ async function permissionsLive(){
+   if(get(liveKey)==='1')return true;
+   if(!livePromise)livePromise=permission('/health').then(h=>{if(h.ready)put(liveKey,'1');return !!h.ready}).catch(()=>false).finally(()=>livePromise=null);
+   return livePromise;
+ }
+ function askCentralPassword(){
+   return new Promise(resolve=>{const d=document.createElement('dialog');d.style.cssText='background:#182436;color:white;border:1px solid #52749a;border-radius:12px;padding:24px;max-width:90vw';const f=document.createElement('form');f.method='dialog';const title=document.createElement('h3');title.textContent='Autorizar Central · ESKALA';const input=document.createElement('input');input.type='password';input.autocomplete='current-password';input.placeholder='Clave ADMIN_SECRET';input.required=true;const ok=document.createElement('button');ok.textContent='Autorizar';ok.value='ok';const cancel=document.createElement('button');cancel.textContent='Cancelar';cancel.value='cancel';cancel.formNoValidate=true;f.append(title,input,ok,cancel);d.append(f);document.body.append(d);d.addEventListener('close',()=>{const v=d.returnValue==='ok'?input.value:null;input.value='';d.remove();resolve(v)},{once:true});d.showModal();input.focus()});
+ }
+ async function centralLogin(){try{if((await permission('/session',undefined,'central')).role==='central')return}catch(e){if(e.status!==403)throw e}const password=await askCentralPassword();if(!password)throw Error('Autorización cancelada');const result=await permission('/login',{password});put(centralKey,result.token);}
+ async function newDirectionLink(){await centralLogin();const result=await permission('/direction/rotate',{},'central');const u=new URL('direccion.html',location.href);u.searchParams.set('v','162');u.hash='direccion='+result.token;return u.href}
+ async function activatePermissions(){await centralLogin();await permission('/initialize',{},'central');put(liveKey,'1');return true}
+ async function revokeDirectionLink(){await centralLogin();return permission('/direction/revoke',{},'central')}
+
  const snapshots=new Map(), pending=new Map();
  let adminToken=()=>null;
  const safe=m=>({id:m.id,nombre:m.nombre||'Diseño',descripcion:m.descripcion||'',categoria:m.categoria||'',archivo:m.archivo,miniatura:m.miniatura||''});
@@ -194,6 +221,7 @@
    return days+' d'+(rest?' '+rest+' h':'');
  }
  async function listThirdParty(designId,force=false,scope='all'){
+   if(await permissionsLive()){const role=scope==='direction'?'direction':'central';if(role==='central'&&!get(centralKey))return [];const data=await permission('/shares/list',{designId},role);return data.accesses.filter(a=>a.effectiveStatus==='active').map(a=>({...a,remaining:thirdPartyRemaining(a)}));}
    const data=await readThird(force),now=Date.now();
    return data.accesses
      .filter(a=>a&&a.designId===designId&&thirdPartyState(a,now)==='active')
@@ -219,6 +247,13 @@
    return label+' · '+date+' '+time;
  }
  async function createThirdPartyAccess(designId,recipient='',contact='',channel='link',ttlHours=24,origin='central'){
+   if(await permissionsLive()){
+     const role=origin==='direction'?'direction':'central';if(role==='central')await centralLogin();
+     const published=await shareBase(designId);
+     const data=await permission('/shares/create',{designId,recipient:recipient||automaticRecipient(channel),channel,hours:ttlHours},role);
+     published.base.hash='share='+data.token;
+     return {access:data.access,url:published.base.href};
+   }
    if(origin==='direction'&&!adminToken())throw Error('El servicio de autorización de Dirección todavía no está configurado.');
    const clean=String(recipient||automaticRecipient(channel)).trim().slice(0,80);
    const published=await shareBase(designId);
@@ -258,6 +293,7 @@
    });
  }
  async function deactivateThirdPartyAccess(accessId,actor='central'){
+   if(await permissionsLive()){if(actor==='central')await centralLogin();return permission('/shares/revoke',{id:accessId},actor==='direction'?'direction':'central');}
    if(actor!=='direction')return deleteThirdPartyAccess(accessId);
    await writeThird(data=>{
      const i=data.accesses.findIndex(a=>a.id===accessId);
@@ -268,6 +304,7 @@
  }
  async function verifyThirdParty(designId,secret,force=false){
    if(!secret)return null;
+   if(await permissionsLive())return (await permission('/verify',{designId,token:secret})).valid?{designId}:null;
    const hash=await tokenHash(secret),data=await readThird(force),now=Date.now();
    return data.accesses.find(a=>a.designId===designId&&a.tokenHash===hash&&thirdPartyState(a,now)==='active')||null;
  }
@@ -287,13 +324,14 @@
      }
    }catch{}
  }
- async function list(role,force=false){const rows=await published(force);return role==='director'?rows.filter(m=>m.status==='active'):rows}
+ async function list(role,force=false){if(role==='director'&&await permissionsLive()){const r=await permission('/direction/list',undefined,'direction');return r.modelos}const rows=await published(force);return role==='director'?rows.filter(m=>m.status==='active'):rows}
  async function send(m){
    await write(rows=>{const next={...safe(m),status:'active',updated:new Date().toISOString()};const i=rows.findIndex(x=>x.id===m.id);if(i<0)rows.push(next);else rows[i]=next});
    clearHiddenDesign(m.id);
    snapshots.delete(path);
  }
  async function setStatus(id,status,role){
+   if(role==='director'&&await permissionsLive())return permission('/direction/hide',{designId:id},'direction');
    if(role==='director'&&status!=='inactive')throw Error('Dirección solo puede retirar diseños de su biblioteca.');
    if(!['admin','director'].includes(role))throw Error('Permiso de distribución no válido.');
    await write(rows=>{
@@ -303,6 +341,7 @@
    });
  }
  async function migrateLegacyDirectionHidden(){
+   if(await permissionsLive())return 0;
    const legacy=hidden(),ids=Object.keys(legacy||{});
    if(!ids.length)return 0;
    await write(rows=>{
@@ -319,8 +358,8 @@
  async function authorizeDirectionShare(id,hours=24){
    return createThirdPartyAccess(id,'Enlace reutilizable autorizado por Central','','preapproved',hours,'direction');
  }
- async function share(id,origin='central'){
-   return (await createThirdPartyAccess(id,'','', 'link',24,origin)).url;
+ async function share(id,origin='central',hours=24,recipient=''){
+   return (await createThirdPartyAccess(id,recipient,'', 'link',hours,origin)).url;
  }
  async function shareWhatsApp(id,name,ttlHours=24,origin='central',recipient=''){
    const mobile=!!navigator.share||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);const page=mobile?null:window.open('about:blank','_blank');
@@ -332,8 +371,8 @@
      return url;
    }catch(error){if(page)page.close();throw error}
  }
- async function shareEmail(id,name,origin='central'){
-   const {url}=await createThirdPartyAccess(id,'','', 'email',24,origin);
+ async function shareEmail(id,name,origin='central',hours=24,recipient=''){
+   const {url}=await createThirdPartyAccess(id,recipient,'', 'email',hours,origin);
    const title=name||'Diseño 3D';
    const subject='ESKALA Studio · '+title;
    const body='Te comparto «'+title+'» para que puedas verlo y recorrerlo en 3D con ESKALA Studio.\n\n'+url;
@@ -342,8 +381,8 @@
  }
  async function activeViewerDesign(access,id,shareSecret=''){
    if(!['director','invitado','demo-invitado'].includes(access))throw Error('Acceso no válido');
-   if(access==='director')return (await list('director',true)).find(m=>m.id===id&&m.status==='active')||null;
-   if(access==='demo-invitado')return await catalogModel(id,true);
+   if(access==='director'){try{return (await list('director',true)).find(m=>m.id===id&&m.status==='active')||null}catch(e){if(e.status===403)return null;throw e}}
+   if(access==='demo-invitado'){if(await permissionsLive()){if((await permission('/session',undefined,'central')).role!=='central')return null;}return await catalogModel(id,true);}
    if(!await verifyThirdParty(id,shareSecret,true))return null;
    return await catalogModel(id,true);
  }
@@ -375,5 +414,5 @@
    window.addEventListener('focus',check);
    window.addEventListener('pageshow',check);
  }
- window.FusionDistribution={version:29,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
+ window.FusionDistribution={version:162,activatePermissions,newDirectionLink,revokeDirectionLink,centralLogin,permissionsLive,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
 })();
