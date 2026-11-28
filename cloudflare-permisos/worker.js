@@ -27,15 +27,15 @@ export default {async fetch(request,env){
  // approved generic branding; actual viewer access is verified on /open and /verify.
  const publicToken=/^\/(?:[A-Za-z0-9_-]{16}|[A-Za-z0-9_-]{22})$/.test(path);
  if((method==='GET'||method==='HEAD')&&publicToken){
-   const image=esc(url.origin+'/card-wa.jpg');
+   const image=esc(url.origin+'/card-wa-v2.jpg');
    const dest=esc(url.origin+'/open'+path);
    const canonical=esc(url.origin+path);
-   const html='<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta property="og:title" content="ESKALA · Visor 3D"><meta property="og:description" content="Acceso temporal al diseño interactivo"><meta property="og:url" content="'+canonical+'"><meta property="og:image" content="'+image+'"><meta property="og:image:secure_url" content="'+image+'"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="1672"><meta property="og:image:height" content="941"><meta property="og:type" content="website"><meta property="og:site_name" content="ESKALA"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="ESKALA · Visor 3D"><meta name="twitter:image" content="'+image+'"><title>ESKALA · Visor 3D</title></head><body style="background:#151e26;color:white;font:16px system-ui;text-align:center;padding:30px"><a id="open" style="color:#8ee9fd" href="'+dest+'">Abrir visor ESKALA</a><script>location.replace(document.getElementById("open").href)</script></body></html>';
+   const html='<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta property="og:title" content="ESKALA · Visor 3D"><meta property="og:description" content="Acceso temporal al diseño interactivo"><meta property="og:url" content="'+canonical+'"><meta property="og:image" content="'+image+'"><meta property="og:image:secure_url" content="'+image+'"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="960"><meta property="og:image:height" content="540"><meta property="og:type" content="website"><meta property="og:site_name" content="ESKALA"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="ESKALA · Visor 3D"><meta name="twitter:image" content="'+image+'"><title>ESKALA · Visor 3D</title></head><body style="background:#151e26;color:white;font:16px system-ui;text-align:center;padding:30px"><a id="open" style="color:#8ee9fd" href="'+dest+'">Abrir visor ESKALA</a><script>location.replace(document.getElementById("open").href)</script></body></html>';
    return new Response(method==='HEAD'?null:html,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"}});
  }
- if((method==='GET'||method==='HEAD')&&path==='/card-wa.jpg'){
+ if((method==='GET'||method==='HEAD')&&path==='/card-wa-v2.jpg'){
    try{
-     const img=await fetch(raw+'social/acceso-eskala-wa.jpg',{method,cf:{cacheTtl:3600,cacheEverything:true}});
+     const img=await fetch(raw+'social/acceso-eskala-wa-v2.jpg',{method,cf:{cacheTtl:3600,cacheEverything:true}});
      if(!img.ok)return new Response(null,{status:503,headers:{'Cache-Control':'no-store'}});
      return new Response(method==='HEAD'?null:img.body,{headers:{'Content-Type':'image/jpeg','Cache-Control':'public, max-age=3600','X-Content-Type-Options':'nosniff'}});
    }catch{return new Response(null,{status:503,headers:{'Cache-Control':'no-store'}});}
@@ -45,7 +45,7 @@ export default {async fetch(request,env){
  try{
  if(!env.DB||!env.ADMIN_SECRET||!env.DIRECTOR_SECRET)return reply({error:'Configuración incompleta'},503);
  if(await equal(env.ADMIN_SECRET,env.DIRECTOR_SECRET))return reply({error:'Claves deben ser diferentes'},503);
- if(path==='/health'&&method==='GET'){await env.DB.prepare('SELECT 1').first();await env.DB.batch(schema.map(s=>env.DB.prepare(s)));const active=await env.DB.prepare("SELECT value FROM settings WHERE key='legacy_imported'").first();return reply({service:'eskala-permisos',version:171,ready:!!active,database:true})}
+ if(path==='/health'&&method==='GET'){await env.DB.prepare('SELECT 1').first();await env.DB.batch(schema.map(s=>env.DB.prepare(s)));const active=await env.DB.prepare("SELECT value FROM settings WHERE key='legacy_imported'").first();return reply({service:'eskala-permisos',version:172,ready:!!active,database:true})}
  await env.DB.batch(schema.map(s=>env.DB.prepare(s)));
  if(method==='GET'&&/^\/open\/(?:[A-Za-z0-9_-]{16}|[A-Za-z0-9_-]{22})$/.test(path)){
  const token=path.slice('/open/'.length),r=await env.DB.prepare('SELECT * FROM shares WHERE tokenHash=? AND revokedAt IS NULL AND expiresAt>?').bind(await hash(token),Date.now()).first();
