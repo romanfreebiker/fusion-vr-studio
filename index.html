@@ -16,7 +16,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=159"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=162"></script>
 <script>
 /* Three.js
 The MIT License
@@ -4119,7 +4119,7 @@ function askShareDetails(){
     Object.assign(overlay.style,{position:'fixed',inset:'0',zIndex:'100000',background:'#07101bd9',display:'grid',placeItems:'center',padding:'18px'});
     const box=document.createElement('div');
     Object.assign(box.style,{width:'min(420px,92vw)',background:'#142236',border:'1px solid #42607d',borderRadius:'14px',padding:'18px',color:'#eef7ff',boxShadow:'0 18px 55px #0008',font:'14px system-ui'});
-    const title=document.createElement('h3');title.textContent='Compartir por WhatsApp';title.style.margin='0 0 14px';
+    const title=document.createElement('h3');title.textContent='Compartir con terceros';title.style.margin='0 0 14px';
     const nameLabel=document.createElement('label');nameLabel.textContent='Nombre del destinatario (opcional)';Object.assign(nameLabel.style,{display:'grid',gap:'6px'});
     const name=document.createElement('input');name.type='text';name.maxLength=80;name.placeholder='Ej. Juan, Proveedor, Cliente…';
     Object.assign(name.style,{width:'100%',boxSizing:'border-box',padding:'10px',borderRadius:'8px',border:'1px solid #4a6380',background:'#0f1a29',color:'#fff'});nameLabel.append(name);
@@ -4129,11 +4129,11 @@ function askShareDetails(){
     const note=document.createElement('div');note.textContent='Si dejas el tiempo vacío, el enlace durará 24 horas.';Object.assign(note.style,{fontSize:'12px',color:'#aabbd1',marginTop:'8px'});
     const actions=document.createElement('div');Object.assign(actions.style,{display:'flex',justifyContent:'flex-end',gap:'8px',marginTop:'16px'});
     const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Cancelar';
-    const send=document.createElement('button');send.type='button';send.textContent='Continuar a WhatsApp';
+    const send=document.createElement('button');send.type='button';send.textContent='Continuar';
     for(const b of [cancel,send])Object.assign(b.style,{padding:'9px 12px',borderRadius:'8px',border:'1px solid #4a6380',background:'#18304a',color:'#fff',cursor:'pointer'});
     function close(value){overlay.remove();resolve(value)}
     cancel.onclick=()=>close(null);overlay.onclick=e=>{if(e.target===overlay)close(null)};
-    send.onclick=()=>{const raw=String(hours.value||'').trim();const value=raw?Number(raw.replace(',','.')):24;if(!Number.isFinite(value)||value<=0||value>720){toast('Introduce un tiempo entre 1 hora y 720 horas.',true);hours.focus();return}close({recipient:String(name.value||'').trim().slice(0,80),hours:value});};
+    send.onclick=()=>{const raw=String(hours.value||'').trim();const value=raw?Number(raw.replace(',','.')):24;if(!Number.isFinite(value)||value<1||value>720){toast('Introduce un tiempo entre 1 hora y 720 horas.',true);hours.focus();return}close({recipient:String(name.value||'').trim().slice(0,80),hours:value});};
     actions.append(cancel,send);box.append(title,nameLabel,timeLabel,note,actions);overlay.append(box);document.body.append(overlay);name.focus();
   });
 }
@@ -4611,7 +4611,12 @@ function render(){
     const copy=textNode('button','Copiar enlace para dirección','button small');copy.type='button';
     copy.onclick=async()=>{try{await navigator.clipboard.writeText(url.href);copy.textContent='¡Enlace copiado!';toast('Enlace general de dirección copiado');setTimeout(()=>copy.textContent='Copiar enlace para dirección',1600)}catch{prompt('Copia el enlace general de dirección',url.href)}};
     const link=textNode('a','Probar acceso de dirección','button secondary small');link.id='distributionNav';link.href=url.href;link.target='_blank';link.rel='noopener';
-    const note=textNode('p','Distribución sincronizada en GitHub · archivos públicos','muted tiny');note.style.flexBasis='100%';
+    const provision=textNode('button','Configurar enlace privado Dirección · R162','button small');provision.type='button';
+    provision.onclick=async()=>{if(!confirm('Crear un nuevo enlace privado invalida el anterior. ¿Continuar?'))return;try{const privateUrl=await FusionDistribution.newDirectionLink();const saved=await navigator.clipboard.writeText(privateUrl).then(()=>true).catch(()=>false);if(!saved)prompt('Guarda el nuevo enlace privado de Dirección',privateUrl);else alert('Enlace privado copiado. Guárdalo antes de activar el nuevo sistema.');if(confirm('¿Activar ahora los permisos de servidor y migrar los accesos existentes? El enlace antiguo de Dirección dejará de funcionar.')){await FusionDistribution.activatePermissions();toast('Permisos de servidor activados');}link.href=privateUrl;copy.onclick=async()=>{try{await navigator.clipboard.writeText(privateUrl);toast('Enlace privado copiado')}catch{prompt('Enlace privado',privateUrl)}}}catch(e){toast(e.message,true)}};
+    const revoke=textNode('button','Invalidar enlace de Dirección','button secondary small');revoke.onclick=async()=>{if(!confirm('¿Invalidar el enlace permanente de Dirección en todos los dispositivos?'))return;try{await FusionDistribution.revokeDirectionLink();toast('Enlace invalidado')}catch(e){toast(e.message,true)}};
+    const auth=textNode('button','Autorizar Central','button secondary small');auth.onclick=async()=>{try{await FusionDistribution.centralLogin();toast('Central autorizada');render()}catch(e){toast(e.message,true)}};
+    panel.append(provision,revoke,auth);
+    const note=textNode('p','Distribución ESKALA R162 · archivos públicos','muted tiny');note.style.flexBasis='100%';
     const workshop=textNode('button','Gestionar taller','button secondary small');workshop.onclick=()=>nav('taller');const terminal=textNode('a','Probar acceso Terminal Taller','button secondary small');const terminalUrl=new URL('tablet-taller.html',location.href);terminalUrl.searchParams.set('adminTablet','1');terminal.href=terminalUrl.href;terminal.target='_blank';terminal.rel='noopener';
     const third=textNode('button','Probar acceso Terceros','button secondary small');third.type='button';third.onclick=async()=>{
  const dlg=document.createElement('dialog');dlg.className='ek-assignment-dialog';const header=document.createElement('header');header.className='ek-assignment-header';const close=textNode('button','Cerrar ×','button secondary small');close.onclick=()=>dlg.close();header.append(textNode('h2','Accesos reales a Terceros'),close);
@@ -4699,13 +4704,13 @@ function render(){
     }
     const shareActions=[
       ['Copiar enlace',async()=>{
-        const url=await FusionDistribution.share(m.id,'central');
+        const details=await askShareDetails();if(!details)return;const url=await FusionDistribution.share(m.id,'central',details.hours,details.recipient);
         try{await navigator.clipboard.writeText(url);toast('Enlace individual copiado');}
         catch{prompt('Enlace individual',url)}
         await updateThirdPartyAccesses();
       }],
       ['WhatsApp',async()=>{const details=await askShareDetails();if(!details)return;await FusionDistribution.shareWhatsApp(m.id,m.nombre,details.hours,'central',details.recipient);await updateThirdPartyAccesses()}],
-      ['Correo',async()=>{await FusionDistribution.shareEmail(m.id,m.nombre,'central');await updateThirdPartyAccesses()}]
+      ['Correo',async()=>{const details=await askShareDetails();if(!details)return;await FusionDistribution.shareEmail(m.id,m.nombre,'central',details.hours,details.recipient);await updateThirdPartyAccesses()}]
     ];
     const shareButtons=shareActions.map(([label,action])=>{
       const button=textNode('button',label,'button secondary small');button.type='button';
