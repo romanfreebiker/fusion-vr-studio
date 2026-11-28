@@ -16,7 +16,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=172"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=173"></script>
 <script>
 /* Three.js
 The MIT License
@@ -4611,12 +4611,12 @@ function render(){
     const copy=textNode('button','Copiar enlace para dirección','button small');copy.type='button';
     copy.onclick=async()=>{try{await navigator.clipboard.writeText(url.href);copy.textContent='¡Enlace copiado!';toast('Enlace general de dirección copiado');setTimeout(()=>copy.textContent='Copiar enlace para dirección',1600)}catch{prompt('Copia el enlace general de dirección',url.href)}};
     const link=textNode('a','Probar acceso de dirección','button secondary small');link.id='distributionNav';link.href=url.href;link.target='_blank';link.rel='noopener';
-    const provision=textNode('button','Configurar enlace privado Dirección · R172','button small');provision.type='button';
+    const provision=textNode('button','Configurar enlace privado Dirección · R173','button small');provision.type='button';
     provision.onclick=async()=>{if(!confirm('Crear un nuevo enlace privado invalida el anterior. ¿Continuar?'))return;try{const privateUrl=await FusionDistribution.newDirectionLink();const saved=await navigator.clipboard.writeText(privateUrl).then(()=>true).catch(()=>false);if(!saved)prompt('Guarda el nuevo enlace privado de Dirección',privateUrl);else alert('Enlace privado copiado. Guárdalo antes de activar el nuevo sistema.');if(confirm('¿Activar ahora los permisos de servidor y migrar los accesos existentes? El enlace antiguo de Dirección dejará de funcionar.')){await FusionDistribution.activatePermissions();toast('Permisos de servidor activados');}link.href=privateUrl;copy.onclick=async()=>{try{await navigator.clipboard.writeText(privateUrl);toast('Enlace privado copiado')}catch{prompt('Enlace privado',privateUrl)}}}catch(e){toast(e.message,true)}};
     const revoke=textNode('button','Invalidar enlace de Dirección','button secondary small');revoke.onclick=async()=>{if(!confirm('¿Invalidar el enlace permanente de Dirección en todos los dispositivos?'))return;try{await FusionDistribution.revokeDirectionLink();toast('Enlace invalidado')}catch(e){toast(e.message,true)}};
     const auth=textNode('button','Autorizar Central','button secondary small');auth.onclick=async()=>{try{await FusionDistribution.centralLogin();toast('Central autorizada');render()}catch(e){toast(e.message,true)}};
     panel.append(provision,revoke,auth);
-    const note=textNode('p','Distribución ESKALA R172 · archivos públicos','muted tiny');note.style.flexBasis='100%';
+    const note=textNode('p','Distribución ESKALA R173 · archivos públicos','muted tiny');note.style.flexBasis='100%';
     const workshop=textNode('button','Gestionar taller','button secondary small');workshop.onclick=()=>nav('taller');const terminal=textNode('a','Probar acceso Terminal Taller','button secondary small');const terminalUrl=new URL('tablet-taller.html',location.href);terminalUrl.searchParams.set('adminTablet','1');terminal.href=terminalUrl.href;terminal.target='_blank';terminal.rel='noopener';
     const third=textNode('button','Probar acceso Terceros','button secondary small');third.type='button';third.onclick=async()=>{
  const dlg=document.createElement('dialog');dlg.className='ek-assignment-dialog';const header=document.createElement('header');header.className='ek-assignment-header';const close=textNode('button','Cerrar ×','button secondary small');close.onclick=()=>dlg.close();header.append(textNode('h2','Accesos reales a Terceros'),close);
