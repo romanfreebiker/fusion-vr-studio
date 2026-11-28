@@ -229,7 +229,7 @@ if(presentation){
  controls.enabled=true;
  controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;controls.mouseButtons.RIGHT=null;controls.mouseButtons.MIDDLE=THREE.MOUSE.PAN;
  controls.touches.ONE=THREE.TOUCH.ROTATE;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;
- const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent=(access==='director'?'Dirección':'Visor')+' · v151';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px';bar.append(buildTag);
+ const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent=(access==='director'?'Dirección':'Visor')+' · v152';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px';bar.append(buildTag);
  presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
  orbitButton=button('Vista 3D',()=>setPresentationMode(false));walkButton=button('Recorrer a pie',()=>setPresentationMode(true));
@@ -320,12 +320,12 @@ if(presentation){
  const heading=document.createElement('h2');heading.textContent='Diseño propiedad de SKLUM';
  const copy=document.createElement('p');copy.textContent='Contenido de uso exclusivo para personas autorizadas. No se permite su reproducción o distribución sin autorización.';
  const accept=document.createElement('button');accept.type='button';accept.textContent='Aceptar y visualizar';accept.style.cssText='width:100%;padding:14px;margin-top:12px;background:#21637c;color:white;border:1px solid #65b7cf;border-radius:9px;font:600 16px system-ui;cursor:pointer';
- accept.onclick=()=>{gate.remove();enter();requestAnimationFrame(()=>{window.dispatchEvent(new Event('resize'));requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')));});};notice.append(logo,heading,copy,accept);gate.append(notice);document.body.append(gate);accept.focus();
+ accept.onclick=()=>{gate.remove();enter();if(!presentationStatus.hidden){presentationStatus.style.display='grid';presentationStatus.style.zIndex='1000';}requestAnimationFrame(()=>{window.dispatchEvent(new Event('resize'));requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')));});};notice.append(logo,heading,copy,accept);gate.append(notice);document.body.append(gate);accept.focus();
  // Agrupar controles existentes sin cambiar sus manejadores.
  const menus=[];
- function groupMenu(label,nodes){if(!nodes.length)return;const wrap=document.createElement('div');wrap.style.cssText='position:relative;display:inline-flex';const trigger=document.createElement('button');trigger.type='button';trigger.textContent=label+' ▾';trigger.setAttribute('aria-expanded','false');const panel=document.createElement('div');panel.style.cssText='position:fixed;z-index:9999;display:none;flex-direction:column;gap:6px;padding:10px;background:#172638;border:1px solid #42607d;border-radius:9px;max-height:65vh;overflow:auto;min-width:180px';const close=()=>{panel.style.display='none';trigger.setAttribute('aria-expanded','false')};menus.push(close);trigger.onclick=()=>{const open=panel.style.display==='none';menus.forEach(fn=>fn());if(open){panel.style.display='flex';const r=trigger.getBoundingClientRect();panel.style.top=r.bottom+6+'px';panel.style.left=Math.max(4,Math.min(r.left,innerWidth-panel.offsetWidth-8))+'px';trigger.setAttribute('aria-expanded','true')}};for(const n of nodes){panel.append(n);n.addEventListener('click',()=>{if(n.tagName!=='SELECT')close()});}wrap.append(trigger);bar.append(wrap);wrap.append(panel);document.addEventListener('pointerdown',e=>{if(!wrap.contains(e.target)&&!panel.contains(e.target))close()});}
+ function groupMenu(label,nodes){if(!nodes.length)return;const wrap=document.createElement('div');wrap.style.cssText='position:relative;display:flex;grid-column:span 2;min-width:0;padding:0;border:0;background:transparent';const trigger=document.createElement('button');trigger.type='button';trigger.textContent=label+' ▾';trigger.style.cssText='display:block;width:100%;min-height:36px;padding:6px 4px;background:#10202d;color:#e4f5ff;border:1px solid #22647b;border-radius:9px;font:600 12px system-ui;white-space:normal;overflow-wrap:anywhere';trigger.setAttribute('aria-expanded','false');const panel=document.createElement('div');panel.style.cssText='position:fixed;z-index:9999;display:none;flex-direction:column;gap:6px;padding:10px;background:#172638;border:1px solid #42607d;border-radius:9px;max-height:65vh;overflow:auto;min-width:180px';const close=()=>{panel.style.display='none';trigger.setAttribute('aria-expanded','false')};menus.push(close);trigger.onclick=()=>{const open=panel.style.display==='none';menus.forEach(fn=>fn());if(open){panel.style.display='flex';const r=trigger.getBoundingClientRect();panel.style.top=r.bottom+6+'px';panel.style.left=Math.max(4,Math.min(r.left,innerWidth-panel.offsetWidth-8))+'px';trigger.setAttribute('aria-expanded','true')}};for(const n of nodes){panel.append(n);n.addEventListener('click',()=>{if(n.tagName!=='SELECT')close()});}wrap.append(trigger);bar.append(wrap);wrap.append(panel);document.addEventListener('pointerdown',e=>{if(!wrap.contains(e.target)&&!panel.contains(e.target))close()});}
  const external=items.filter(n=>['Copiar enlace para terceros','WhatsApp','Correo','Accesos terceros'].includes(n.textContent.trim()));
- groupMenu('Acciones',items.filter(n=>n!==orbitButton&&n!==walkButton&&!external.includes(n)));
+ orbitButton.remove();walkButton.onclick=()=>setPresentationMode(!walkingMode);groupMenu('Acciones',items.filter(n=>n!==orbitButton&&n!==walkButton&&!external.includes(n)));
  groupMenu('Compartir a terceros',external);
 
  // Adaptación al dispositivo real, incluso en equipos híbridos.
@@ -1703,7 +1703,7 @@ function setPresentationMode(walk){
    controls.update();
  }
  headDrag=false;verticalDrag=false;orbitZoomPending=0;touchPoints.clear();touchSnapshot=null;
- orbitButton.setAttribute('aria-pressed',String(!walk));walkButton.setAttribute('aria-pressed',String(walk));updateMouseGuide();
+ orbitButton.setAttribute('aria-pressed',String(!walk));walkButton.setAttribute('aria-pressed',String(walk));walkButton.textContent=walk?'Salir del recorrido':'Recorrer a pie';updateMouseGuide();
 }
 function desktopView(){
   if(presentation){orbitZoomPending=0;verticalDrag=false;presentationFloor=0;}
@@ -1825,7 +1825,7 @@ async function openModel(){
     }else desktopView();
     status.textContent='Escala 1:1 · '+[size.x,size.z,size.y].map(n=>n.toLocaleString('es-ES',{maximumFractionDigits:2})).join(' × ')+' m (ancho, fondo, alto) · '+stats.textured+' de '+stats.materials+' materiales con textura · vertical '+upAxis.toUpperCase()+(appearance.value==='library'?' · '+applied+' materiales mejorados':'')+(appearance.value==='diagnostic'?' · MADERA RESALTADA Y RESTO TRANSLÚCIDO':'')+' · paneles revestidos '+(next.userData.fusionVrCladdingPanels||0)+' · origen revestimiento '+(globalThis.FusionMaterialLib?.getSource('cladding')||'desconocido')+' · pintura antracita '+(next.userData.fusionVrAnthraciteMeshes||0)+' mallas (UV CAD '+(next.userData.fusionVrAnthraciteCadUvMeshes||0)+') · PBR externos '+(globalThis.FusionMaterialLib?.remoteLoaded||0)+'/3 · Colisiones: '+collisionTriangles+' triángulos · paredes '+wallCount+' · versión 0.81';
     vrButton.hidden=false;
-    if(presentation){window.presentationProgress('Proyecto listo',100);requestAnimationFrame(()=>requestAnimationFrame(()=>{if(load===generation)presentationStatus.hidden=true;}));}
+    if(presentation){window.presentationProgress('Proyecto listo',100);requestAnimationFrame(()=>requestAnimationFrame(()=>{if(load===generation){presentationStatus.hidden=true;presentationStatus.style.display='';}}));}
     return true;
   }catch(error){
     if(load===generation){status.textContent='No se pudo abrir el diseño. '+error.message;if(presentation)window.presentationProgress('No se pudo abrir el proyecto. '+error.message,null,true);}
