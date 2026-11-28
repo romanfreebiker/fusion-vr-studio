@@ -12,7 +12,7 @@ const schema=[
 'CREATE TABLE IF NOT EXISTS hidden (designId TEXT PRIMARY KEY, revision TEXT NOT NULL)',
 'CREATE TABLE IF NOT EXISTS pending_send (id TEXT PRIMARY KEY, hours REAL NOT NULL, deadline INTEGER NOT NULL)'
 ];
-const shortToken=()=>btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const shortToken=()=>btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(12)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pages=origin+'/fusion-vr-studio/';
 const iso=n=>new Date(n).toISOString();
@@ -27,9 +27,9 @@ export default {async fetch(request,env){
  try{
  if(!env.DB||!env.ADMIN_SECRET||!env.DIRECTOR_SECRET)return reply({error:'Configuración incompleta'},503);
  if(await equal(env.ADMIN_SECRET,env.DIRECTOR_SECRET))return reply({error:'Claves deben ser diferentes'},503);
- if(path==='/health'&&method==='GET'){await env.DB.prepare('SELECT 1').first();await env.DB.batch(schema.map(s=>env.DB.prepare(s)));const active=await env.DB.prepare("SELECT value FROM settings WHERE key='legacy_imported'").first();return reply({service:'eskala-permisos',version:165,ready:!!active,database:true})}
+ if(path==='/health'&&method==='GET'){await env.DB.prepare('SELECT 1').first();await env.DB.batch(schema.map(s=>env.DB.prepare(s)));const active=await env.DB.prepare("SELECT value FROM settings WHERE key='legacy_imported'").first();return reply({service:'eskala-permisos',version:167,ready:!!active,database:true})}
  await env.DB.batch(schema.map(s=>env.DB.prepare(s)));
- if(method==='GET'&&/^\/[A-Za-z0-9_-]{22}$/.test(path)){
+ if(method==='GET'&&/^\/(?:[A-Za-z0-9_-]{16}|[A-Za-z0-9_-]{22})$/.test(path)){
  const token=path.slice(1),r=await env.DB.prepare('SELECT * FROM shares WHERE tokenHash=? AND revokedAt IS NULL AND expiresAt>?').bind(await hash(token),Date.now()).first();
  const retired=()=>Response.redirect(pages+'retirado.html',302);
  if(!r)return retired();
