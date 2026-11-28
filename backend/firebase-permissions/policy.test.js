@@ -1,0 +1,9 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {state,canShare,canManage,ttl,visibleToDirection,validSecret,accessView} from './policy.js';
+const central={role:'central',uid:'c'},direction={role:'direction',uid:'d'},other={role:'direction',uid:'x'},active={status:'active'},now=100000;
+test('Dirección permanente y automáticamente autorizada',()=>{assert.equal(canShare(direction,active),true);assert.equal(canShare(direction,{status:'inactive'}),false);assert.equal(visibleToDirection(active),true)});
+test('Central puede compartir independientemente',()=>assert.equal(canShare(central,null),true));
+test('Caducidades individuales no afectan a la concesión',()=>{const a={status:'active',expiresAtMs:now+ttl(1)},b={status:'active',expiresAtMs:now+ttl(2)};assert.equal(state(a,now+ttl(1)),'expired');assert.equal(state(b,now+ttl(1)),'active');assert.equal(visibleToDirection(active),true)});
+test('Revocación y fecha límite exacta',()=>{assert.equal(state({status:'revoked',expiresAtMs:now+100},now),'revoked');assert.equal(state({status:'active',expiresAtMs:now},now),'expired');assert.equal(state({status:'active'},now),'expired')});
+test('Central revoca todos; Dirección solo propios',()=>{const s={origin:'direction',createdBy:'d'};assert.equal(canManage(central,s),true);assert.equal(canManage(direction,s),true);assert.equal(canManage(other,s),false);assert.equal(canManage(direction,{origin:'central',createdBy:'c'}),false)});
+test('Validación duración y secretos',()=>{assert.equal(ttl(24),86400000);for(const n of [0,721,NaN,'24'])assert.throws(()=>ttl(n));assert.equal(validSecret('a'.repeat(43)),true);assert.equal(validSecret('12345678'),false)});
+test('El registro de gestión no expone hashes',()=>{const s=accessView({tokenHash:'secret',createdAtMs:now,expiresAtMs:now+100,status:'active'},now);assert.equal('tokenHash'in s,false);assert.equal(s.remainingMs,100)});
