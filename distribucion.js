@@ -386,7 +386,7 @@
      const feedback=document.createElement('p');feedback.style.cssText='margin:0;color:#ffd18a;font-size:13px';feedback.hidden=true;
      let busy=false;
      async function finish(sent){if(busy)return;busy=true;confirm.disabled=cancel.disabled=true;feedback.hidden=false;feedback.textContent='Guardando…';
-       try{await permission(sent?'/shares/confirm':'/shares/revoke',{id:access.id},role);overlay.remove();resolve(sent?url:null)}
+       try{await permission(sent?'/shares/confirm':'/shares/revoke',{id:access.id},role);overlay.remove();if(sent)window.dispatchEvent(new CustomEvent('eskala-third-party-confirmed',{detail:{designId:id}}));resolve(sent?url:null)}
        catch(e){feedback.textContent=e.message;busy=false;confirm.disabled=cancel.disabled=false;}
      }
      confirm.onclick=()=>finish(true);cancel.onclick=()=>finish(false);
@@ -439,5 +439,5 @@
    window.addEventListener('focus',check);
    window.addEventListener('pageshow',check);
  }
- window.FusionDistribution={version:166,activatePermissions,newDirectionLink,revokeDirectionLink,centralLogin,permissionsLive,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
+ window.FusionDistribution={version:168,activatePermissions,newDirectionLink,revokeDirectionLink,centralLogin,permissionsLive,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
 })();
