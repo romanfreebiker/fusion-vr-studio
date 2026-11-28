@@ -246,14 +246,16 @@
    const label=channel==='whatsapp'?'WhatsApp':channel==='email'?'Correo':'Enlace';
    return label+' · '+date+' '+time;
  }
- async function createThirdPartyAccess(designId,recipient='',contact='',channel='link',ttlHours=24,origin='central'){
+ async function createThirdPartyAccess(designId,recipient='',contact='',channel='link',ttlHours=24,origin='central',pendingSend=false){
    if(await permissionsLive()){
      const role=origin==='direction'?'direction':'central';if(role==='central')await centralLogin();
-     const health=await permission('/health');if(Number(health.version)<164)throw Error('El servicio de enlaces cortos todavía se está actualizando. Actualiza ESKALA e inténtalo de nuevo.');
-     const data=await permission('/shares/create',{designId,recipient:recipient||automaticRecipient(channel),channel,hours:ttlHours},role);
+     const health=await permission('/health');if(Number(health.version)<(pendingSend?165:164))throw Error('El servicio de enlaces cortos todavía se está actualizando. Actualiza ESKALA e inténtalo de nuevo.');
+     const data=await permission('/shares/create',{designId,recipient:recipient||automaticRecipient(channel),channel,hours:ttlHours,pending:pendingSend},role);
      if(typeof data.shortUrl!=='string'||!data.shortUrl.startsWith(service+'/')||!/^https:\/\/eskala-permisos\.taller-mantenimiento\.workers\.dev\/[A-Za-z0-9_-]{22}$/.test(data.shortUrl))throw Error('El servidor no ha devuelto un enlace corto válido.');
+     if(pendingSend&&!data.pending)throw Error('El servidor no ha confirmado la preparación del envío.');
      return {access:data.access,url:data.shortUrl};
    }
+   if(pendingSend)throw Error('El servicio de confirmación de envíos no está disponible.');
    if(origin==='direction'&&!adminToken())throw Error('El servicio de autorización de Dirección todavía no está configurado.');
    const clean=String(recipient||automaticRecipient(channel)).trim().slice(0,80);
    const published=await shareBase(designId);
@@ -362,14 +364,29 @@
    return (await createThirdPartyAccess(id,recipient,'', 'link',hours,origin)).url;
  }
  async function shareWhatsApp(id,name,ttlHours=24,origin='central',recipient=''){
-   const mobile=!!navigator.share||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);const page=mobile?null:window.open('about:blank','_blank');
-   try{
-     const {url}=await createThirdPartyAccess(id,recipient,'', 'whatsapp',ttlHours,origin);
-     const message='ESKALA Studio · '+(name||'Diseño 3D')+'\n'+url;
-     const target='https://wa.me/?text='+encodeURIComponent(message);
-     if(mobile){const overlay=document.createElement('div');overlay.style.cssText='position:fixed;inset:0;z-index:2147483647;background:#101c2bea;display:grid;place-items:center;padding:20px';const panel=document.createElement('div');panel.style.cssText='background:#172638;color:white;border:1px solid #52647b;border-radius:14px;padding:22px;display:grid;gap:12px;max-width:340px;font:16px system-ui';const title=document.createElement('strong');title.textContent='Enlace para terceros preparado';const open=document.createElement('a');open.href='whatsapp://send?text='+encodeURIComponent(message);open.textContent='Abrir WhatsApp';open.style.cssText='background:#16864b;color:white;padding:14px;text-align:center;border-radius:9px;text-decoration:none;font-weight:600';const fallback=document.createElement('a');fallback.href=target;fallback.textContent='Abrir mediante enlace alternativo';fallback.style.color='#a5d8ff';const close=document.createElement('button');close.textContent='Cerrar';close.onclick=()=>overlay.remove();const native=document.createElement('button');native.textContent='Compartir con WhatsApp';native.style.cssText='background:#16864b;color:white;padding:14px;border:0;border-radius:9px;font:600 16px system-ui';native.onclick=async()=>{try{await navigator.share({text:message});overlay.remove()}catch(e){if(e.name!=='AbortError')fallback.click()}};const copy=document.createElement('button');copy.textContent='Copiar mensaje';copy.onclick=async()=>{try{await navigator.clipboard.writeText(message);copy.textContent='Copiado'}catch{const field=document.createElement('textarea');field.value=message;panel.append(field);field.select()}};if(navigator.share)panel.append(title,native,open,fallback,copy,close);else panel.append(title,open,fallback,copy,close);overlay.append(panel);document.body.append(overlay);}else if(page){page.opener=null;page.location.replace(target);}else window.location.assign(target);
-     return url;
-   }catch(error){if(page)page.close();throw error}
+   const role=origin==='direction'?'direction':'central';
+   const {url,access}=await createThirdPartyAccess(id,recipient,'','whatsapp',ttlHours,origin,true);
+   const message='ESKALA Studio · '+(name||'Diseño 3D')+'\n'+url;
+   const mobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+   return new Promise(resolve=>{
+     const overlay=document.createElement('div');overlay.style.cssText='position:fixed;inset:0;z-index:2147483647;background:#101c2bea;display:grid;place-items:center;padding:18px';
+     const panel=document.createElement('div');panel.style.cssText='background:#172638;color:white;border:1px solid #52647b;border-radius:14px;padding:22px;display:grid;gap:12px;width:min(420px,90vw);box-sizing:border-box;font:15px system-ui;max-height:90vh;overflow:auto';
+     const title=document.createElement('strong');title.textContent='Envío por WhatsApp · pendiente';
+     const note=document.createElement('p');note.textContent='Abre WhatsApp, selecciona el destinatario y envía el mensaje. Después vuelve aquí y confirma el envío. El acceso y su cuenta atrás se activarán al confirmar.';note.style.margin='0';
+     const field=document.createElement('textarea');field.readOnly=true;field.value=message;field.rows=3;field.style.cssText='width:100%;box-sizing:border-box;background:#101c2b;color:white;border:1px solid #52647b;border-radius:8px;padding:8px;font:13px system-ui';
+     const open=document.createElement('a');open.href=(mobile?'https://wa.me/?text=':'https://web.whatsapp.com/send?text=')+encodeURIComponent(message);open.target='_blank';open.rel='noopener noreferrer';open.textContent=mobile?'Abrir WhatsApp':'Abrir WhatsApp Web';open.style.cssText='display:block;background:#16864b;color:white;padding:13px;text-align:center;border-radius:8px;text-decoration:none;font-weight:600';
+     const copy=document.createElement('button');copy.textContent='Copiar mensaje manualmente';copy.onclick=async()=>{field.focus();field.select();try{await navigator.clipboard.writeText(message);copy.textContent='Mensaje copiado'}catch{copy.textContent='Pulsa Ctrl+C para copiar'}};
+     const confirm=document.createElement('button');confirm.textContent='Confirmar envío realizado';confirm.style.cssText='background:#196b91;color:white;padding:12px;border:0;border-radius:8px;font-weight:600';
+     const cancel=document.createElement('button');cancel.textContent='Cancelar envío · no compartido';
+     const feedback=document.createElement('p');feedback.style.cssText='margin:0;color:#ffd18a;font-size:13px';
+     let busy=false;
+     async function finish(sent){if(busy)return;busy=true;confirm.disabled=cancel.disabled=true;feedback.textContent='Guardando…';
+       try{await permission(sent?'/shares/confirm':'/shares/revoke',{id:access.id},role);overlay.remove();resolve(sent?url:null)}
+       catch(e){feedback.textContent=e.message;busy=false;confirm.disabled=cancel.disabled=false;}
+     }
+     confirm.onclick=()=>finish(true);cancel.onclick=()=>finish(false);
+     panel.append(title,note,field,open,copy,confirm,cancel,feedback);overlay.append(panel);document.body.append(overlay);
+   });
  }
  async function shareEmail(id,name,origin='central',hours=24,recipient=''){
    const {url}=await createThirdPartyAccess(id,recipient,'', 'email',hours,origin);
@@ -414,5 +431,5 @@
    window.addEventListener('focus',check);
    window.addEventListener('pageshow',check);
  }
- window.FusionDistribution={version:164,activatePermissions,newDirectionLink,revokeDirectionLink,centralLogin,permissionsLive,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
+ window.FusionDistribution={version:165,activatePermissions,newDirectionLink,revokeDirectionLink,centralLogin,permissionsLive,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
 })();
