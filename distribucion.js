@@ -439,5 +439,5 @@
    window.addEventListener('focus',check);
    window.addEventListener('pageshow',check);
  }
- window.FusionDistribution={version:169,activatePermissions,newDirectionLink,revokeDirectionLink,centralLogin,permissionsLive,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
+ window.FusionDistribution={version:170,activatePermissions,newDirectionLink,revokeDirectionLink,centralLogin,permissionsLive,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
 })();
