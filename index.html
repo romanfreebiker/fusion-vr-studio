@@ -16,7 +16,7 @@
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
 </script>
-<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=157"></script>
+<script src="./materiales.js?v=15"></script><script src="./distribucion.js?v=158"></script>
 <script>
 /* Three.js
 The MIT License
@@ -4712,7 +4712,17 @@ function render(){
       button.onclick=async()=>{try{await action()}catch(e){toast(e.message,true)}};
       shareControls.append(button);return button;
     });
-    shareControls.append(accessSummary,accessList);
+    const authorize=textNode('button','Autorizar compartir desde Dirección','button secondary small');
+    authorize.type='button';
+    authorize.onclick=async()=>{
+      const raw=prompt('Duración del enlace reutilizable de Dirección (horas). Todos los destinatarios compartirán la misma caducidad. El registro y los archivos de GitHub son públicos.','24');
+      if(raw===null)return;
+      const hours=Number(raw.replace(',','.'));
+      if(!Number.isFinite(hours)||hours<1||hours>720){toast('Introduce entre 1 y 720 horas.',true);return;}
+      authorize.disabled=true;
+      try{await FusionDistribution.authorizeDirectionShare(m.id,hours);await updateThirdPartyAccesses();toast('Dirección ya puede compartir sin conectar GitHub');}catch(e){toast(e.message,true)}finally{authorize.disabled=false;}
+    };
+    shareControls.append(authorize,accessSummary,accessList);
     foot.append(shareControls);
     updateThirdPartyAccesses();
     function displayDistribution(d){
