@@ -365,27 +365,35 @@
  }
  async function shareWhatsApp(id,name,ttlHours=24,origin='central',recipient=''){
    const role=origin==='direction'?'direction':'central';
-   const {url,access}=await createThirdPartyAccess(id,recipient,'','whatsapp',ttlHours,origin,true);
-   const message='ESKALA Studio · '+(name||'Diseño 3D')+'\n'+url;
    const mobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+   // Reserve the new tab synchronously, before any network request, while the
+   // user's confirmation click still grants browser popup activation.
+   let page=null;
+   try{page=window.open('about:blank','_blank');if(page){page.document.title='Preparando WhatsApp · ESKALA';page.document.body.textContent='Preparando mensaje de ESKALA…';page.opener=null}}catch{}
+   let prepared;
+   try{prepared=await createThirdPartyAccess(id,recipient,'','whatsapp',ttlHours,origin,true)}
+   catch(error){try{page?.close()}catch{}throw error}
+   const {url,access}=prepared;
+   const message='ESKALA · '+(name||'Diseño 3D')+'\n'+url;
+   const target=(mobile?'https://wa.me/?text=':'https://web.whatsapp.com/send?text=')+encodeURIComponent(message);
    return new Promise(resolve=>{
      const overlay=document.createElement('div');overlay.style.cssText='position:fixed;inset:0;z-index:2147483647;background:#101c2bea;display:grid;place-items:center;padding:18px';
      const panel=document.createElement('div');panel.style.cssText='background:#172638;color:white;border:1px solid #52647b;border-radius:14px;padding:22px;display:grid;gap:12px;width:min(420px,90vw);box-sizing:border-box;font:15px system-ui;max-height:90vh;overflow:auto';
-     const title=document.createElement('strong');title.textContent='Envío por WhatsApp · pendiente';
-     const note=document.createElement('p');note.textContent='Abre WhatsApp, selecciona el destinatario y envía el mensaje. Después vuelve aquí y confirma el envío. El acceso y su cuenta atrás se activarán al confirmar.';note.style.margin='0';
-     const field=document.createElement('textarea');field.readOnly=true;field.value=message;field.rows=3;field.style.cssText='width:100%;box-sizing:border-box;background:#101c2b;color:white;border:1px solid #52647b;border-radius:8px;padding:8px;font:13px system-ui';
-     const open=document.createElement('a');open.href=(mobile?'https://wa.me/?text=':'https://web.whatsapp.com/send?text=')+encodeURIComponent(message);open.target='_blank';open.rel='noopener noreferrer';open.textContent=mobile?'Abrir WhatsApp':'Abrir WhatsApp Web';open.style.cssText='display:block;background:#16864b;color:white;padding:13px;text-align:center;border-radius:8px;text-decoration:none;font-weight:600';
-     const copy=document.createElement('button');copy.textContent='Copiar mensaje manualmente';copy.onclick=async()=>{field.focus();field.select();try{await navigator.clipboard.writeText(message);copy.textContent='Mensaje copiado'}catch{copy.textContent='Pulsa Ctrl+C para copiar'}};
-     const confirm=document.createElement('button');confirm.textContent='Confirmar envío realizado';confirm.style.cssText='background:#196b91;color:white;padding:12px;border:0;border-radius:8px;font-weight:600';
-     const cancel=document.createElement('button');cancel.textContent='Cancelar envío · no compartido';
-     const feedback=document.createElement('p');feedback.style.cssText='margin:0;color:#ffd18a;font-size:13px';
+     const title=document.createElement('strong');title.textContent='¿Has enviado el enlace por WhatsApp?';
+     const note=document.createElement('p');note.textContent='Envía el mensaje preparado en WhatsApp y vuelve aquí. Confirma únicamente cuando lo hayas enviado.';note.style.margin='0';
+     const confirm=document.createElement('button');confirm.textContent='✓ Confirmar envío realizado';confirm.style.cssText='background:#16864b;color:white;padding:13px;border:0;border-radius:8px;font-weight:600';
+     const cancel=document.createElement('button');cancel.textContent='Cancelar · No enviado';cancel.style.cssText='background:#253b55;color:white;padding:12px;border:1px solid #52647b;border-radius:8px';
+     const feedback=document.createElement('p');feedback.style.cssText='margin:0;color:#ffd18a;font-size:13px';feedback.hidden=true;
      let busy=false;
-     async function finish(sent){if(busy)return;busy=true;confirm.disabled=cancel.disabled=true;feedback.textContent='Guardando…';
+     async function finish(sent){if(busy)return;busy=true;confirm.disabled=cancel.disabled=true;feedback.hidden=false;feedback.textContent='Guardando…';
        try{await permission(sent?'/shares/confirm':'/shares/revoke',{id:access.id},role);overlay.remove();resolve(sent?url:null)}
        catch(e){feedback.textContent=e.message;busy=false;confirm.disabled=cancel.disabled=false;}
      }
      confirm.onclick=()=>finish(true);cancel.onclick=()=>finish(false);
-     panel.append(title,note,field,open,copy,confirm,cancel,feedback);overlay.append(panel);document.body.append(overlay);
+     panel.append(title,note,confirm,cancel,feedback);overlay.append(panel);document.body.append(overlay);
+     // A recovery link appears only when the browser blocks automatic opening.
+     try{if(!page||page.closed)throw Error('popup blocked');page.location.replace(target)}
+     catch{const retry=document.createElement('a');retry.href=target;retry.target='_blank';retry.rel='noopener noreferrer';retry.textContent=mobile?'Reabrir WhatsApp':'Reabrir WhatsApp Web';retry.style.cssText='color:#8ee9fd;text-align:center;padding:10px';note.textContent='El navegador ha bloqueado la apertura automática. Pulsa Reabrir WhatsApp y confirma después de enviar.';panel.insertBefore(retry,confirm)}
    });
  }
  async function shareEmail(id,name,origin='central',hours=24,recipient=''){
@@ -431,5 +439,5 @@
    window.addEventListener('focus',check);
    window.addEventListener('pageshow',check);
  }
- window.FusionDistribution={version:165,activatePermissions,newDirectionLink,revokeDirectionLink,centralLogin,permissionsLive,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
+ window.FusionDistribution={version:166,activatePermissions,newDirectionLink,revokeDirectionLink,centralLogin,permissionsLive,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
 })();
