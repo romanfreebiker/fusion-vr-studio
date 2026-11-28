@@ -294,6 +294,8 @@
  }
  async function list(role,force=false){const rows=await published(force);return role==='director'?rows.filter(m=>m.status==='active'):rows}
  async function send(m){
+   const existing=(await readThird(true)).accesses.find(a=>a.designId===m.id&&a.origin==='direction'&&a.preapproved===true&&thirdPartyState(a)==='active'&&a.shareUrl);
+   if(!existing)await authorizeDirectionShare(m.id,(await thirdPartySettings(true)).defaultTtlHours);
    await write(rows=>{const next={...safe(m),status:'active',updated:new Date().toISOString()};const i=rows.findIndex(x=>x.id===m.id);if(i<0)rows.push(next);else rows[i]=next});
    clearHiddenDesign(m.id);
    snapshots.delete(path);
@@ -380,5 +382,5 @@
    window.addEventListener('focus',check);
    window.addEventListener('pageshow',check);
  }
- window.FusionDistribution={version:27,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
+ window.FusionDistribution={version:28,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
 })();
