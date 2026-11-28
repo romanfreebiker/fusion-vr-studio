@@ -249,10 +249,10 @@
  async function createThirdPartyAccess(designId,recipient='',contact='',channel='link',ttlHours=24,origin='central'){
    if(await permissionsLive()){
      const role=origin==='direction'?'direction':'central';if(role==='central')await centralLogin();
-     const published=await shareBase(designId);
+     const health=await permission('/health');if(Number(health.version)<164)throw Error('El servicio de enlaces cortos todavía se está actualizando. Actualiza ESKALA e inténtalo de nuevo.');
      const data=await permission('/shares/create',{designId,recipient:recipient||automaticRecipient(channel),channel,hours:ttlHours},role);
-     published.base.hash='share='+data.token;
-     return {access:data.access,url:published.base.href};
+     if(typeof data.shortUrl!=='string'||!data.shortUrl.startsWith(service+'/')||!/^https:\/\/eskala-permisos\.taller-mantenimiento\.workers\.dev\/[A-Za-z0-9_-]{22}$/.test(data.shortUrl))throw Error('El servidor no ha devuelto un enlace corto válido.');
+     return {access:data.access,url:data.shortUrl};
    }
    if(origin==='direction'&&!adminToken())throw Error('El servicio de autorización de Dirección todavía no está configurado.');
    const clean=String(recipient||automaticRecipient(channel)).trim().slice(0,80);
@@ -414,5 +414,5 @@
    window.addEventListener('focus',check);
    window.addEventListener('pageshow',check);
  }
- window.FusionDistribution={version:162,activatePermissions,newDirectionLink,revokeDirectionLink,centralLogin,permissionsLive,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
+ window.FusionDistribution={version:164,activatePermissions,newDirectionLink,revokeDirectionLink,centralLogin,permissionsLive,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
 })();
