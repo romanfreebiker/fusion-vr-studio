@@ -27,7 +27,7 @@ export default {async fetch(request,env){
  try{
  if(!env.DB||!env.ADMIN_SECRET||!env.DIRECTOR_SECRET)return reply({error:'Configuración incompleta'},503);
  if(await equal(env.ADMIN_SECRET,env.DIRECTOR_SECRET))return reply({error:'Claves deben ser diferentes'},503);
- if(path==='/health'&&method==='GET'){await env.DB.prepare('SELECT 1').first();await env.DB.batch(schema.map(s=>env.DB.prepare(s)));const active=await env.DB.prepare("SELECT value FROM settings WHERE key='legacy_imported'").first();return reply({service:'eskala-permisos',version:168,ready:!!active,database:true})}
+ if(path==='/health'&&method==='GET'){await env.DB.prepare('SELECT 1').first();await env.DB.batch(schema.map(s=>env.DB.prepare(s)));const active=await env.DB.prepare("SELECT value FROM settings WHERE key='legacy_imported'").first();return reply({service:'eskala-permisos',version:169,ready:!!active,database:true})}
  await env.DB.batch(schema.map(s=>env.DB.prepare(s)));
  if(method==='GET'&&/^\/(?:[A-Za-z0-9_-]{16}|[A-Za-z0-9_-]{22})$/.test(path)){
  const token=path.slice(1),r=await env.DB.prepare('SELECT * FROM shares WHERE tokenHash=? AND revokedAt IS NULL AND expiresAt>?').bind(await hash(token),Date.now()).first();
@@ -39,10 +39,9 @@ export default {async fetch(request,env){
  const validPath=typeof short==='string'&&/^s\/[a-z2-7]{8}\/$/.test(short);
  const target=new URL(validPath?short:'visor.html',pages);
  if(validPath)target.hash='share='+token;else{target.searchParams.set('modo','presentacion');target.searchParams.set('diseno',r.designId);target.searchParams.set('acceso','invitado');target.searchParams.set('share',token);}
- const cover=typeof m.miniatura==='string'&&/^miniaturas\/[a-zA-Z0-9._-]+\.(jpg|jpeg|png)$/i.test(m.miniatura)?m.miniatura:null;
- const image=new URL(validPath?short+'preview.jpg':cover||'assets/eskala-corporativa.webp',pages).href;
- const title=esc(m.nombre||'Diseño 3D'),dest=esc(target.href);
- const html='<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta property="og:title" content="'+title+'"><meta property="og:description" content="Explora este diseño en 3D con ESKALA Studio."><meta property="og:image" content="'+esc(image)+'"><meta property="og:image:secure_url" content="'+esc(image)+'"><meta property="og:url" content="'+esc(url.origin+path)+'"><meta property="og:type" content="website"><meta property="og:site_name" content="ESKALA Studio"><meta name="twitter:card" content="summary_large_image"><title>'+title+' · ESKALA Studio</title></head><body style="background:#151e26;color:white;font:16px system-ui;text-align:center;padding:30px"><p>Abriendo ESKALA Studio…</p><a id="open" style="color:#8ee9fd" href="'+dest+'">Abrir diseño 3D</a><script>location.replace(document.getElementById("open").href)</script></body></html>';
+ const image=new URL('social/acceso-eskala.jpg',pages).href;
+ const title=esc('ESKALA · Visor 3D'),dest=esc(target.href);
+ const html='<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta property="og:title" content="'+title+'"><meta property="og:description" content="Acceso temporal · '+esc(m.nombre||'Diseño interactivo')+'"><meta property="og:image" content="'+esc(image)+'"><meta property="og:image:secure_url" content="'+esc(image)+'"><meta property="og:url" content="'+esc(url.origin+path)+'"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:type" content="website"><meta property="og:site_name" content="ESKALA Studio"><meta name="twitter:card" content="summary_large_image"><title>'+title+' · ESKALA Studio</title></head><body style="background:#151e26;color:white;font:16px system-ui;text-align:center;padding:30px"><p>Abriendo ESKALA Studio…</p><a id="open" style="color:#8ee9fd" href="'+dest+'">Abrir diseño 3D</a><script>location.replace(document.getElementById("open").href)</script></body></html>';
  return new Response(html,{headers:{...headers,'Content-Type':'text/html; charset=utf-8','Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"}});
  }
  const bearer=(request.headers.get('Authorization')||'').replace(/^Bearer /,'');
