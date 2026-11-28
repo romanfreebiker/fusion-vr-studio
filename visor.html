@@ -229,7 +229,7 @@ if(presentation){
  controls.enabled=true;
  controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;controls.mouseButtons.RIGHT=null;controls.mouseButtons.MIDDLE=THREE.MOUSE.PAN;
  controls.touches.ONE=THREE.TOUCH.ROTATE;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;
- const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent=(access==='director'?'Dirección':'Visor')+' · v154';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px';bar.append(buildTag);
+ const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent=(access==='director'?'Dirección':'Visor')+' · v155';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px';bar.append(buildTag);
  presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
  orbitButton=button('Vista 3D',()=>setPresentationMode(false));walkButton=button('Recorrer a pie',()=>setPresentationMode(true));
@@ -327,6 +327,7 @@ if(presentation){
  const external=items.filter(n=>['Copiar enlace para terceros','WhatsApp','Correo','Accesos terceros'].includes(n.textContent.trim()));
  orbitButton.remove();walkButton.onclick=()=>setPresentationMode(!walkingMode);groupMenu('Acciones',items.filter(n=>n!==orbitButton&&n!==walkButton&&!external.includes(n)));
  groupMenu('Compartir a terceros',external);
+ const closeViewer=button('Cerrar',()=>{window.close();setTimeout(()=>{if(window.closed)return;const exit=document.exitFullscreen||document.webkitExitFullscreen;if((document.fullscreenElement||document.webkitFullscreenElement)&&exit){try{Promise.resolve(exit.call(document)).catch(()=>{})}catch{}}if(history.length>1){history.back();}else{document.body.replaceChildren();const message=document.createElement('p');message.textContent='Visor cerrado. Puedes cerrar esta pestaña.';message.style.cssText='text-align:center;margin:40px 16px';document.body.append(message);renderer.setAnimationLoop(null);}},150);});closeViewer.style.cssText='background:#652c35;border-color:#ad5965;color:white;grid-column:span 2';closeViewer.setAttribute('aria-label','Cerrar visor');
 
  // Adaptación al dispositivo real, incluso en equipos híbridos.
  canvas.addEventListener('pointerdown',e=>{
