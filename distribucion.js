@@ -219,6 +219,12 @@
    return label+' · '+date+' '+time;
  }
  async function createThirdPartyAccess(designId,recipient='',contact='',channel='link',ttlHours=24,origin='central'){
+   if(origin==='direction'&&!adminToken()){
+     const data=await readThird(true);
+     const row=data.accesses.find(a=>a.designId===designId&&a.origin==='direction'&&a.preapproved===true&&thirdPartyState(a)==='active'&&/^https:\/\/is\.gd\/[A-Za-z0-9_]{5,30}$/.test(a.shareUrl||''));
+     if(!row)throw Error('La Central debe autorizar un enlace reutilizable para este diseño. Reenvía el diseño desde la Central.');
+     return {access:{...row,effectiveStatus:'active',remaining:thirdPartyRemaining(row)},url:row.shareUrl};
+   }
    const clean=String(recipient||automaticRecipient(channel)).trim().slice(0,80);
    const published=await shareBase(designId);
    const base=published.base;
@@ -233,6 +239,7 @@
    catch(error){throw Error('No se pudo crear el enlace corto de ESKALA. Vuelve a intentarlo.')}
    const hours=Math.max(1,Math.min(24*30,Number(ttlHours)||24));
    const access={id:'acc_'+nowMs.toString(36)+'_'+Math.random().toString(36).slice(2,8),designId,recipient:clean,contact:maskContact(contact),channel,origin:origin==='direction'?'direction':'central',tokenHash:hash,status:'active',createdAt:now,updatedAt:now,expiresAt:new Date(nowMs+hours*3600000).toISOString()};
+   if(channel==='preapproved'){access.preapproved=true;access.shareUrl=shareUrl;}
    await writeThird(data=>data.accesses.push(access));
    return {access:{...access,effectiveStatus:'active',remaining:thirdPartyRemaining(access)},url:shareUrl};
  }
@@ -314,6 +321,9 @@
    return ids.length;
  }
  function viewer(id,role){const u=new URL('visor.html',location.href);u.searchParams.set('modo','presentacion');u.searchParams.set('diseno',id);u.searchParams.set('acceso',role);u.searchParams.set('v','157');return u}
+ async function authorizeDirectionShare(id,hours=24){
+   return createThirdPartyAccess(id,'Enlace reutilizable autorizado por Central','','preapproved',hours,'direction');
+ }
  async function share(id,origin='central'){
    return (await createThirdPartyAccess(id,'','', 'link',24,origin)).url;
  }
@@ -370,5 +380,5 @@
    window.addEventListener('focus',check);
    window.addEventListener('pageshow',check);
  }
- window.FusionDistribution={version:26,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
+ window.FusionDistribution={version:27,demo:false,publicFiles:true,configureAdmin,configureStoredAdmin,authorizeDirectionShare,list,send,setStatus,viewer,share,shareWhatsApp,shareEmail,listThirdParty,thirdPartySettings,setThirdPartyTtlHours,createThirdPartyAccess,setThirdPartyStatus,deleteThirdPartyAccess,deactivateThirdPartyAccess,loadViewer,watchViewer,refreshInterval,migrateLegacyDirectionHidden};
 })();
