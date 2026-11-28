@@ -90,18 +90,6 @@ def make_cover(model, brand):
     draw.line((0, 612, 1199, 612), fill=CYAN, width=4)
     return dest
 
-def make_access_card(brand):
-    dest = Image.new("RGB", BASE, BG)
-    draw = ImageDraw.Draw(dest)
-    b = brand.copy()
-    b.thumbnail((1000, 170), Image.Resampling.LANCZOS)
-    dest.paste(ImageChops.screen(Image.new("RGB", b.size, BG), b), ((1200-b.width)//2, 45))
-    draw.line((90, 235, 1110, 235), fill=CYAN, width=3)
-    draw.text((600, 324), "ACCESO TEMPORAL", font=font(68, True), fill="#f5f9ff", anchor="mm")
-    draw.text((600, 420), "VISOR 3D INTERACTIVO", font=font(43, True), fill=CYAN, anchor="mm")
-    draw.text((600, 526), "Pulsa para abrir el diseño", font=font(30), fill="#c6d6e0", anchor="mm")
-    return dest
-
 def short_page(model, slug, area='v', branded_path=None):
     name = str(model.get("nombre") or "Diseño 3D").strip()
     ident = str(model["id"])
@@ -256,7 +244,6 @@ def main():
         raise SystemExit("No se encuentra el diseño maestro ESKALA.")
     with Image.open(brand_file) as im:
         brand = im.convert("RGB")
-    make_access_card(brand).save(SOCIAL / "acceso-eskala.jpg", "JPEG", quality=90, optimize=True)
     seen = set()
     shares = {}
     for m in models:
