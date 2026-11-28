@@ -251,7 +251,7 @@
      const role=origin==='direction'?'direction':'central';if(role==='central')await centralLogin();
      const health=await permission('/health');if(Number(health.version)<(pendingSend?165:164))throw Error('El servicio de enlaces cortos todavía se está actualizando. Actualiza ESKALA e inténtalo de nuevo.');
      const data=await permission('/shares/create',{designId,recipient:recipient||automaticRecipient(channel),channel,hours:ttlHours,pending:pendingSend},role);
-     if(typeof data.shortUrl!=='string'||!data.shortUrl.startsWith(service+'/')||!/^https:\/\/eskala-permisos\.taller-mantenimiento\.workers\.dev\/[A-Za-z0-9_-]{22}$/.test(data.shortUrl))throw Error('El servidor no ha devuelto un enlace corto válido.');
+     if(typeof data.shortUrl!=='string'||!data.shortUrl.startsWith(service+'/')||!/^https:\/\/eskala-permisos\.taller-mantenimiento\.workers\.dev\/(?:[A-Za-z0-9_-]{16}|[A-Za-z0-9_-]{22})$/.test(data.shortUrl))throw Error('El servidor no ha devuelto un enlace corto válido.');
      if(pendingSend&&!data.pending)throw Error('El servidor no ha confirmado la preparación del envío.');
      return {access:data.access,url:data.shortUrl};
    }
