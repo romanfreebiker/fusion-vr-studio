@@ -9,7 +9,8 @@ const schema=[
 'CREATE TABLE IF NOT EXISTS shares (id TEXT PRIMARY KEY, designId TEXT NOT NULL, origin TEXT NOT NULL, recipient TEXT, channel TEXT, tokenHash TEXT UNIQUE NOT NULL, createdAt INTEGER NOT NULL, expiresAt INTEGER NOT NULL, revokedAt INTEGER)',
 'CREATE INDEX IF NOT EXISTS shares_design ON shares(designId,origin)',
 'CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, expires INTEGER NOT NULL)',
-'CREATE TABLE IF NOT EXISTS hidden (designId TEXT PRIMARY KEY, revision TEXT NOT NULL)'
+'CREATE TABLE IF NOT EXISTS hidden (designId TEXT PRIMARY KEY, revision TEXT NOT NULL)',
+'CREATE TABLE IF NOT EXISTS pending_send (id TEXT PRIMARY KEY, hours REAL NOT NULL, deadline INTEGER NOT NULL)'
 ];
 const shortToken=()=>btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -26,7 +27,7 @@ export default {async fetch(request,env){
  try{
  if(!env.DB||!env.ADMIN_SECRET||!env.DIRECTOR_SECRET)return reply({error:'Configuración incompleta'},503);
  if(await equal(env.ADMIN_SECRET,env.DIRECTOR_SECRET))return reply({error:'Claves deben ser diferentes'},503);
- if(path==='/health'&&method==='GET'){await env.DB.prepare('SELECT 1').first();await env.DB.batch(schema.map(s=>env.DB.prepare(s)));const active=await env.DB.prepare("SELECT value FROM settings WHERE key='legacy_imported'").first();return reply({service:'eskala-permisos',version:164,ready:!!active,database:true})}
+ if(path==='/health'&&method==='GET'){await env.DB.prepare('SELECT 1').first();await env.DB.batch(schema.map(s=>env.DB.prepare(s)));const active=await env.DB.prepare("SELECT value FROM settings WHERE key='legacy_imported'").first();return reply({service:'eskala-permisos',version:165,ready:!!active,database:true})}
  await env.DB.batch(schema.map(s=>env.DB.prepare(s)));
  if(method==='GET'&&/^\/[A-Za-z0-9_-]{22}$/.test(path)){
  const token=path.slice(1),r=await env.DB.prepare('SELECT * FROM shares WHERE tokenHash=? AND revokedAt IS NULL AND expiresAt>?').bind(await hash(token),Date.now()).first();
@@ -79,12 +80,12 @@ export default {async fetch(request,env){
  const initialized=await env.DB.prepare("SELECT value FROM settings WHERE key='legacy_imported'").first();if(!initialized)return reply({error:'Migración pendiente'},503);
  if(path==='/verify'&&method==='POST'){
  if(typeof body.token!=='string'||body.token.length>128)return reply({valid:false});
- const r=await env.DB.prepare('SELECT * FROM shares WHERE designId=? AND tokenHash=? AND revokedAt IS NULL AND expiresAt>?').bind(String(body.designId||''),await hash(body.token),Date.now()).first();
+ const r=await env.DB.prepare('SELECT * FROM shares WHERE designId=? AND tokenHash=? AND revokedAt IS NULL AND expiresAt>? AND NOT EXISTS (SELECT 1 FROM pending_send p WHERE p.id=shares.id)').bind(String(body.designId||''),await hash(body.token),Date.now()).first();
  const catalog=r?await jsonFile('catalogo.json'):null;return reply({valid:!!r&&catalog.modelos.some(m=>m.id===r.designId)});
  }
  if(!role)return reply({error:'Acceso denegado'},403);
  if(path==='/shares/list'&&method==='POST'){
- const id=String(body.designId||'');const result=await env.DB.prepare('SELECT * FROM shares WHERE (? = \'\' OR designId=?) AND (?=\'central\' OR origin=\'direction\') ORDER BY createdAt DESC').bind(id,id,role).all();return reply({accesses:result.results.map(view)});
+ const id=String(body.designId||'');const result=await env.DB.prepare('SELECT * FROM shares WHERE (? = \'\' OR designId=?) AND (?=\'central\' OR origin=\'direction\') AND NOT EXISTS (SELECT 1 FROM pending_send p WHERE p.id=shares.id) ORDER BY createdAt DESC').bind(id,id,role).all();return reply({accesses:result.results.map(view)});
  }
  if(path==='/shares/create'&&method==='POST'){
  const designId=String(body.designId||''),hours=Number(body.hours);
@@ -92,8 +93,20 @@ export default {async fetch(request,env){
  const catalog=await jsonFile('catalogo.json');if(!catalog.modelos.some(m=>m.id===designId))return reply({error:'Diseño no disponible'},404);
  if(role==='direction'){const d=await jsonFile('distribucion.json');const h=await env.DB.prepare('SELECT revision FROM hidden WHERE designId=?').bind(designId).first();if(!d.modelos.some(m=>m.id===designId&&m.status==='active'&&(!h||h.revision!==String(m.updated||''))))return reply({error:'Diseño no autorizado'},403)}
  const token=shortToken(),now=Date.now(),id=crypto.randomUUID(),recipient=String(body.recipient||'').slice(0,80),channel=String(body.channel||'link').slice(0,20);
- const row={id,designId,origin:role,recipient,channel,createdAt:now,expiresAt:now+hours*3600000,revokedAt:null};
- await env.DB.prepare('INSERT INTO shares VALUES(?,?,?,?,?,?,?,?,NULL)').bind(id,designId,role,recipient,channel,await hash(token),now,row.expiresAt).run();return reply({access:view(row),token,shortUrl:url.origin+'/'+token});
+ const draft=body.pending===true;
+ const row={id,designId,origin:role,recipient,channel,createdAt:now,expiresAt:now+(draft?24:hours)*3600000,revokedAt:null};
+ const insert=env.DB.prepare('INSERT INTO shares VALUES(?,?,?,?,?,?,?,?,NULL)').bind(id,designId,role,recipient,channel,await hash(token),now,row.expiresAt);
+ if(draft)await env.DB.batch([insert,env.DB.prepare('INSERT INTO pending_send VALUES(?,?,?)').bind(id,hours,row.expiresAt)]);else await insert.run();
+ return reply({access:view(row),pending:draft,token,shortUrl:url.origin+'/'+token});
+ }
+ if(path==='/shares/confirm'&&method==='POST'){
+ const id=String(body.id||''),now=Date.now();
+ const result=await env.DB.batch([
+ env.DB.prepare("UPDATE shares SET createdAt=?,expiresAt=?+(SELECT hours*3600000 FROM pending_send WHERE id=shares.id) WHERE id=? AND revokedAt IS NULL AND (?='central' OR origin='direction') AND EXISTS(SELECT 1 FROM pending_send WHERE id=shares.id AND deadline>?)").bind(now,now,id,role,now),
+ env.DB.prepare("DELETE FROM pending_send WHERE id=? AND deadline>? AND EXISTS(SELECT 1 FROM shares WHERE id=pending_send.id AND revokedAt IS NULL AND createdAt=? AND (?='central' OR origin='direction'))").bind(id,now,now,role)
+ ]);
+ if(!result[0].meta.changes){const existing=await env.DB.prepare("SELECT id FROM shares WHERE id=? AND revokedAt IS NULL AND expiresAt>? AND (?='central' OR origin='direction') AND NOT EXISTS(SELECT 1 FROM pending_send WHERE id=shares.id)").bind(id,now,role).first();if(!existing)return reply({error:'Envío pendiente caducado o no autorizado'},409)}
+ return reply({ok:true});
  }
  if(path==='/shares/revoke'&&method==='POST'){
  const result=await env.DB.prepare("UPDATE shares SET revokedAt=COALESCE(revokedAt,?) WHERE id=? AND (?='central' OR origin='direction')").bind(Date.now(),String(body.id||''),role).run();return result.meta.changes?reply({ok:true}):reply({error:'Acceso inexistente o no autorizado'},404);
