@@ -7,7 +7,9 @@ const equal=async(a,b)=>{if(!a||!b)return false;const x=await hash(a),y=await ha
 const schema=[
 'CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
 'CREATE TABLE IF NOT EXISTS shares (id TEXT PRIMARY KEY, designId TEXT NOT NULL, origin TEXT NOT NULL, recipient TEXT, channel TEXT, tokenHash TEXT UNIQUE NOT NULL, createdAt INTEGER NOT NULL, expiresAt INTEGER NOT NULL, revokedAt INTEGER)',
-'CREATE INDEX IF NOT EXISTS shares_design ON shares(designId,origin)'
+'CREATE INDEX IF NOT EXISTS shares_design ON shares(designId,origin)',
+'CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, expires INTEGER NOT NULL)',
+'CREATE TABLE IF NOT EXISTS hidden (designId TEXT PRIMARY KEY, revision TEXT NOT NULL)'
 ];
 const iso=n=>new Date(n).toISOString();
 const view=r=>({id:r.id,designId:r.designId,origin:r.origin,recipient:r.recipient,channel:r.channel,createdAt:iso(r.createdAt),expiresAt:iso(r.expiresAt),status:r.revokedAt?'revoked':'active',effectiveStatus:r.revokedAt?'revoked':r.expiresAt<=Date.now()?'expired':'active'});
@@ -21,15 +23,31 @@ export default {async fetch(request,env){
  try{
  if(!env.DB||!env.ADMIN_SECRET||!env.DIRECTOR_SECRET)return reply({error:'Configuración incompleta'},503);
  if(await equal(env.ADMIN_SECRET,env.DIRECTOR_SECRET))return reply({error:'Claves deben ser diferentes'},503);
- if(path==='/health'&&method==='GET'){await env.DB.prepare('SELECT 1').first();return reply({service:'eskala-permisos',version:161,ready:false,stage:'backend-staging',database:true})}
+ if(path==='/health'&&method==='GET'){await env.DB.prepare('SELECT 1').first();await env.DB.batch(schema.map(s=>env.DB.prepare(s)));const active=await env.DB.prepare("SELECT value FROM settings WHERE key='legacy_imported'").first();return reply({service:'eskala-permisos',version:162,ready:!!active,database:true})}
  await env.DB.batch(schema.map(s=>env.DB.prepare(s)));
  const bearer=(request.headers.get('Authorization')||'').replace(/^Bearer /,'');
  const key=await env.DB.prepare("SELECT value FROM settings WHERE key='direction_hash'").first();
- const role=await equal(bearer,env.ADMIN_SECRET)?'central':bearer&&key&&await hash(bearer)===key.value?'direction':null;
+ const bh=bearer?await hash(bearer):'';const session=bh?await env.DB.prepare('SELECT hash FROM sessions WHERE hash=? AND expires>?').bind(bh,Date.now()).first():null;
+ const role=session?'central':bearer&&key&&bh===key.value?'direction':null;
  const body=method==='POST'?await request.json():{};
+ if(path==='/login'&&method==='POST'){
+ if(!await equal(String(body.password||''),env.ADMIN_SECRET))return reply({error:'Clave incorrecta'},403);
+ const token=random();await env.DB.prepare('INSERT INTO sessions VALUES(?,?)').bind(await hash(token),Date.now()+30*86400000).run();return reply({token});
+ }
  if(path==='/direction/rotate'&&method==='POST'){
  if(role!=='central')return reply({error:'Acceso denegado'},403);
  const token=random();await env.DB.prepare("INSERT INTO settings(key,value) VALUES('direction_hash',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(await hash(token)).run();return reply({token});
+ }
+ if(path==='/direction/revoke'&&method==='POST'){if(role!=='central')return reply({error:'Acceso denegado'},403);await env.DB.prepare("DELETE FROM settings WHERE key='direction_hash'").run();return reply({ok:true})}
+ if(path==='/direction/list'&&method==='GET'){
+ if(role!=='direction'&&role!=='central')return reply({error:'Enlace de Dirección no autorizado'},403);
+ const [d,c,h]=await Promise.all([jsonFile('distribucion.json'),jsonFile('catalogo.json'),env.DB.prepare('SELECT * FROM hidden').all()]);
+ return reply({modelos:d.modelos.filter(m=>m.status==='active'&&c.modelos.some(x=>x.id===m.id)&&!h.results.some(x=>x.designId===m.id&&x.revision===String(m.updated||'')))});
+ }
+ if(path==='/direction/hide'&&method==='POST'){
+ if(role!=='direction')return reply({error:'Acceso denegado'},403);
+ const d=await jsonFile('distribucion.json'),m=d.modelos.find(x=>x.id===body.designId);if(!m)return reply({error:'Diseño inexistente'},404);
+ await env.DB.prepare('INSERT INTO hidden VALUES(?,?) ON CONFLICT(designId) DO UPDATE SET revision=excluded.revision').bind(m.id,String(m.updated||'')).run();return reply({ok:true});
  }
  if(path==='/session'&&method==='GET')return role?reply({role}):reply({error:'Acceso denegado'},403);
  if(path==='/initialize'&&method==='POST'){
@@ -44,7 +62,7 @@ export default {async fetch(request,env){
  if(path==='/verify'&&method==='POST'){
  if(typeof body.token!=='string'||body.token.length>128)return reply({valid:false});
  const r=await env.DB.prepare('SELECT * FROM shares WHERE designId=? AND tokenHash=? AND revokedAt IS NULL AND expiresAt>?').bind(String(body.designId||''),await hash(body.token),Date.now()).first();
- return reply({valid:!!r});
+ const catalog=r?await jsonFile('catalogo.json'):null;return reply({valid:!!r&&catalog.modelos.some(m=>m.id===r.designId)});
  }
  if(!role)return reply({error:'Acceso denegado'},403);
  if(path==='/shares/list'&&method==='POST'){
@@ -54,7 +72,7 @@ export default {async fetch(request,env){
  const designId=String(body.designId||''),hours=Number(body.hours);
  if(!designId||!Number.isFinite(hours)||hours<1||hours>720)return reply({error:'Datos no válidos'},400);
  const catalog=await jsonFile('catalogo.json');if(!catalog.modelos.some(m=>m.id===designId))return reply({error:'Diseño no disponible'},404);
- if(role==='direction'){const d=await jsonFile('distribucion.json');if(!d.modelos.some(m=>m.id===designId&&m.status==='active'))return reply({error:'Diseño no autorizado'},403)}
+ if(role==='direction'){const d=await jsonFile('distribucion.json');const h=await env.DB.prepare('SELECT revision FROM hidden WHERE designId=?').bind(designId).first();if(!d.modelos.some(m=>m.id===designId&&m.status==='active'&&(!h||h.revision!==String(m.updated||''))))return reply({error:'Diseño no autorizado'},403)}
  const token=random(),now=Date.now(),id=crypto.randomUUID(),recipient=String(body.recipient||'').slice(0,80),channel=String(body.channel||'link').slice(0,20);
  const row={id,designId,origin:role,recipient,channel,createdAt:now,expiresAt:now+hours*3600000,revokedAt:null};
  await env.DB.prepare('INSERT INTO shares VALUES(?,?,?,?,?,?,?,?,NULL)').bind(id,designId,role,recipient,channel,await hash(token),now,row.expiresAt).run();return reply({access:view(row),token});
