@@ -229,7 +229,7 @@ if(presentation){
  controls.enabled=true;
  controls.mouseButtons.LEFT=THREE.MOUSE.ROTATE;controls.mouseButtons.RIGHT=null;controls.mouseButtons.MIDDLE=THREE.MOUSE.PAN;
  controls.touches.ONE=THREE.TOUCH.ROTATE;controls.touches.TWO=THREE.TOUCH.DOLLY_PAN;
- const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent=(access==='director'?'Dirección':'Visor')+' · v153';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px';bar.append(buildTag);
+ const bar=document.createElement('div');bar.id='presentationBar';const buildTag=document.createElement('span');buildTag.textContent=(access==='director'?'Dirección':'Visor')+' · v154';buildTag.style.cssText='font-size:10px;color:#8fe5ff;padding:3px 6px';bar.append(buildTag);
  presentationTitle=document.createElement('strong');presentationTitle.textContent='ESKALA Viewer · Presentación';const brand=document.createElement('div');brand.className='eskala-presentation-identity';const brandImg=document.createElement('img');brandImg.src='./assets/eskala-corporativa.webp?v=2';brandImg.alt='ESKALA · Design Beyond the Screen · by Roman · 62 Sesenta y Dos';brand.append(brandImg);bar.append(brand,presentationTitle);
  function button(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;bar.append(b);return b;}
  orbitButton=button('Vista 3D',()=>setPresentationMode(false));walkButton=button('Recorrer a pie',()=>setPresentationMode(true));
@@ -310,8 +310,8 @@ if(presentation){
  full.textContent='Pantalla completa';
  const root=document.documentElement;
  const enter=()=>{try{if(document.fullscreenElement||document.webkitFullscreenElement)return Promise.resolve(true);const fn=root.requestFullscreen||root.webkitRequestFullscreen||root.webkitRequestFullScreen;if(!fn)return Promise.resolve(false);return Promise.resolve(fn.call(root)).then(()=>true,()=>false);}catch{return Promise.resolve(false);}};
- full.onclick=()=>{if(document.fullscreenElement||document.webkitFullscreenElement){try{Promise.resolve((document.exitFullscreen||document.webkitExitFullscreen).call(document)).catch(()=>{})}catch{}}else enter();};
- const syncFull=()=>{const active=!!(document.fullscreenElement||document.webkitFullscreenElement);full.textContent=active?'Salir pantalla completa':'Pantalla completa';full.setAttribute('aria-pressed',String(active));};
+ full.onclick=()=>{enter();};
+ const syncFull=()=>{const active=!!(document.fullscreenElement||document.webkitFullscreenElement);full.textContent=active?'Salir pantalla completa':'Pantalla completa';full.setAttribute('aria-pressed',String(active));full.hidden=active;};
  document.addEventListener('fullscreenchange',()=>{syncFull();window.dispatchEvent(new Event('resize'));});document.addEventListener('webkitfullscreenchange',()=>{syncFull();window.dispatchEvent(new Event('resize'));});
 
  const gate=document.createElement('div');gate.setAttribute('role','dialog');gate.setAttribute('aria-modal','true');gate.setAttribute('aria-label','Diseño propiedad de SKLUM');gate.style.cssText='position:fixed;inset:0;z-index:2147483647;background:#0b1421;display:grid;place-items:center;padding:20px;box-sizing:border-box;touch-action:auto';
