@@ -1,0 +1,6 @@
+// Integrar dentro de match /databases/{database}/documents.
+// NO desplegar como reglas completas. Revisar otros match recursivos:
+// las reglas coincidentes se combinan con OR; un allow amplio anula este bloqueo.
+match /eskala_permissions_v1/{document=**} {
+  allow read, write: if false;
+}
