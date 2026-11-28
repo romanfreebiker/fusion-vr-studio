@@ -1,0 +1,16 @@
+{
+  "functions": [
+    {
+      "source": ".",
+      "codebase": "eskala-permissions",
+      "ignore": [
+        "node_modules",
+        "firebase.json",
+        "*.test.js",
+        "README.md",
+        "firestore.rules.fragment",
+        "provision.mjs"
+      ]
+    }
+  ]
+}
