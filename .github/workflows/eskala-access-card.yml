@@ -1,0 +1,54 @@
+name: ESKALA - optimizar tarjeta oficial
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'social/acceso-eskala.png'
+      - '.github/workflows/eskala-access-card.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: eskala-access-card
+  cancel-in-progress: false
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install Pillow==11.3.0
+      - name: Optimize approved card without resizing
+        run: |
+          python - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          p=Path('social/acceso-eskala-wa.jpg')
+          with Image.open('social/acceso-eskala.png') as source:
+              image=source.convert('RGB')
+              for quality in (95,93,91,89,87,85,80,75,70,65,60):
+                  image.save(p, 'JPEG', quality=quality, optimize=True, subsampling=0)
+                  if p.stat().st_size < 500000:
+                      break
+              assert p.stat().st_size < 500000
+              assert Image.open(p).size == source.size
+              print('WhatsApp image bytes:', p.stat().st_size)
+          PY
+      - name: Publish optimized copy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add social/acceso-eskala-wa.jpg
+          if ! git diff --cached --quiet; then
+            git commit -m "Optimize approved ESKALA card for WhatsApp"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent
